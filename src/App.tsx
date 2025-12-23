@@ -18,6 +18,7 @@ import Users from "./pages/Users";
 import Partners from "./pages/Partners";
 import CurrencySettings from "./pages/CurrencySettings";
 import Goals from "./pages/Goals";
+import ExecutiveReport from "./pages/ExecutiveReport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -118,6 +119,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={['admin', 'financeiro', 'socio']}>
                     <Goals />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/executive-report"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'financeiro', 'socio']}>
+                    <ExecutiveReport />
                   </ProtectedRoute>
                 }
               />
