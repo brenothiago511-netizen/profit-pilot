@@ -59,6 +59,7 @@ export default function CurrencySettings() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [fetchingRates, setFetchingRates] = useState(false);
   const [selectedBaseCurrency, setSelectedBaseCurrency] = useState(config.baseCurrency);
   const [rateForm, setRateForm] = useState({
     base_currency: 'USD',
@@ -67,6 +68,36 @@ export default function CurrencySettings() {
     date: format(new Date(), 'yyyy-MM-dd'),
     source: 'manual',
   });
+
+  const handleFetchRates = async () => {
+    setFetchingRates(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-exchange-rates');
+      
+      if (error) {
+        throw error;
+      }
+
+      if (data?.success) {
+        toast({
+          title: 'Sucesso',
+          description: `${data.rates?.length || 0} taxas de câmbio atualizadas`,
+        });
+        refetch();
+      } else {
+        throw new Error(data?.error || 'Erro ao buscar cotações');
+      }
+    } catch (error) {
+      console.error('Error fetching rates:', error);
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Não foi possível buscar as cotações',
+        variant: 'destructive',
+      });
+    } finally {
+      setFetchingRates(false);
+    }
+  };
 
   useEffect(() => {
     setSelectedBaseCurrency(config.baseCurrency);
@@ -294,10 +325,30 @@ export default function CurrencySettings() {
                     Últimas taxas de câmbio cadastradas
                   </CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={refetch}>
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Atualizar
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={handleFetchRates}
+                    disabled={fetchingRates}
+                  >
+                    {fetchingRates ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Buscando...
+                      </>
+                    ) : (
+                      <>
+                        <Globe className="w-4 h-4 mr-2" />
+                        Buscar Cotações
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={refetch}>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Atualizar
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
