@@ -44,6 +44,71 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_accounts: {
+        Row: {
+          account_holder: string
+          account_number: string
+          account_type: string
+          bank_name: string
+          country: string
+          created_at: string
+          currency: string
+          iban: string | null
+          id: string
+          is_primary: boolean
+          notes: string | null
+          routing_number: string | null
+          status: string
+          store_id: string
+          swift_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_holder: string
+          account_number: string
+          account_type?: string
+          bank_name: string
+          country?: string
+          created_at?: string
+          currency?: string
+          iban?: string | null
+          id?: string
+          is_primary?: boolean
+          notes?: string | null
+          routing_number?: string | null
+          status?: string
+          store_id: string
+          swift_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_holder?: string
+          account_number?: string
+          account_type?: string
+          bank_name?: string
+          country?: string
+          created_at?: string
+          currency?: string
+          iban?: string | null
+          id?: string
+          is_primary?: boolean
+          notes?: string | null
+          routing_number?: string | null
+          status?: string
+          store_id?: string
+          swift_code?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       commissions: {
         Row: {
           base_amount: number
