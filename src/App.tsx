@@ -16,6 +16,7 @@ import Commissions from "./pages/Commissions";
 import Reports from "./pages/Reports";
 import Users from "./pages/Users";
 import Partners from "./pages/Partners";
+import CurrencySettings from "./pages/CurrencySettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -100,6 +101,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={['admin', 'financeiro', 'socio']}>
                     <Reports />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings/currencies"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <CurrencySettings />
                   </ProtectedRoute>
                 }
               />
