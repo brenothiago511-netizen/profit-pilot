@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
+import { PermissionGate } from '@/components/permissions/PermissionGate';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,7 +32,8 @@ interface StoreOption {
 }
 
 export default function Revenues() {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
+  const { can } = usePermissions();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [revenues, setRevenues] = useState<Revenue[]>([]);
@@ -126,7 +129,7 @@ export default function Revenues() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!isAdmin) return;
+    if (!can('delete_revenue')) return;
     
     const { error } = await supabase.from('revenues').delete().eq('id', id);
     
@@ -160,13 +163,14 @@ export default function Revenues() {
           <p className="page-description">Gerencie as entradas financeiras</p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Receita
-            </Button>
-          </DialogTrigger>
+        <PermissionGate permission="create_revenue">
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Nova Receita
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Cadastrar Receita</DialogTitle>
@@ -268,7 +272,8 @@ export default function Revenues() {
               </div>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </PermissionGate>
       </div>
 
       <Card>
@@ -297,7 +302,7 @@ export default function Revenues() {
                     <th>Origem</th>
                     <th>Pagamento</th>
                     <th className="text-right">Valor</th>
-                    {isAdmin && <th></th>}
+                    {can('delete_revenue') && <th></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -310,7 +315,7 @@ export default function Revenues() {
                       <td className="text-right font-medium text-success">
                         {formatCurrency(revenue.amount)}
                       </td>
-                      {isAdmin && (
+                      {can('delete_revenue') && (
                         <td>
                           <Button
                             variant="ghost"

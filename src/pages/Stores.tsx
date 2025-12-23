@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { usePermissions } from '@/hooks/usePermissions';
+import { PermissionGate } from '@/components/permissions/PermissionGate';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,6 +40,7 @@ interface RevenueTotal {
 }
 
 export default function Stores() {
+  const { can } = usePermissions();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreData[]>([]);

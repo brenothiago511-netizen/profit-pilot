@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -27,28 +28,29 @@ import {
   Building2,
   ChevronDown,
   Handshake,
-  Settings,
   Coins,
   Target,
 } from 'lucide-react';
 
+// Navigation items with required permissions
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'financeiro', 'gestor', 'socio'] },
-  { name: 'Receitas', href: '/revenues', icon: TrendingUp, roles: ['admin', 'financeiro', 'socio'] },
-  { name: 'Despesas', href: '/expenses', icon: TrendingDown, roles: ['admin', 'financeiro', 'socio'] },
-  { name: 'Metas', href: '/goals', icon: Target, roles: ['admin', 'financeiro', 'socio'] },
-  { name: 'Lojas', href: '/stores', icon: Store, roles: ['admin'] },
-  { name: 'Usuários', href: '/users', icon: UserCog, roles: ['admin'] },
-  { name: 'Gestores', href: '/managers', icon: Users, roles: ['admin'] },
-  { name: 'Sócios', href: '/partners', icon: Handshake, roles: ['admin', 'socio'] },
-  { name: 'Comissões', href: '/commissions', icon: Percent, roles: ['admin', 'gestor'] },
-  { name: 'Relatórios', href: '/reports', icon: FileText, roles: ['admin', 'financeiro', 'socio'] },
-  { name: 'Moedas', href: '/settings/currencies', icon: Coins, roles: ['admin'] },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permissions: ['view_dashboard', 'view_dashboard_socios'] },
+  { name: 'Receitas', href: '/revenues', icon: TrendingUp, permissions: ['create_revenue', 'edit_revenue'] },
+  { name: 'Despesas', href: '/expenses', icon: TrendingDown, permissions: ['create_expense', 'edit_expense'] },
+  { name: 'Metas', href: '/goals', icon: Target, permissions: ['manage_goals', 'view_reports'] },
+  { name: 'Lojas', href: '/stores', icon: Store, permissions: ['manage_stores'] },
+  { name: 'Usuários', href: '/users', icon: UserCog, permissions: ['manage_users'] },
+  { name: 'Gestores', href: '/managers', icon: Users, permissions: ['manage_commissions'] },
+  { name: 'Sócios', href: '/partners', icon: Handshake, permissions: ['view_partner_results'] },
+  { name: 'Comissões', href: '/commissions', icon: Percent, permissions: ['view_commissions', 'manage_commissions'] },
+  { name: 'Relatórios', href: '/reports', icon: FileText, permissions: ['view_reports'] },
+  { name: 'Moedas', href: '/settings/currencies', icon: Coins, permissions: ['manage_currency_rates'] },
 ];
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { profile, signOut } = useAuth();
+  const { hasPermission } = usePermissions();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -56,9 +58,13 @@ export default function AppLayout() {
     navigate('/auth');
   };
 
-  const filteredNavigation = navigation.filter(
-    (item) => profile && item.roles.includes(profile.role)
-  );
+  // Filter navigation based on permissions
+  const filteredNavigation = useMemo(() => {
+    return navigation.filter((item) => {
+      // Check if user has any of the required permissions
+      return item.permissions.some((perm) => hasPermission(perm));
+    });
+  }, [hasPermission]);
 
   const getInitials = (name: string) => {
     return name
