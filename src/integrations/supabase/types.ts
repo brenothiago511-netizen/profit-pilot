@@ -414,11 +414,36 @@ export type Database = {
           },
         ]
       }
+      permissions: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          id: string
+          key: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description: string
+          id?: string
+          key: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          key?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
           email: string
           id: string
+          is_custom_permissions: boolean
           name: string
           preferred_currency: string | null
           role: Database["public"]["Enums"]["app_role"]
@@ -429,6 +454,7 @@ export type Database = {
           created_at?: string
           email: string
           id: string
+          is_custom_permissions?: boolean
           name: string
           preferred_currency?: string | null
           role?: Database["public"]["Enums"]["app_role"]
@@ -439,6 +465,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          is_custom_permissions?: boolean
           name?: string
           preferred_currency?: string | null
           role?: Database["public"]["Enums"]["app_role"]
@@ -620,6 +647,41 @@ export type Database = {
         }
         Relationships: []
       }
+      user_permissions: {
+        Row: {
+          allowed: boolean
+          created_at: string
+          id: string
+          permission_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          permission_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          permission_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_permission_key_fkey"
+            columns: ["permission_key"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -686,6 +748,10 @@ export type Database = {
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_permission: {
+        Args: { _permission_key: string; _user_id: string }
+        Returns: boolean
       }
       has_role: {
         Args: {
