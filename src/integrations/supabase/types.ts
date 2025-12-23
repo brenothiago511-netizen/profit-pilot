@@ -382,6 +382,56 @@ export type Database = {
         }
         Relationships: []
       }
+      revenue_goals: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          exchange_rate_used: number | null
+          goal_amount_converted: number | null
+          goal_amount_original: number
+          goal_currency: string
+          id: string
+          period_end: string
+          period_start: string
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          exchange_rate_used?: number | null
+          goal_amount_converted?: number | null
+          goal_amount_original: number
+          goal_currency?: string
+          id?: string
+          period_end: string
+          period_start: string
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          exchange_rate_used?: number | null
+          goal_amount_converted?: number | null
+          goal_amount_original?: number
+          goal_currency?: string
+          id?: string
+          period_end?: string
+          period_start?: string
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_goals_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revenues: {
         Row: {
           amount: number

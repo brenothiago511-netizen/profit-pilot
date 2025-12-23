@@ -29,12 +29,14 @@ import {
   Handshake,
   Settings,
   Coins,
+  Target,
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'financeiro', 'gestor', 'socio'] },
   { name: 'Receitas', href: '/revenues', icon: TrendingUp, roles: ['admin', 'financeiro', 'socio'] },
   { name: 'Despesas', href: '/expenses', icon: TrendingDown, roles: ['admin', 'financeiro', 'socio'] },
+  { name: 'Metas', href: '/goals', icon: Target, roles: ['admin', 'financeiro', 'socio'] },
   { name: 'Lojas', href: '/stores', icon: Store, roles: ['admin'] },
   { name: 'Usuários', href: '/users', icon: UserCog, roles: ['admin'] },
   { name: 'Gestores', href: '/managers', icon: Users, roles: ['admin'] },
