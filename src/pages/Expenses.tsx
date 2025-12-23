@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
+import { PermissionGate } from '@/components/permissions/PermissionGate';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,7 +39,8 @@ interface Category {
 }
 
 export default function Expenses() {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
+  const { can } = usePermissions();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -300,7 +303,7 @@ export default function Expenses() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!isAdmin) return;
+    if (!can('delete_expense')) return;
     
     const { error } = await supabase.from('expenses').delete().eq('id', id);
     
@@ -335,16 +338,17 @@ export default function Expenses() {
         </div>
 
         <div className="flex gap-2">
-          <Dialog open={aiDialogOpen} onOpenChange={(open) => {
-            setAiDialogOpen(open);
-            if (!open) resetAiForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Sparkles className="w-4 h-4 mr-2" />
-                Despesa com IA
-              </Button>
-            </DialogTrigger>
+          <PermissionGate permission="create_expense">
+            <Dialog open={aiDialogOpen} onOpenChange={(open) => {
+              setAiDialogOpen(open);
+              if (!open) resetAiForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Despesa com IA
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
@@ -493,15 +497,17 @@ export default function Expenses() {
                 </div>
               </form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </PermissionGate>
 
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Despesa
-              </Button>
-            </DialogTrigger>
+          <PermissionGate permission="create_expense">
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nova Despesa
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Cadastrar Despesa</DialogTitle>
@@ -630,7 +636,8 @@ export default function Expenses() {
                 </div>
               </form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </PermissionGate>
         </div>
       </div>
 
@@ -661,7 +668,7 @@ export default function Expenses() {
                     <th>Categoria</th>
                     <th>Tipo</th>
                     <th className="text-right">Valor</th>
-                    {isAdmin && <th></th>}
+                    {can('delete_expense') && <th></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -687,7 +694,7 @@ export default function Expenses() {
                       <td className="text-right font-medium text-danger">
                         {formatCurrency(expense.amount)}
                       </td>
-                      {isAdmin && (
+                      {can('delete_expense') && (
                         <td>
                           <Button
                             variant="ghost"

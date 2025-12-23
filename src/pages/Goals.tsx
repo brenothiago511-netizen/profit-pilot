@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { usePermissions } from '@/hooks/usePermissions';
+import { PermissionGate } from '@/components/permissions/PermissionGate';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,7 +58,7 @@ interface Store {
 
 export default function Goals() {
   const { toast } = useToast();
-  const { isAdmin } = useAuth();
+  const { can } = usePermissions();
   const { formatCurrency, getCurrencySymbol, config, getExchangeRate } = useCurrency();
   
   const [goals, setGoals] = useState<RevenueGoal[]>([]);
@@ -283,7 +285,7 @@ export default function Goals() {
             Defina e acompanhe metas de receita por loja
           </p>
         </div>
-        {isAdmin && (
+        <PermissionGate permission="manage_goals">
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) {
@@ -297,31 +299,38 @@ export default function Goals() {
                 Nova Meta
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-lg">
               <DialogHeader>
-                <DialogTitle>{editingGoal ? 'Editar Meta' : 'Nova Meta de Faturamento'}</DialogTitle>
+                <DialogTitle className="flex items-center gap-2">
+                  <Target className="w-5 h-5" />
+                  {editingGoal ? 'Editar Meta' : 'Nova Meta de Faturamento'}
+                </DialogTitle>
                 <DialogDescription>
                   Defina uma meta de receita para um período específico
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Loja</Label>
-                  <Select 
+                  <Label>Loja *</Label>
+                  <Select
                     value={formData.store_id}
-                    onValueChange={handleStoreChange}
+                    onValueChange={(v) => {
+                      const store = stores.find(s => s.id === v);
+                      setFormData({ 
+                        ...formData, 
+                        store_id: v, 
+                        goal_currency: store?.currency || 'BRL' 
+                      });
+                    }}
+                    disabled={!!editingGoal}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a loja" />
                     </SelectTrigger>
                     <SelectContent>
-                      {stores.map(store => (
+                      {stores.map((store) => (
                         <SelectItem key={store.id} value={store.id}>
-                          <div className="flex items-center gap-2">
-                            <Store className="w-4 h-4" />
-                            {store.name}
-                            <Badge variant="outline" className="ml-2">{store.currency}</Badge>
-                          </div>
+                          {store.name} ({store.currency})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -330,49 +339,48 @@ export default function Goals() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Início do Período</Label>
+                    <Label>Data Início *</Label>
                     <Input
                       type="date"
                       value={formData.period_start}
-                      onChange={(e) => setFormData(prev => ({ ...prev, period_start: e.target.value }))}
+                      onChange={(e) => setFormData({ ...formData, period_start: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Fim do Período</Label>
+                    <Label>Data Fim *</Label>
                     <Input
                       type="date"
                       value={formData.period_end}
-                      onChange={(e) => setFormData(prev => ({ ...prev, period_end: e.target.value }))}
+                      onChange={(e) => setFormData({ ...formData, period_end: e.target.value })}
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Valor da Meta</Label>
+                    <Label>Valor da Meta *</Label>
                     <Input
                       type="number"
                       step="0.01"
+                      min="0"
                       placeholder="0,00"
                       value={formData.goal_amount_original}
-                      onChange={(e) => setFormData(prev => ({ ...prev, goal_amount_original: e.target.value }))}
+                      onChange={(e) => setFormData({ ...formData, goal_amount_original: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Moeda</Label>
-                    <Select 
+                    <Select
                       value={formData.goal_currency}
-                      onValueChange={(v) => setFormData(prev => ({ ...prev, goal_currency: v }))}
+                      onValueChange={(v) => setFormData({ ...formData, goal_currency: v })}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {AVAILABLE_CURRENCIES.map(currency => (
-                          <SelectItem key={currency} value={currency}>
-                            {getCurrencySymbol(currency)} {currency}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="BRL">BRL (R$)</SelectItem>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="EUR">EUR (€)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -396,7 +404,7 @@ export default function Goals() {
               </form>
             </DialogContent>
           </Dialog>
-        )}
+        </PermissionGate>
       </div>
 
       {/* Current Month Goals Progress */}
@@ -486,7 +494,7 @@ export default function Goals() {
                     <TableHead>Período</TableHead>
                     <TableHead className="text-right">Meta (Original)</TableHead>
                     <TableHead className="text-right">Meta (Base)</TableHead>
-                    {isAdmin && <TableHead className="text-right">Ações</TableHead>}
+                    {can('manage_goals') && <TableHead className="text-right">Ações</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -510,7 +518,7 @@ export default function Goals() {
                           : '-'
                         }
                       </TableCell>
-                      {isAdmin && (
+                      {can('manage_goals') && (
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button 
