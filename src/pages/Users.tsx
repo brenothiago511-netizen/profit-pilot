@@ -17,8 +17,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users as UsersIcon, Loader2, Store, Shield, Edit, UserCheck, UserX } from 'lucide-react';
+import { Plus, Users as UsersIcon, Loader2, Store, Shield, UserCheck, UserX } from 'lucide-react';
 import { format } from 'date-fns';
+import { CsvImportDialog } from '@/components/users/CsvImportDialog';
 
 type AppRole = 'admin' | 'financeiro' | 'gestor';
 
@@ -319,13 +320,16 @@ export default function Users() {
           <p className="page-description">Gerencie usuários, papéis e atribuições de lojas</p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Usuário
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <CsvImportDialog onImportComplete={fetchUsers} />
+          
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Usuário
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Criar Usuário</DialogTitle>
@@ -395,6 +399,7 @@ export default function Users() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card>
