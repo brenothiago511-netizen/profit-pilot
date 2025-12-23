@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Store, Loader2, Building2 } from 'lucide-react';
+import { Plus, Store, Loader2, Building2, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
+import BankAccountsDialog from '@/components/stores/BankAccountsDialog';
 
 interface StoreData {
   id: string;
@@ -26,6 +27,8 @@ export default function Stores() {
   const [stores, setStores] = useState<StoreData[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [bankDialogOpen, setBankDialogOpen] = useState(false);
+  const [selectedStore, setSelectedStore] = useState<StoreData | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     country: 'Brasil',
@@ -108,6 +111,11 @@ export default function Stores() {
       });
       fetchStores();
     }
+  };
+
+  const openBankDialog = (store: StoreData) => {
+    setSelectedStore(store);
+    setBankDialogOpen(true);
   };
 
   return (
@@ -224,19 +232,38 @@ export default function Stores() {
                   <span className="text-sm text-muted-foreground">
                     Criada em {format(new Date(store.created_at), 'dd/MM/yyyy')}
                   </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleStatus(store.id, store.status)}
-                  >
-                    {store.status === 'active' ? 'Desativar' : 'Ativar'}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openBankDialog(store)}
+                    >
+                      <CreditCard className="w-4 h-4 mr-1" />
+                      Banco
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleStatus(store.id, store.status)}
+                    >
+                      {store.status === 'active' ? 'Desativar' : 'Ativar'}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           ))
         )}
       </div>
+
+      {selectedStore && (
+        <BankAccountsDialog
+          open={bankDialogOpen}
+          onOpenChange={setBankDialogOpen}
+          storeId={selectedStore.id}
+          storeName={selectedStore.name}
+        />
+      )}
     </div>
   );
 }
