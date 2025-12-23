@@ -17,9 +17,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users as UsersIcon, Loader2, Store, Shield, UserCheck, UserX, Search, X } from 'lucide-react';
+import { Plus, Users as UsersIcon, Loader2, Store, Shield, UserCheck, UserX, Search, X, Key } from 'lucide-react';
 import { format } from 'date-fns';
 import { CsvImportDialog } from '@/components/users/CsvImportDialog';
+import { PermissionsDialog } from '@/components/users/PermissionsDialog';
 
 type AppRole = 'admin' | 'financeiro' | 'gestor';
 
@@ -30,6 +31,7 @@ interface UserProfile {
   role: AppRole;
   status: string;
   created_at: string;
+  is_custom_permissions?: boolean;
 }
 
 interface StoreData {
@@ -51,6 +53,7 @@ export default function Users() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [storeDialogOpen, setStoreDialogOpen] = useState(false);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [selectedStores, setSelectedStores] = useState<string[]>([]);
   const [selectedRole, setSelectedRole] = useState<AppRole>('financeiro');
@@ -105,7 +108,7 @@ export default function Users() {
     setLoading(true);
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, name, email, role, status, created_at, is_custom_permissions')
       .order('name');
     
     if (error) {
@@ -228,6 +231,11 @@ export default function Users() {
     setSelectedUser(user);
     setSelectedRole(user.role);
     setRoleDialogOpen(true);
+  };
+
+  const openPermissionsDialog = (user: UserProfile) => {
+    setSelectedUser(user);
+    setPermissionsDialogOpen(true);
   };
 
   const handleStoreAssignment = async () => {
@@ -532,9 +540,11 @@ export default function Users() {
                     <TableHead>Nome</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Papel</TableHead>
+                    <TableHead>Permissões</TableHead>
                     <TableHead>Lojas</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Criado em</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -547,6 +557,16 @@ export default function Users() {
                         <Badge variant={getRoleBadgeVariant(user.role)}>
                           {getRoleName(user.role)}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {user.is_custom_permissions ? (
+                          <Badge variant="outline" className="text-xs">
+                            <Key className="w-3 h-3 mr-1" />
+                            Custom
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Padrão</span>
+                        )}
                       </TableCell>
                       <TableCell className="max-w-[200px] truncate">
                         {getStoreNames(user.id)}
@@ -561,6 +581,14 @@ export default function Users() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openPermissionsDialog(user)}
+                            title="Gerenciar permissões"
+                          >
+                            <Key className="w-4 h-4" />
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
@@ -698,6 +726,15 @@ export default function Users() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Permissions Dialog */}
+      <PermissionsDialog
+        open={permissionsDialogOpen}
+        onOpenChange={setPermissionsDialogOpen}
+        userId={selectedUser?.id || null}
+        userName={selectedUser?.name || ''}
+        userRole={selectedUser?.role || 'financeiro'}
+      />
     </div>
   );
 }
