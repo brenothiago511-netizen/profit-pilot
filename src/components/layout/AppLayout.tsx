@@ -26,15 +26,17 @@ import {
   LogOut,
   Building2,
   ChevronDown,
+  Handshake,
 } from 'lucide-react';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'financeiro', 'gestor'] },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'financeiro', 'gestor', 'socio'] },
   { name: 'Receitas', href: '/revenues', icon: TrendingUp, roles: ['admin', 'financeiro'] },
   { name: 'Despesas', href: '/expenses', icon: TrendingDown, roles: ['admin', 'financeiro'] },
   { name: 'Lojas', href: '/stores', icon: Store, roles: ['admin'] },
   { name: 'Usuários', href: '/users', icon: UserCog, roles: ['admin'] },
   { name: 'Gestores', href: '/managers', icon: Users, roles: ['admin'] },
+  { name: 'Sócios', href: '/partners', icon: Handshake, roles: ['admin'] },
   { name: 'Comissões', href: '/commissions', icon: Percent, roles: ['admin', 'gestor'] },
   { name: 'Relatórios', href: '/reports', icon: FileText, roles: ['admin', 'financeiro'] },
 ];
