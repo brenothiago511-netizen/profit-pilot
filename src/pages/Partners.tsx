@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { PermissionGate } from '@/components/permissions/PermissionGate';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -62,6 +64,7 @@ interface UserData {
 
 export default function Partners() {
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [transactions, setTransactions] = useState<PartnerTransaction[]>([]);
@@ -337,13 +340,14 @@ export default function Partners() {
           <p className="page-description">Gerencie sócios, capital social e movimentações</p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Sócio
-            </Button>
-          </DialogTrigger>
+        <PermissionGate permission="manage_partners">
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Sócio
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Adicionar Sócio</DialogTitle>
@@ -432,6 +436,7 @@ export default function Partners() {
             </form>
           </DialogContent>
         </Dialog>
+      </PermissionGate>
       </div>
 
       {/* Summary Cards */}

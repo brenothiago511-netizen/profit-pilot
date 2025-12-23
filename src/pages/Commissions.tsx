@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { PermissionGate } from '@/components/permissions/PermissionGate';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -44,6 +46,7 @@ interface ManagerOption {
 export default function Commissions() {
   const { isAdmin, isGestor } = useAuth();
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
@@ -307,7 +310,7 @@ export default function Commissions() {
           </p>
         </div>
 
-        {isAdmin && (
+        <PermissionGate permission="manage_commissions">
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -384,9 +387,9 @@ export default function Commissions() {
                   </Button>
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
-        )}
+          </DialogContent>
+        </Dialog>
+      </PermissionGate>
       </div>
 
       <Card>
@@ -418,7 +421,7 @@ export default function Commissions() {
                     <th className="text-center">%</th>
                     <th className="text-right">Valor</th>
                     <th>Status</th>
-                    {isAdmin && <th></th>}
+                    {hasPermission('manage_commissions') && <th></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -442,7 +445,7 @@ export default function Commissions() {
                           {commission.status === 'paga' ? 'Paga' : 'Pendente'}
                         </Badge>
                       </td>
-                      {isAdmin && (
+                      {hasPermission('manage_commissions') && (
                         <td>
                           {commission.status === 'pendente' && (
                             <Button

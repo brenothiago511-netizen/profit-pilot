@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { PermissionGate } from '@/components/permissions/PermissionGate';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +32,7 @@ interface UserProfile {
 
 export default function Managers() {
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [managers, setManagers] = useState<Manager[]>([]);
   const [availableUsers, setAvailableUsers] = useState<UserProfile[]>([]);
@@ -183,13 +186,14 @@ export default function Managers() {
           <p className="page-description">Gerencie os gestores e suas comissões</p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button disabled={availableUsers.length === 0}>
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Gestor
-            </Button>
-          </DialogTrigger>
+        <PermissionGate permission="manage_managers">
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button disabled={availableUsers.length === 0}>
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Gestor
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Cadastrar Gestor</DialogTitle>
@@ -270,6 +274,7 @@ export default function Managers() {
             </form>
           </DialogContent>
         </Dialog>
+      </PermissionGate>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -316,13 +321,15 @@ export default function Managers() {
                   <span className="text-sm text-muted-foreground">
                     Desde {format(new Date(manager.created_at), 'dd/MM/yyyy')}
                   </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleStatus(manager.id, manager.status)}
-                  >
-                    {manager.status === 'active' ? 'Desativar' : 'Ativar'}
-                  </Button>
+                  <PermissionGate permission="manage_managers">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleStatus(manager.id, manager.status)}
+                    >
+                      {manager.status === 'active' ? 'Desativar' : 'Ativar'}
+                    </Button>
+                  </PermissionGate>
                 </div>
               </CardContent>
             </Card>
