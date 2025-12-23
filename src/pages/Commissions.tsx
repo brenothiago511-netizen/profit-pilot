@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Percent, Loader2, Calculator, Check, Store } from 'lucide-react';
+import { Percent, Loader2, Calculator, Check } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -23,8 +23,9 @@ interface Commission {
   commission_amount: number;
   status: string;
   paid_at: string | null;
-  managers: { profiles: { name: string } | null; commission_type: string } | null;
-  stores: { name: string } | null;
+  manager_name?: string;
+  manager_commission_type?: string;
+  store_name?: string;
 }
 
 interface StoreOption {
@@ -37,7 +38,7 @@ interface ManagerOption {
   user_id: string;
   commission_percent: number;
   commission_type: string;
-  profiles: { name: string } | null;
+  profile_name?: string;
 }
 
 export default function Commissions() {
@@ -65,16 +66,70 @@ export default function Commissions() {
 
   const fetchCommissions = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    
+    // Fetch commissions with stores
+    const { data: commissionsData, error } = await supabase
       .from('commissions')
-      .select('*, managers(profiles(name), commission_type), stores(name)')
+      .select('*, stores(name)')
       .order('period_start', { ascending: false });
     
     if (error) {
       console.error('Error fetching commissions:', error);
-    } else {
-      setCommissions(data || []);
+      setLoading(false);
+      return;
     }
+
+    if (!commissionsData || commissionsData.length === 0) {
+      setCommissions([]);
+      setLoading(false);
+      return;
+    }
+
+    // Get unique manager_ids
+    const managerIds = [...new Set(commissionsData.map(c => c.manager_id))];
+    
+    // Fetch managers for these commissions
+    const { data: managersData } = await supabase
+      .from('managers')
+      .select('id, user_id, commission_type')
+      .in('id', managerIds);
+
+    // Get user_ids from managers
+    const userIds = managersData?.map(m => m.user_id) || [];
+    
+    // Fetch profiles
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', userIds);
+
+    // Create lookup maps
+    const managersMap = new Map(managersData?.map(m => [m.id, m]) || []);
+    const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+
+    // Combine data
+    const enrichedCommissions: Commission[] = commissionsData.map(c => {
+      const manager = managersMap.get(c.manager_id);
+      const profile = manager ? profilesMap.get(manager.user_id) : null;
+      
+      return {
+        id: c.id,
+        manager_id: c.manager_id,
+        store_id: c.store_id,
+        period_start: c.period_start,
+        period_end: c.period_end,
+        base_amount: c.base_amount,
+        percent: c.percent,
+        commission_amount: c.commission_amount,
+        status: c.status,
+        paid_at: c.paid_at,
+        manager_name: profile?.name || '-',
+        manager_commission_type: manager?.commission_type || 'lucro',
+        store_name: c.stores?.name || '-',
+      };
+    });
+
+    setCommissions(enrichedCommissions);
     setLoading(false);
   };
 
@@ -88,11 +143,34 @@ export default function Commissions() {
   };
 
   const fetchManagers = async () => {
-    const { data } = await supabase
+    const { data: managersData } = await supabase
       .from('managers')
-      .select('id, user_id, commission_percent, commission_type, profiles(name)')
+      .select('id, user_id, commission_percent, commission_type')
       .eq('status', 'active');
-    if (data) setManagers(data);
+    
+    if (!managersData) {
+      setManagers([]);
+      return;
+    }
+
+    // Fetch profiles for managers
+    const userIds = managersData.map(m => m.user_id);
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', userIds);
+
+    const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
+
+    const enrichedManagers: ManagerOption[] = managersData.map(m => ({
+      id: m.id,
+      user_id: m.user_id,
+      commission_percent: m.commission_percent,
+      commission_type: m.commission_type,
+      profile_name: profilesMap.get(m.user_id)?.name || 'N/A',
+    }));
+
+    setManagers(enrichedManagers);
   };
 
   const calculateCommission = async () => {
@@ -273,7 +351,7 @@ export default function Commissions() {
                     <SelectContent>
                       {managers.map((manager) => (
                         <SelectItem key={manager.id} value={manager.id}>
-                          {manager.profiles?.name} ({manager.commission_percent}% - {manager.commission_type})
+                          {manager.profile_name} ({manager.commission_percent}% - {manager.commission_type})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -349,10 +427,10 @@ export default function Commissions() {
                       <td>
                         {format(new Date(commission.period_start), 'MMM yyyy', { locale: ptBR })}
                       </td>
-                      <td>{commission.managers?.profiles?.name || '-'}</td>
-                      <td>{commission.stores?.name || '-'}</td>
+                      <td>{commission.manager_name}</td>
+                      <td>{commission.store_name}</td>
                       <td className="capitalize">
-                        {commission.managers?.commission_type === 'lucro' ? 'Lucro' : 'Faturamento'}
+                        {commission.manager_commission_type === 'lucro' ? 'Lucro' : 'Faturamento'}
                       </td>
                       <td className="text-right">{formatCurrency(commission.base_amount)}</td>
                       <td className="text-center">{commission.percent}%</td>

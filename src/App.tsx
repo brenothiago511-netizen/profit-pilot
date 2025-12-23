@@ -2,8 +2,18 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import AppLayout from "@/components/layout/AppLayout";
+import Auth from "./pages/Auth";
+import Dashboard from "./pages/Dashboard";
+import Revenues from "./pages/Revenues";
+import Expenses from "./pages/Expenses";
+import Stores from "./pages/Stores";
+import Managers from "./pages/Managers";
+import Commissions from "./pages/Commissions";
+import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -14,11 +24,72 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/auth" element={<Auth />} />
+            
+            <Route
+              element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route
+                path="/revenues"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'financeiro']}>
+                    <Revenues />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/expenses"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'financeiro']}>
+                    <Expenses />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/stores"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <Stores />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/managers"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <Managers />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/commissions"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'gestor']}>
+                    <Commissions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/reports"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'financeiro']}>
+                    <Reports />
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
+            
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
