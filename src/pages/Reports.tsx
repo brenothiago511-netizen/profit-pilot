@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PermissionGate } from '@/components/permissions/PermissionGate';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { FileText, Download, Loader2, Store } from 'lucide-react';
@@ -23,6 +25,7 @@ interface StoreOption {
 }
 
 export default function Reports() {
+  const { hasPermission } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [selectedStore, setSelectedStore] = useState<string>('all');
@@ -219,10 +222,12 @@ export default function Reports() {
             onChange={(e) => setSelectedMonth(e.target.value)}
           />
 
-          <Button variant="outline" onClick={exportToCSV}>
-            <Download className="w-4 h-4 mr-2" />
-            Exportar
-          </Button>
+          <PermissionGate permission="export_reports">
+            <Button variant="outline" onClick={exportToCSV}>
+              <Download className="w-4 h-4 mr-2" />
+              Exportar
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 
