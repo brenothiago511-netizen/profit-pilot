@@ -21,6 +21,7 @@ import {
   BarChart,
   Bar,
 } from 'recharts';
+import PartnerDashboard from '@/components/dashboard/PartnerDashboard';
 
 interface DashboardData {
   totalRevenue: number;
@@ -47,7 +48,7 @@ interface DateRange {
 }
 
 export default function Dashboard() {
-  const { profile, isGestor } = useAuth();
+  const { profile, isGestor, isSocio } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [selectedStore, setSelectedStore] = useState<string>('all');
@@ -257,6 +258,21 @@ export default function Dashboard() {
       show: true,
     },
   ];
+
+  // If user is a partner, show the partner dashboard
+  if (isSocio) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="page-header">
+          <h1 className="page-title">Dashboard do Sócio</h1>
+          <p className="page-description">
+            Acompanhe seus investimentos, participações e distribuições
+          </p>
+        </div>
+        <PartnerDashboard />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
