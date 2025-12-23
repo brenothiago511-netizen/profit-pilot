@@ -22,6 +22,8 @@ import {
   Bar,
 } from 'recharts';
 import PartnerDashboard from '@/components/dashboard/PartnerDashboard';
+import { CurrencyToggle } from '@/components/currency/CurrencyToggle';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface DashboardData {
   totalRevenue: number;
@@ -49,9 +51,11 @@ interface DateRange {
 
 export default function Dashboard() {
   const { profile, isGestor, isSocio } = useAuth();
+  const { formatCurrency, config } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [selectedStore, setSelectedStore] = useState<string>('all');
+  const [displayCurrency, setDisplayCurrency] = useState<'base' | 'original' | 'preferred'>('base');
   const [data, setData] = useState<DashboardData>({
     totalRevenue: 0,
     totalExpenses: 0,
@@ -217,11 +221,8 @@ export default function Dashboard() {
     setLoading(false);
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
+  const formatValue = (value: number) => {
+    return formatCurrency(value, config.baseCurrency);
   };
 
   const metrics = [
@@ -380,7 +381,7 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold number-animate">
-                    {formatCurrency(metric.value)}
+                    {formatValue(metric.value)}
                   </div>
                 </CardContent>
               </Card>
@@ -425,7 +426,7 @@ export default function Dashboard() {
                         borderRadius: '8px',
                       }}
                       labelStyle={{ color: 'hsl(var(--foreground))' }}
-                      formatter={(value: number) => [formatCurrency(value), '']}
+                      formatter={(value: number) => [formatValue(value), '']}
                     />
                     <Area
                       type="monotone"
@@ -475,7 +476,7 @@ export default function Dashboard() {
                         borderRadius: '8px',
                       }}
                       labelStyle={{ color: 'hsl(var(--foreground))' }}
-                      formatter={(value: number) => [formatCurrency(value), '']}
+                      formatter={(value: number) => [formatValue(value), '']}
                     />
                     <Bar
                       dataKey="lucro"

@@ -27,6 +27,8 @@ import {
   Building2,
   ChevronDown,
   Handshake,
+  Settings,
+  Coins,
 } from 'lucide-react';
 
 const navigation = [
@@ -39,6 +41,7 @@ const navigation = [
   { name: 'Sócios', href: '/partners', icon: Handshake, roles: ['admin', 'socio'] },
   { name: 'Comissões', href: '/commissions', icon: Percent, roles: ['admin', 'gestor'] },
   { name: 'Relatórios', href: '/reports', icon: FileText, roles: ['admin', 'financeiro', 'socio'] },
+  { name: 'Moedas', href: '/settings/currencies', icon: Coins, roles: ['admin'] },
 ];
 
 export default function AppLayout() {

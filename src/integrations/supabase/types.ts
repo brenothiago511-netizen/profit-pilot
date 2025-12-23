@@ -104,6 +104,36 @@ export type Database = {
           },
         ]
       }
+      exchange_rates: {
+        Row: {
+          base_currency: string
+          created_at: string
+          date: string
+          id: string
+          rate: number
+          source: string
+          target_currency: string
+        }
+        Insert: {
+          base_currency?: string
+          created_at?: string
+          date?: string
+          id?: string
+          rate: number
+          source?: string
+          target_currency: string
+        }
+        Update: {
+          base_currency?: string
+          created_at?: string
+          date?: string
+          id?: string
+          rate?: number
+          source?: string
+          target_currency?: string
+        }
+        Relationships: []
+      }
       expense_categories: {
         Row: {
           created_at: string
@@ -127,11 +157,15 @@ export type Database = {
           ai_extracted: boolean
           amount: number
           category_id: string | null
+          converted_amount: number | null
           created_at: string
           date: string
           description: string
+          exchange_rate_used: number | null
           id: string
           image_url: string | null
+          original_amount: number | null
+          original_currency: string | null
           payment_method: string | null
           store_id: string
           type: string
@@ -142,11 +176,15 @@ export type Database = {
           ai_extracted?: boolean
           amount: number
           category_id?: string | null
+          converted_amount?: number | null
           created_at?: string
           date?: string
           description: string
+          exchange_rate_used?: number | null
           id?: string
           image_url?: string | null
+          original_amount?: number | null
+          original_currency?: string | null
           payment_method?: string | null
           store_id: string
           type?: string
@@ -157,11 +195,15 @@ export type Database = {
           ai_extracted?: boolean
           amount?: number
           category_id?: string | null
+          converted_amount?: number | null
           created_at?: string
           date?: string
           description?: string
+          exchange_rate_used?: number | null
           id?: string
           image_url?: string | null
+          original_amount?: number | null
+          original_currency?: string | null
           payment_method?: string | null
           store_id?: string
           type?: string
@@ -313,6 +355,7 @@ export type Database = {
           email: string
           id: string
           name: string
+          preferred_currency: string | null
           role: Database["public"]["Enums"]["app_role"]
           status: string
           updated_at: string
@@ -322,6 +365,7 @@ export type Database = {
           email: string
           id: string
           name: string
+          preferred_currency?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           status?: string
           updated_at?: string
@@ -331,6 +375,7 @@ export type Database = {
           email?: string
           id?: string
           name?: string
+          preferred_currency?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           status?: string
           updated_at?: string
@@ -340,11 +385,15 @@ export type Database = {
       revenues: {
         Row: {
           amount: number
+          converted_amount: number | null
           created_at: string
           date: string
+          exchange_rate_used: number | null
           id: string
           manager_id: string | null
           notes: string | null
+          original_amount: number | null
+          original_currency: string | null
           payment_method: string | null
           source: string | null
           store_id: string
@@ -353,11 +402,15 @@ export type Database = {
         }
         Insert: {
           amount: number
+          converted_amount?: number | null
           created_at?: string
           date?: string
+          exchange_rate_used?: number | null
           id?: string
           manager_id?: string | null
           notes?: string | null
+          original_amount?: number | null
+          original_currency?: string | null
           payment_method?: string | null
           source?: string | null
           store_id: string
@@ -366,11 +419,15 @@ export type Database = {
         }
         Update: {
           amount?: number
+          converted_amount?: number | null
           created_at?: string
           date?: string
+          exchange_rate_used?: number | null
           id?: string
           manager_id?: string | null
           notes?: string | null
+          original_amount?: number | null
+          original_currency?: string | null
           payment_method?: string | null
           source?: string | null
           store_id?: string
@@ -421,6 +478,30 @@ export type Database = {
           name?: string
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: Json
         }
         Relationships: []
       }
@@ -479,6 +560,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_exchange_rate: {
+        Args: {
+          p_base_currency: string
+          p_date?: string
+          p_target_currency: string
+        }
+        Returns: number
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
