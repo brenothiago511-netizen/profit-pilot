@@ -30,6 +30,7 @@ import {
   Handshake,
   Coins,
   Target,
+  ClipboardList,
 } from 'lucide-react';
 
 // Navigation items with required permissions
@@ -44,6 +45,7 @@ const navigation = [
   { name: 'Sócios', href: '/partners', icon: Handshake, permissions: ['view_partner_results'] },
   { name: 'Comissões', href: '/commissions', icon: Percent, permissions: ['view_commissions', 'manage_commissions'] },
   { name: 'Relatórios', href: '/reports', icon: FileText, permissions: ['view_reports'] },
+  { name: 'Relatório Executivo', href: '/executive-report', icon: ClipboardList, permissions: ['view_reports', 'export_reports'] },
   { name: 'Moedas', href: '/settings/currencies', icon: Coins, permissions: ['manage_currency_rates'] },
 ];
 
