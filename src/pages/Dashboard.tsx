@@ -3,9 +3,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TrendingUp, TrendingDown, DollarSign, Percent, Store, Loader2 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { TrendingUp, TrendingDown, DollarSign, Percent, Store, Loader2, CalendarIcon } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import {
   AreaChart,
   Area,
@@ -16,7 +20,6 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  Legend,
 } from 'recharts';
 
 interface DashboardData {
@@ -38,6 +41,11 @@ interface StoreOption {
   name: string;
 }
 
+interface DateRange {
+  from: Date;
+  to: Date;
+}
+
 export default function Dashboard() {
   const { profile, isGestor } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -49,25 +57,29 @@ export default function Dashboard() {
     netProfit: 0,
     totalCommissions: 0,
   });
-
   const [trendData, setTrendData] = useState<TrendData[]>([]);
+  
+  // Date range state - default to current month
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  });
 
-  const currentMonth = new Date();
-  const monthStart = format(startOfMonth(currentMonth), 'yyyy-MM-dd');
-  const monthEnd = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
+  const dateStart = format(dateRange.from, 'yyyy-MM-dd');
+  const dateEnd = format(dateRange.to, 'yyyy-MM-dd');
 
   useEffect(() => {
     fetchStores();
-    fetchTrendData();
   }, []);
 
   useEffect(() => {
+    fetchTrendData();
     if (!isGestor) {
       fetchDashboardData();
     } else {
       fetchGestorData();
     }
-  }, [selectedStore, isGestor]);
+  }, [selectedStore, isGestor, dateRange]);
 
   const fetchStores = async () => {
     const { data } = await supabase
@@ -82,10 +94,11 @@ export default function Dashboard() {
   const fetchTrendData = async () => {
     try {
       const months: TrendData[] = [];
+      const today = new Date();
       
       // Fetch last 6 months of data
       for (let i = 5; i >= 0; i--) {
-        const monthDate = subMonths(currentMonth, i);
+        const monthDate = subMonths(today, i);
         const start = format(startOfMonth(monthDate), 'yyyy-MM-dd');
         const end = format(endOfMonth(monthDate), 'yyyy-MM-dd');
         const monthLabel = format(monthDate, 'MMM', { locale: ptBR });
@@ -129,8 +142,8 @@ export default function Dashboard() {
       let revenueQuery = supabase
         .from('revenues')
         .select('amount')
-        .gte('date', monthStart)
-        .lte('date', monthEnd);
+        .gte('date', dateStart)
+        .lte('date', dateEnd);
       
       if (selectedStore !== 'all') {
         revenueQuery = revenueQuery.eq('store_id', selectedStore);
@@ -143,8 +156,8 @@ export default function Dashboard() {
       let expenseQuery = supabase
         .from('expenses')
         .select('amount')
-        .gte('date', monthStart)
-        .lte('date', monthEnd);
+        .gte('date', dateStart)
+        .lte('date', dateEnd);
       
       if (selectedStore !== 'all') {
         expenseQuery = expenseQuery.eq('store_id', selectedStore);
@@ -157,8 +170,8 @@ export default function Dashboard() {
       let commissionQuery = supabase
         .from('commissions')
         .select('commission_amount')
-        .gte('period_start', monthStart)
-        .lte('period_end', monthEnd);
+        .gte('period_start', dateStart)
+        .lte('period_end', dateEnd);
       
       if (selectedStore !== 'all') {
         commissionQuery = commissionQuery.eq('store_id', selectedStore);
@@ -186,8 +199,8 @@ export default function Dashboard() {
       const { data: commissions } = await supabase
         .from('commissions')
         .select('commission_amount')
-        .gte('period_start', monthStart)
-        .lte('period_end', monthEnd);
+        .gte('period_start', dateStart)
+        .lte('period_end', dateEnd);
       
       const totalCommissions = commissions?.reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0;
 
@@ -247,32 +260,90 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title">Dashboard</h1>
-          <p className="page-description">
-            Visão geral de {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
-          </p>
-        </div>
-
-        {!isGestor && (
-          <div className="flex items-center gap-2">
-            <Store className="w-4 h-4 text-muted-foreground" />
-            <Select value={selectedStore} onValueChange={setSelectedStore}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Selecione a loja" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as lojas</SelectItem>
-                {stores.map((store) => (
-                  <SelectItem key={store.id} value={store.id}>
-                    {store.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <div className="page-header flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="page-title">Dashboard</h1>
+            <p className="page-description">
+              {format(dateRange.from, "d 'de' MMM", { locale: ptBR })} - {format(dateRange.to, "d 'de' MMM, yyyy", { locale: ptBR })}
+            </p>
           </div>
-        )}
+
+          {!isGestor && (
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Date Range Picker */}
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !dateRange.from && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(dateRange.from, "dd/MM/yy", { locale: ptBR })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateRange.from}
+                      onSelect={(date) => date && setDateRange(prev => ({ ...prev, from: date }))}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <span className="text-muted-foreground">até</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !dateRange.to && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(dateRange.to, "dd/MM/yy", { locale: ptBR })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateRange.to}
+                      onSelect={(date) => date && setDateRange(prev => ({ ...prev, to: date }))}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Store Filter */}
+              <div className="flex items-center gap-2">
+                <Store className="w-4 h-4 text-muted-foreground" />
+                <Select value={selectedStore} onValueChange={setSelectedStore}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Selecione a loja" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as lojas</SelectItem>
+                    {stores.map((store) => (
+                      <SelectItem key={store.id} value={store.id}>
+                        {store.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {loading ? (
