@@ -17,7 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users as UsersIcon, Loader2, Store, Shield, UserCheck, UserX } from 'lucide-react';
+import { Plus, Users as UsersIcon, Loader2, Store, Shield, UserCheck, UserX, Search, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { CsvImportDialog } from '@/components/users/CsvImportDialog';
 
@@ -61,6 +61,40 @@ export default function Users() {
     name: '',
     role: 'financeiro' as AppRole,
   });
+
+  // Search and filter state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<AppRole | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [storeFilter, setStoreFilter] = useState<string>('all');
+
+  // Filtered users
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      searchTerm === '' ||
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
+    
+    const userStoreIds = userStores[user.id] || [];
+    const matchesStore =
+      storeFilter === 'all' ||
+      (storeFilter === 'none' && userStoreIds.length === 0) ||
+      userStoreIds.includes(storeFilter);
+
+    return matchesSearch && matchesRole && matchesStatus && matchesStore;
+  });
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setRoleFilter('all');
+    setStatusFilter('all');
+    setStoreFilter('all');
+  };
+
+  const hasActiveFilters = searchTerm !== '' || roleFilter !== 'all' || statusFilter !== 'all' || storeFilter !== 'all';
 
   useEffect(() => {
     fetchUsers();
@@ -407,9 +441,72 @@ export default function Users() {
           <CardTitle className="flex items-center gap-2">
             <UsersIcon className="w-5 h-5" />
             Lista de Usuários
+            {!loading && (
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                ({filteredUsers.length} de {users.length})
+              </span>
+            )}
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome ou email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as AppRole | 'all')}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Papel" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os papéis</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="financeiro">Financeiro</SelectItem>
+                  <SelectItem value="gestor">Gestor</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as 'all' | 'active' | 'inactive')}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  <SelectItem value="active">Ativo</SelectItem>
+                  <SelectItem value="inactive">Inativo</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={storeFilter} onValueChange={setStoreFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Loja" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as lojas</SelectItem>
+                  <SelectItem value="none">Sem loja</SelectItem>
+                  {stores.map((store) => (
+                    <SelectItem key={store.id} value={store.id}>
+                      {store.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {hasActiveFilters && (
+                <Button variant="ghost" size="icon" onClick={clearFilters} title="Limpar filtros">
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -418,6 +515,14 @@ export default function Users() {
             <div className="flex flex-col items-center justify-center py-12">
               <UsersIcon className="w-12 h-12 text-muted-foreground mb-4" />
               <p className="text-muted-foreground">Nenhum usuário cadastrado</p>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Search className="w-12 h-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">Nenhum usuário encontrado com os filtros aplicados</p>
+              <Button variant="link" onClick={clearFilters} className="mt-2">
+                Limpar filtros
+              </Button>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -434,7 +539,7 @@ export default function Users() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users.map((user) => (
+                  {filteredUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
