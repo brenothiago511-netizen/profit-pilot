@@ -4,14 +4,33 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TrendingUp, TrendingDown, DollarSign, Percent, Store, Loader2 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Legend,
+} from 'recharts';
 
 interface DashboardData {
   totalRevenue: number;
   totalExpenses: number;
   netProfit: number;
   totalCommissions: number;
+}
+
+interface TrendData {
+  month: string;
+  receitas: number;
+  despesas: number;
+  lucro: number;
 }
 
 interface StoreOption {
@@ -31,12 +50,15 @@ export default function Dashboard() {
     totalCommissions: 0,
   });
 
+  const [trendData, setTrendData] = useState<TrendData[]>([]);
+
   const currentMonth = new Date();
   const monthStart = format(startOfMonth(currentMonth), 'yyyy-MM-dd');
   const monthEnd = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
 
   useEffect(() => {
     fetchStores();
+    fetchTrendData();
   }, []);
 
   useEffect(() => {
@@ -55,6 +77,49 @@ export default function Dashboard() {
       .order('name');
     
     if (data) setStores(data);
+  };
+
+  const fetchTrendData = async () => {
+    try {
+      const months: TrendData[] = [];
+      
+      // Fetch last 6 months of data
+      for (let i = 5; i >= 0; i--) {
+        const monthDate = subMonths(currentMonth, i);
+        const start = format(startOfMonth(monthDate), 'yyyy-MM-dd');
+        const end = format(endOfMonth(monthDate), 'yyyy-MM-dd');
+        const monthLabel = format(monthDate, 'MMM', { locale: ptBR });
+
+        // Fetch revenues for this month
+        const { data: revenues } = await supabase
+          .from('revenues')
+          .select('amount')
+          .gte('date', start)
+          .lte('date', end);
+        
+        const totalRevenue = revenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
+
+        // Fetch expenses for this month
+        const { data: expenses } = await supabase
+          .from('expenses')
+          .select('amount')
+          .gte('date', start)
+          .lte('date', end);
+        
+        const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+
+        months.push({
+          month: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
+          receitas: totalRevenue,
+          despesas: totalExpenses,
+          lucro: totalRevenue - totalExpenses,
+        });
+      }
+
+      setTrendData(months);
+    } catch (error) {
+      console.error('Error fetching trend data:', error);
+    }
   };
 
   const fetchDashboardData = async () => {
@@ -233,6 +298,109 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             ))}
+        </div>
+      )}
+
+      {/* Charts Section */}
+      {!isGestor && !loading && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Revenue vs Expenses Area Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Receitas vs Despesas</CardTitle>
+              <p className="text-sm text-muted-foreground">Últimos 6 meses</p>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorReceitas" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorDespesas" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--danger))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--danger))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis 
+                      className="text-xs" 
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      formatter={(value: number) => [formatCurrency(value), '']}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="receitas"
+                      name="Receitas"
+                      stroke="hsl(var(--success))"
+                      fillOpacity={1}
+                      fill="url(#colorReceitas)"
+                      strokeWidth={2}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="despesas"
+                      name="Despesas"
+                      stroke="hsl(var(--danger))"
+                      fillOpacity={1}
+                      fill="url(#colorDespesas)"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Profit Bar Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Lucro Mensal</CardTitle>
+              <p className="text-sm text-muted-foreground">Últimos 6 meses</p>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis 
+                      className="text-xs" 
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      formatter={(value: number) => [formatCurrency(value), '']}
+                    />
+                    <Bar
+                      dataKey="lucro"
+                      name="Lucro"
+                      fill="hsl(var(--primary))"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
