@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import ROIAlerts from '@/components/alerts/ROIAlerts';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -24,7 +25,7 @@ import {
   BarChart3,
   Scale,
   Trophy,
-
+  Bell,
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -611,9 +612,20 @@ export default function PartnerDashboardPage() {
             <FileText className="w-4 h-4" />
             Movimentações
           </TabsTrigger>
+          <TabsTrigger value="alerts" className="flex items-center gap-2">
+            <Bell className="w-4 h-4" />
+            Alertas
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
+          {/* ROI Alerts Banner */}
+          <ROIAlerts 
+            storePerformance={storePerformance} 
+            partnerships={partnerships}
+            onRefresh={fetchPartnerData}
+          />
+          
           {/* Charts Row */}
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Capital & Profit Evolution */}
@@ -1185,6 +1197,14 @@ export default function PartnerDashboardPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="alerts" className="space-y-6">
+          <ROIAlerts 
+            storePerformance={storePerformance} 
+            partnerships={partnerships}
+            onRefresh={fetchPartnerData}
+          />
         </TabsContent>
       </Tabs>
     </div>
