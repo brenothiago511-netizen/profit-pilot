@@ -31,23 +31,55 @@ import {
   Coins,
   Target,
   ClipboardList,
+  DollarSign,
 } from 'lucide-react';
 
-// Navigation items with required permissions
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permissions: ['view_dashboard', 'view_dashboard_socios'] },
-  { name: 'Meu Painel', href: '/my-dashboard', icon: Building2, permissions: ['view_partner_results'] },
-  { name: 'Receitas', href: '/revenues', icon: TrendingUp, permissions: ['create_revenue', 'edit_revenue'] },
-  { name: 'Despesas', href: '/expenses', icon: TrendingDown, permissions: ['create_expense', 'edit_expense'] },
-  { name: 'Metas', href: '/goals', icon: Target, permissions: ['manage_goals', 'view_reports'] },
-  { name: 'Lojas', href: '/stores', icon: Store, permissions: ['manage_stores'] },
-  { name: 'Usuários', href: '/users', icon: UserCog, permissions: ['manage_users'] },
-  { name: 'Gestores', href: '/managers', icon: Users, permissions: ['manage_commissions'] },
-  { name: 'Sócios', href: '/partners', icon: Handshake, permissions: ['manage_partners'] },
-  { name: 'Comissões', href: '/commissions', icon: Percent, permissions: ['view_commissions', 'manage_commissions'] },
-  { name: 'Relatórios', href: '/reports', icon: FileText, permissions: ['view_reports'] },
-  { name: 'Relatório Executivo', href: '/executive-report', icon: ClipboardList, permissions: ['view_reports', 'export_reports'] },
-  { name: 'Moedas', href: '/settings/currencies', icon: Coins, permissions: ['manage_currency_rates'] },
+// Navigation sections with items
+const navigationSections = [
+  {
+    title: 'Visão Geral',
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permissions: ['view_dashboard', 'view_dashboard_socios'] },
+      { name: 'Meu Painel', href: '/my-dashboard', icon: Building2, permissions: ['view_partner_results'] },
+    ],
+  },
+  {
+    title: 'Financeiro',
+    items: [
+      { name: 'Receitas', href: '/revenues', icon: TrendingUp, permissions: ['create_revenue', 'edit_revenue'] },
+      { name: 'Despesas', href: '/expenses', icon: TrendingDown, permissions: ['create_expense', 'edit_expense'] },
+      { name: 'Metas', href: '/goals', icon: Target, permissions: ['manage_goals', 'view_reports'] },
+    ],
+  },
+  {
+    title: 'Gestão',
+    items: [
+      { name: 'Lojas', href: '/stores', icon: Store, permissions: ['manage_stores'] },
+      { name: 'Usuários', href: '/users', icon: UserCog, permissions: ['manage_users'] },
+      { name: 'Gestores', href: '/managers', icon: Users, permissions: ['manage_commissions'] },
+      { name: 'Sócios', href: '/partners', icon: Handshake, permissions: ['manage_partners'] },
+    ],
+  },
+  {
+    title: 'Comissões',
+    items: [
+      { name: 'Registrar Lucros', href: '/profits', icon: DollarSign, permissions: ['view_commissions', 'manage_commissions', 'register_profits'] },
+      { name: 'Comissões', href: '/commissions', icon: Percent, permissions: ['view_commissions', 'manage_commissions'] },
+    ],
+  },
+  {
+    title: 'Relatórios',
+    items: [
+      { name: 'Relatórios', href: '/reports', icon: FileText, permissions: ['view_reports'] },
+      { name: 'Relatório Executivo', href: '/executive-report', icon: ClipboardList, permissions: ['view_reports', 'export_reports'] },
+    ],
+  },
+  {
+    title: 'Configurações',
+    items: [
+      { name: 'Moedas', href: '/settings/currencies', icon: Coins, permissions: ['manage_currency_rates'] },
+    ],
+  },
 ];
 
 export default function AppLayout() {
@@ -61,14 +93,17 @@ export default function AppLayout() {
     navigate('/auth');
   };
 
-  // Filter navigation based on permissions
-  const filteredNavigation = useMemo(() => {
-    return navigation.filter((item) => {
-      // Check if user has any of the required permissions
-      return item.permissions.some((perm) => hasPermission(perm));
-    });
+  // Filter navigation sections based on permissions
+  const filteredSections = useMemo(() => {
+    return navigationSections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) =>
+          item.permissions.some((perm) => hasPermission(perm))
+        ),
+      }))
+      .filter((section) => section.items.length > 0);
   }, [hasPermission]);
-
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -120,24 +155,33 @@ export default function AppLayout() {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {filteredNavigation.map((item) => (
-              <NavLink
-                key={item.name}
-                to={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                  )
-                }
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                {item.name}
-              </NavLink>
+          <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
+            {filteredSections.map((section) => (
+              <div key={section.title}>
+                <p className="px-3 mb-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
+                  {section.title}
+                </p>
+                <div className="space-y-1">
+                  {section.items.map((item) => (
+                    <NavLink
+                      key={item.name}
+                      to={item.href}
+                      onClick={() => setSidebarOpen(false)}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                          isActive
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                        )
+                      }
+                    >
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                      {item.name}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
             ))}
           </nav>
 
