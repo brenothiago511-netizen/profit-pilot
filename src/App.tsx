@@ -19,6 +19,7 @@ import Partners from "./pages/Partners";
 import CurrencySettings from "./pages/CurrencySettings";
 import Goals from "./pages/Goals";
 import ExecutiveReport from "./pages/ExecutiveReport";
+import PartnerDashboardPage from "./pages/PartnerDashboardPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -127,6 +128,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={['admin', 'financeiro', 'socio']}>
                     <ExecutiveReport />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/my-dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'socio']}>
+                    <PartnerDashboardPage />
                   </ProtectedRoute>
                 }
               />

@@ -36,13 +36,14 @@ import {
 // Navigation items with required permissions
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permissions: ['view_dashboard', 'view_dashboard_socios'] },
+  { name: 'Meu Painel', href: '/my-dashboard', icon: Building2, permissions: ['view_partner_results'] },
   { name: 'Receitas', href: '/revenues', icon: TrendingUp, permissions: ['create_revenue', 'edit_revenue'] },
   { name: 'Despesas', href: '/expenses', icon: TrendingDown, permissions: ['create_expense', 'edit_expense'] },
   { name: 'Metas', href: '/goals', icon: Target, permissions: ['manage_goals', 'view_reports'] },
   { name: 'Lojas', href: '/stores', icon: Store, permissions: ['manage_stores'] },
   { name: 'Usuários', href: '/users', icon: UserCog, permissions: ['manage_users'] },
   { name: 'Gestores', href: '/managers', icon: Users, permissions: ['manage_commissions'] },
-  { name: 'Sócios', href: '/partners', icon: Handshake, permissions: ['view_partner_results'] },
+  { name: 'Sócios', href: '/partners', icon: Handshake, permissions: ['manage_partners'] },
   { name: 'Comissões', href: '/commissions', icon: Percent, permissions: ['view_commissions', 'manage_commissions'] },
   { name: 'Relatórios', href: '/reports', icon: FileText, permissions: ['view_reports'] },
   { name: 'Relatório Executivo', href: '/executive-report', icon: ClipboardList, permissions: ['view_reports', 'export_reports'] },
