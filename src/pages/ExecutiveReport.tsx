@@ -179,7 +179,8 @@ export default function ExecutiveReport() {
       
       const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
 
-      // Fetch commissions
+      // Calculate commissions based on managers and their store performance
+      // First, try to get from commissions table
       let commissionQuery = supabase
         .from('commissions')
         .select('commission_amount')
@@ -190,8 +191,36 @@ export default function ExecutiveReport() {
         commissionQuery = commissionQuery.eq('store_id', selectedStore);
       }
       
-      const { data: commissions } = await commissionQuery;
-      const totalCommissions = commissions?.reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0;
+      const { data: existingCommissions } = await commissionQuery;
+      let totalCommissions = existingCommissions?.reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0;
+
+      // If no commissions found in table, calculate from managers
+      if (totalCommissions === 0) {
+        // Fetch active managers
+        const { data: managers } = await supabase
+          .from('managers')
+          .select('id, user_id, commission_percent, commission_type')
+          .eq('status', 'active');
+
+        if (managers && managers.length > 0) {
+          // For each manager, calculate their commission based on store revenues
+          // Since managers aren't directly linked to stores, we use total revenue/profit
+          const grossProfitForCommission = totalRevenue - totalExpenses;
+          
+          for (const manager of managers) {
+            if (manager.commission_type === 'lucro') {
+              // Commission on profit
+              totalCommissions += (grossProfitForCommission * manager.commission_percent) / 100;
+            } else {
+              // Commission on revenue
+              totalCommissions += (totalRevenue * manager.commission_percent) / 100;
+            }
+          }
+          
+          // Only positive commissions
+          totalCommissions = Math.max(0, totalCommissions);
+        }
+      }
 
       const grossProfit = totalRevenue - totalExpenses;
       const netProfit = grossProfit - totalCommissions;
@@ -601,12 +630,25 @@ export default function ExecutiveReport() {
             </Select>
           </div>
           
-          <input
-            type="month"
-            className="flex h-10 w-40 rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-          />
+          <div className="flex items-center gap-2">
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Selecione o mês" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 12 }, (_, i) => {
+                  const date = subMonths(new Date(), i);
+                  const value = format(date, 'yyyy-MM');
+                  const label = format(date, 'MMMM yyyy', { locale: ptBR });
+                  return (
+                    <SelectItem key={value} value={value}>
+                      {label.charAt(0).toUpperCase() + label.slice(1)}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
 
           <PermissionGate permission="export_reports">
             <div className="flex gap-2">
