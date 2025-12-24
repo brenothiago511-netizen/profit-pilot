@@ -44,7 +44,7 @@ import {
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Plus, Check, X, Clock, TrendingUp, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Check, X, Clock, TrendingUp, Pencil, Trash2, Store } from 'lucide-react';
 import { PermissionGate } from '@/components/permissions/PermissionGate';
 
 interface ManagerProfile {
@@ -436,7 +436,19 @@ export default function Profits() {
               )}
 
               {isGestor && currentManager && (
-                <input type="hidden" value={currentManager.id} />
+                <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/20">
+                      <Store className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Registrando lucro para:</p>
+                      <p className="font-semibold text-foreground">
+                        {stores.find(s => s.id === currentManager.store_id)?.name || 'Sua Loja'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
 
               <div className="grid grid-cols-2 gap-4">
