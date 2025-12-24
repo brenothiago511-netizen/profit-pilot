@@ -81,11 +81,11 @@ export default function Managers() {
   };
 
   const fetchAvailableUsers = async () => {
-    // Get all profiles that are not already managers
+    // Get all active profiles that are not already managers
     const { data: allProfiles } = await supabase
       .from('profiles')
-      .select('id, name, email')
-      .eq('role', 'gestor');
+      .select('id, name, email, role')
+      .eq('status', 'active');
     
     const { data: existingManagers } = await supabase
       .from('managers')
