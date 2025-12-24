@@ -21,7 +21,10 @@ import {
   Calendar,
   FileText,
   Target,
-  BarChart3
+  BarChart3,
+  Scale,
+  Trophy,
+
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -42,6 +45,11 @@ import {
   LineChart,
   Line,
   ComposedChart,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
 } from 'recharts';
 
 interface PartnerData {
@@ -139,6 +147,52 @@ export default function PartnerDashboardPage() {
   const avgPercentage = partnerships.length > 0 
     ? partnerships.reduce((sum, p) => sum + (p.capital_percentage || 0), 0) / partnerships.length 
     : 0;
+
+  // Computed profitability data for comparison
+  const profitabilityData = storePerformance.map((store, index) => {
+    const partnership = partnerships.find(p => p.store_id === store.storeId);
+    const capitalInvested = partnership?.capital_amount || 0;
+    const roi = capitalInvested > 0 ? (store.partnerShare / capitalInvested) * 100 : 0;
+    const profitMargin = store.revenue > 0 ? (store.profit / store.revenue) * 100 : 0;
+    const efficiencyRatio = store.expenses > 0 ? store.revenue / store.expenses : 0;
+    
+    return {
+      name: store.storeName,
+      storeId: store.storeId,
+      revenue: store.revenue,
+      expenses: store.expenses,
+      profit: store.profit,
+      partnerShare: store.partnerShare,
+      capitalInvested,
+      roi,
+      profitMargin,
+      efficiencyRatio,
+      percentage: store.percentage,
+      color: CHART_COLORS[index % CHART_COLORS.length],
+    };
+  }).sort((a, b) => b.roi - a.roi);
+
+  // Data for radar chart (normalized 0-100)
+  const radarData = storePerformance.map(store => {
+    const partnership = partnerships.find(p => p.store_id === store.storeId);
+    const capitalInvested = partnership?.capital_amount || 0;
+    const roi = capitalInvested > 0 ? (store.partnerShare / capitalInvested) * 100 : 0;
+    const profitMargin = store.revenue > 0 ? (store.profit / store.revenue) * 100 : 0;
+    const efficiencyRatio = store.expenses > 0 ? (store.revenue / store.expenses) * 20 : 0; // Normalized
+    const goalAchievement = store.goalProgress || 0;
+    
+    return {
+      store: store.storeName,
+      ROI: Math.min(roi, 100),
+      Margem: Math.min(profitMargin, 100),
+      Eficiência: Math.min(efficiencyRatio, 100),
+      Metas: Math.min(goalAchievement, 100),
+    };
+  });
+
+  // Best and worst performing stores
+  const bestStore = profitabilityData.length > 0 ? profitabilityData[0] : null;
+  const worstStore = profitabilityData.length > 1 ? profitabilityData[profitabilityData.length - 1] : null;
 
   useEffect(() => {
     if (user?.id) {
@@ -536,10 +590,14 @@ export default function PartnerDashboardPage() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <BarChart3 className="w-4 h-4" />
             Visão Geral
+          </TabsTrigger>
+          <TabsTrigger value="comparison" className="flex items-center gap-2">
+            <Scale className="w-4 h-4" />
+            Comparativo
           </TabsTrigger>
           <TabsTrigger value="stores" className="flex items-center gap-2">
             <Store className="w-4 h-4" />
@@ -691,6 +749,275 @@ export default function PartnerDashboardPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="comparison" className="space-y-6">
+          {storePerformance.length < 2 ? (
+            <Card className="text-center py-12">
+              <CardContent>
+                <Scale className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="font-semibold mb-2">Comparativo não disponível</h3>
+                <p className="text-muted-foreground">
+                  É necessário ter participação em pelo menos 2 lojas para ver o comparativo.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Best/Worst Performance Cards */}
+              <div className="grid gap-4 md:grid-cols-2">
+                {bestStore && (
+                  <Card className="border-success/50 bg-success/5">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center gap-2">
+                        <Trophy className="w-5 h-5 text-success" />
+                        <CardTitle className="text-base">Melhor Desempenho</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-lg font-bold">{bestStore.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            ROI: {bestStore.roi.toFixed(1)}% | Margem: {bestStore.profitMargin.toFixed(1)}%
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-success">{formatCurrency(bestStore.partnerShare)}</p>
+                          <p className="text-xs text-muted-foreground">sua parte do lucro</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                {worstStore && worstStore.storeId !== bestStore?.storeId && (
+                  <Card className="border-warning/50 bg-warning/5">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center gap-2">
+                        <TrendingDown className="w-5 h-5 text-warning" />
+                        <CardTitle className="text-base">Menor Desempenho</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-lg font-bold">{worstStore.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            ROI: {worstStore.roi.toFixed(1)}% | Margem: {worstStore.profitMargin.toFixed(1)}%
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-2xl font-bold ${worstStore.partnerShare >= 0 ? 'text-foreground' : 'text-destructive'}`}>
+                            {formatCurrency(worstStore.partnerShare)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">sua parte do lucro</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              {/* ROI Comparison Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Comparativo de ROI</CardTitle>
+                  <CardDescription>Retorno sobre investimento por loja</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={profitabilityData} layout="vertical" margin={{ top: 10, right: 30, left: 100, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis 
+                          type="number" 
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                          tickFormatter={(value) => `${value.toFixed(0)}%`}
+                        />
+                        <YAxis 
+                          type="category" 
+                          dataKey="name" 
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                          width={90}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                          }}
+                          formatter={(value: number) => [`${value.toFixed(2)}%`, 'ROI']}
+                        />
+                        <Bar dataKey="roi" name="ROI" radius={[0, 4, 4, 0]}>
+                          {profitabilityData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.roi >= 0 ? 'hsl(var(--success))' : 'hsl(var(--destructive))'} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Profit Margin & Revenue Comparison */}
+              <div className="grid gap-6 lg:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Margem de Lucro</CardTitle>
+                    <CardDescription>Percentual de lucro sobre receita</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[250px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={profitabilityData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                          <YAxis 
+                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                            tickFormatter={(value) => `${value}%`}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: 'hsl(var(--card))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px',
+                            }}
+                            formatter={(value: number) => [`${value.toFixed(2)}%`, 'Margem']}
+                          />
+                          <Bar dataKey="profitMargin" name="Margem de Lucro" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Receita vs Despesas</CardTitle>
+                    <CardDescription>Comparativo financeiro por loja</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[250px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={profitabilityData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                          <YAxis 
+                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                            tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: 'hsl(var(--card))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px',
+                            }}
+                            formatter={(value: number) => [formatCurrency(value), '']}
+                          />
+                          <Legend />
+                          <Bar dataKey="revenue" name="Receita" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="expenses" name="Despesas" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Radar Chart for Overall Performance */}
+              {radarData.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Análise Multidimensional</CardTitle>
+                    <CardDescription>Comparativo de métricas normalizadas (0-100)</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[350px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={radarData}>
+                          <PolarGrid className="stroke-muted" />
+                          <PolarAngleAxis 
+                            dataKey="store" 
+                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                          />
+                          <PolarRadiusAxis 
+                            angle={30} 
+                            domain={[0, 100]}
+                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                          />
+                          <Radar name="ROI" dataKey="ROI" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.3} />
+                          <Radar name="Margem" dataKey="Margem" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.3} />
+                          <Radar name="Eficiência" dataKey="Eficiência" stroke="hsl(var(--warning))" fill="hsl(var(--warning))" fillOpacity={0.3} />
+                          <Radar name="Metas" dataKey="Metas" stroke="hsl(var(--info))" fill="hsl(var(--info))" fillOpacity={0.3} />
+                          <Legend />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: 'hsl(var(--card))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px',
+                            }}
+                          />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Detailed Comparison Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Ranking de Rentabilidade</CardTitle>
+                  <CardDescription>Ordenado por ROI (retorno sobre investimento)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {profitabilityData.map((store, index) => (
+                      <div 
+                        key={store.storeId}
+                        className="flex items-center gap-4 p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                          index === 0 ? 'bg-success text-success-foreground' : 
+                          index === 1 ? 'bg-primary text-primary-foreground' : 
+                          index === 2 ? 'bg-warning text-warning-foreground' : 
+                          'bg-muted text-muted-foreground'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold">{store.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Participação: {store.percentage}% | Capital: {formatCurrency(store.capitalInvested)}
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-3 gap-6 text-center">
+                          <div>
+                            <p className="text-xs text-muted-foreground">ROI</p>
+                            <p className={`font-bold ${store.roi >= 0 ? 'text-success' : 'text-destructive'}`}>
+                              {store.roi.toFixed(1)}%
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Margem</p>
+                            <p className={`font-bold ${store.profitMargin >= 0 ? 'text-foreground' : 'text-destructive'}`}>
+                              {store.profitMargin.toFixed(1)}%
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Lucro (sua parte)</p>
+                            <p className={`font-bold ${store.partnerShare >= 0 ? 'text-success' : 'text-destructive'}`}>
+                              {formatCurrency(store.partnerShare)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="stores" className="space-y-4">
