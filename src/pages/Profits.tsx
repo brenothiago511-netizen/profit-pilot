@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -193,7 +193,7 @@ export default function Profits() {
     return profits.filter((p) => p.status === filterStatus);
   }, [profits, filterStatus]);
 
-  // Form state
+  // Form state - initialize with gestor data when available
   const [formData, setFormData] = useState({
     store_id: '',
     manager_id: '',
@@ -202,6 +202,17 @@ export default function Profits() {
     profit_amount: '',
     notes: '',
   });
+
+  // Update form with gestor data when currentManager loads
+  useEffect(() => {
+    if (isGestor && currentManager && !formData.manager_id) {
+      setFormData(prev => ({
+        ...prev,
+        store_id: currentManager.store_id || '',
+        manager_id: currentManager.id,
+      }));
+    }
+  }, [isGestor, currentManager]);
 
   const resetForm = () => {
     setFormData({
@@ -217,9 +228,17 @@ export default function Profits() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      // For gestor, ensure we use their manager data
+      const storeId = isGestor && currentManager?.store_id ? currentManager.store_id : data.store_id;
+      const managerId = isGestor && currentManager?.id ? currentManager.id : data.manager_id;
+
+      if (!storeId || !managerId) {
+        throw new Error('Loja e gestor são obrigatórios');
+      }
+
       const payload = {
-        store_id: data.store_id,
-        manager_id: data.manager_id,
+        store_id: storeId,
+        manager_id: managerId,
         period_start: data.period_start,
         period_end: data.period_end,
         profit_amount: parseFloat(data.profit_amount),
