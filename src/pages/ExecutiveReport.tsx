@@ -196,24 +196,84 @@ export default function ExecutiveReport() {
 
       // If no commissions found in table, calculate from managers
       if (totalCommissions === 0) {
-        // Fetch active managers
-        const { data: managers } = await supabase
+        // Fetch active managers with their store assignments
+        let managersQuery = supabase
           .from('managers')
-          .select('id, user_id, commission_percent, commission_type')
+          .select('id, user_id, store_id, commission_percent, commission_type')
           .eq('status', 'active');
 
+        const { data: managers } = await managersQuery;
+
         if (managers && managers.length > 0) {
-          // For each manager, calculate their commission based on store revenues
-          // Since managers aren't directly linked to stores, we use total revenue/profit
           const grossProfitForCommission = totalRevenue - totalExpenses;
           
           for (const manager of managers) {
-            if (manager.commission_type === 'lucro') {
-              // Commission on profit
-              totalCommissions += (grossProfitForCommission * manager.commission_percent) / 100;
+            // Check if manager is linked to a specific store
+            if (manager.store_id) {
+              // Only calculate if we're viewing all stores or the manager's store matches
+              if (selectedStore !== 'all' && manager.store_id !== selectedStore) {
+                continue; // Skip this manager, not relevant for selected store
+              }
+              
+              // Get store-specific revenue and expenses
+              const { data: storeRevenues } = await supabase
+                .from('revenues')
+                .select('amount')
+                .eq('store_id', manager.store_id)
+                .gte('date', periodStart)
+                .lte('date', periodEnd);
+              
+              const { data: storeExpenses } = await supabase
+                .from('expenses')
+                .select('amount')
+                .eq('store_id', manager.store_id)
+                .gte('date', periodStart)
+                .lte('date', periodEnd);
+              
+              const storeRevenue = storeRevenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
+              const storeExpense = storeExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+              const storeProfit = storeRevenue - storeExpense;
+              
+              if (manager.commission_type === 'lucro') {
+                totalCommissions += (storeProfit * manager.commission_percent) / 100;
+              } else {
+                totalCommissions += (storeRevenue * manager.commission_percent) / 100;
+              }
             } else {
-              // Commission on revenue
-              totalCommissions += (totalRevenue * manager.commission_percent) / 100;
+              // Manager gets commission on all stores (no specific store linked)
+              if (selectedStore !== 'all') {
+                // When viewing a specific store, calculate for that store only
+                const { data: storeRevenues } = await supabase
+                  .from('revenues')
+                  .select('amount')
+                  .eq('store_id', selectedStore)
+                  .gte('date', periodStart)
+                  .lte('date', periodEnd);
+                
+                const { data: storeExpenses } = await supabase
+                  .from('expenses')
+                  .select('amount')
+                  .eq('store_id', selectedStore)
+                  .gte('date', periodStart)
+                  .lte('date', periodEnd);
+                
+                const storeRevenue = storeRevenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
+                const storeExpense = storeExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+                const storeProfit = storeRevenue - storeExpense;
+                
+                if (manager.commission_type === 'lucro') {
+                  totalCommissions += (storeProfit * manager.commission_percent) / 100;
+                } else {
+                  totalCommissions += (storeRevenue * manager.commission_percent) / 100;
+                }
+              } else {
+                // Use totals for all stores
+                if (manager.commission_type === 'lucro') {
+                  totalCommissions += (grossProfitForCommission * manager.commission_percent) / 100;
+                } else {
+                  totalCommissions += (totalRevenue * manager.commission_percent) / 100;
+                }
+              }
             }
           }
           

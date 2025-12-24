@@ -10,18 +10,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Loader2, Percent, User } from 'lucide-react';
+import { Plus, Users, Loader2, Percent, User, Store } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Manager {
   id: string;
   user_id: string;
+  store_id: string | null;
   commission_percent: number;
   commission_type: string;
   status: string;
   created_at: string;
   profile_name?: string;
   profile_email?: string;
+  store_name?: string;
 }
 
 interface UserProfile {
@@ -30,16 +32,23 @@ interface UserProfile {
   email: string;
 }
 
+interface StoreOption {
+  id: string;
+  name: string;
+}
+
 export default function Managers() {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [managers, setManagers] = useState<Manager[]>([]);
   const [availableUsers, setAvailableUsers] = useState<UserProfile[]>([]);
+  const [stores, setStores] = useState<StoreOption[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     user_id: '',
+    store_id: '',
     commission_percent: '',
     commission_type: 'lucro',
   });
@@ -47,13 +56,14 @@ export default function Managers() {
   useEffect(() => {
     fetchManagers();
     fetchAvailableUsers();
+    fetchStores();
   }, []);
 
   const fetchManagers = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('managers')
-      .select('*')
+      .select('*, stores(name)')
       .order('created_at', { ascending: false });
     
     if (error) {
@@ -70,14 +80,25 @@ export default function Managers() {
       .select('id, name, email')
       .in('id', userIds);
     
-    const managersWithProfiles = managerData.map(m => ({
+    const managersWithProfiles = managerData.map((m: any) => ({
       ...m,
       profile_name: profiles?.find(p => p.id === m.user_id)?.name,
       profile_email: profiles?.find(p => p.id === m.user_id)?.email,
+      store_name: m.stores?.name,
     }));
     
     setManagers(managersWithProfiles);
     setLoading(false);
+  };
+
+  const fetchStores = async () => {
+    const { data } = await supabase
+      .from('stores')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('name');
+    
+    if (data) setStores(data);
   };
 
   const fetchAvailableUsers = async () => {
@@ -111,6 +132,7 @@ export default function Managers() {
     setSaving(true);
     const { error } = await supabase.from('managers').insert({
       user_id: formData.user_id,
+      store_id: formData.store_id || null,
       commission_percent: parseFloat(formData.commission_percent),
       commission_type: formData.commission_type,
     });
@@ -129,7 +151,7 @@ export default function Managers() {
         description: 'Gestor cadastrado com sucesso',
       });
       setDialogOpen(false);
-      setFormData({ user_id: '', commission_percent: '', commission_type: 'lucro' });
+      setFormData({ user_id: '', store_id: '', commission_percent: '', commission_type: 'lucro' });
       fetchManagers();
       fetchAvailableUsers();
     }
@@ -223,6 +245,29 @@ export default function Managers() {
                 )}
               </div>
 
+              <div className="space-y-2">
+                <Label>Loja (opcional)</Label>
+                <Select
+                  value={formData.store_id}
+                  onValueChange={(v) => setFormData({ ...formData, store_id: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todas as lojas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todas as lojas</SelectItem>
+                    {stores.map((store) => (
+                      <SelectItem key={store.id} value={store.id}>
+                        {store.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Deixe em branco para comissão sobre todas as lojas
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Percentual de Comissão *</Label>
@@ -311,6 +356,20 @@ export default function Managers() {
                 </Badge>
               </CardHeader>
               <CardContent className="space-y-4">
+                {manager.store_name && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Store className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Loja:</span>
+                    <Badge variant="outline">{manager.store_name}</Badge>
+                  </div>
+                )}
+                {!manager.store_id && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Store className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Loja:</span>
+                    <Badge variant="secondary">Todas as lojas</Badge>
+                  </div>
+                )}
                 <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                   <span className="text-sm text-muted-foreground">Comissão</span>
                   <span className="font-semibold">

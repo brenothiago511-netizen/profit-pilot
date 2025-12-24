@@ -299,6 +299,7 @@ export type Database = {
           created_at: string
           id: string
           status: string
+          store_id: string | null
           updated_at: string
           user_id: string
         }
@@ -308,6 +309,7 @@ export type Database = {
           created_at?: string
           id?: string
           status?: string
+          store_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -317,10 +319,19 @@ export type Database = {
           created_at?: string
           id?: string
           status?: string
+          store_id?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "managers_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       partner_transactions: {
         Row: {
