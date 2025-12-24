@@ -367,6 +367,9 @@ export default function Profits() {
     ? managers.filter((m) => m.id === currentManager.id)
     : managers;
 
+  // Check if gestor has a store assigned
+  const gestorWithoutStore = isGestor && currentManager && !currentManager.store_id;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -377,13 +380,18 @@ export default function Profits() {
           </p>
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Registrar Lucro
-            </Button>
-          </DialogTrigger>
+        {gestorWithoutStore ? (
+          <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm">
+            Você não possui uma loja associada. Entre em contato com o administrador.
+          </div>
+        ) : (
+          <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button className="gap-2" disabled={isGestor && !currentManager}>
+                <Plus className="w-4 h-4" />
+                Registrar Lucro
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingProfit ? 'Editar Lucro' : 'Registrar Novo Lucro'}</DialogTitle>
@@ -501,6 +509,7 @@ export default function Profits() {
             </form>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Stats Cards */}
