@@ -66,11 +66,47 @@ export default function Commissions() {
   const [managers, setManagers] = useState<ManagerOption[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [calculating, setCalculating] = useState(false);
+  const [availableProfits, setAvailableProfits] = useState<{ total: number; count: number } | null>(null);
+  const [loadingProfits, setLoadingProfits] = useState(false);
   const [calcForm, setCalcForm] = useState({
     store_id: '',
     manager_id: '',
     month: format(subMonths(new Date(), 1), 'yyyy-MM'),
   });
+
+  // Check available profits when form changes
+  const checkAvailableProfits = async () => {
+    if (!calcForm.store_id || !calcForm.manager_id || !calcForm.month) {
+      setAvailableProfits(null);
+      return;
+    }
+
+    setLoadingProfits(true);
+    const monthDate = new Date(calcForm.month + '-01');
+    const periodStart = format(startOfMonth(monthDate), 'yyyy-MM-dd');
+    const periodEnd = format(endOfMonth(monthDate), 'yyyy-MM-dd');
+
+    const { data } = await supabase
+      .from('profits')
+      .select('profit_amount')
+      .eq('manager_id', calcForm.manager_id)
+      .eq('store_id', calcForm.store_id)
+      .eq('status', 'approved')
+      .gte('period_start', periodStart)
+      .lte('period_end', periodEnd);
+
+    if (data && data.length > 0) {
+      const total = data.reduce((sum, p) => sum + Number(p.profit_amount), 0);
+      setAvailableProfits({ total, count: data.length });
+    } else {
+      setAvailableProfits({ total: 0, count: 0 });
+    }
+    setLoadingProfits(false);
+  };
+
+  useEffect(() => {
+    checkAvailableProfits();
+  }, [calcForm.store_id, calcForm.manager_id, calcForm.month]);
 
   // Edit state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -244,30 +280,28 @@ export default function Commissions() {
         return;
       }
 
-      // Calculate base amount (revenue or profit)
-      const { data: revenues } = await supabase
-        .from('revenues')
-        .select('amount')
+      // Fetch approved profits for this manager, store, and period
+      const { data: approvedProfits } = await supabase
+        .from('profits')
+        .select('profit_amount')
+        .eq('manager_id', calcForm.manager_id)
         .eq('store_id', calcForm.store_id)
-        .gte('date', periodStart)
-        .lte('date', periodEnd);
+        .eq('status', 'approved')
+        .gte('period_start', periodStart)
+        .lte('period_end', periodEnd);
 
-      const totalRevenue = revenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
-
-      let baseAmount = totalRevenue;
-
-      if (selectedManager.commission_type === 'lucro') {
-        const { data: expenses } = await supabase
-          .from('expenses')
-          .select('amount')
-          .eq('store_id', calcForm.store_id)
-          .gte('date', periodStart)
-          .lte('date', periodEnd);
-
-        const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
-        baseAmount = totalRevenue - totalExpenses;
+      if (!approvedProfits || approvedProfits.length === 0) {
+        toast({
+          title: 'Aviso',
+          description: 'Não há lucros aprovados para este período. O gestor precisa registrar os lucros primeiro.',
+          variant: 'destructive',
+        });
+        setCalculating(false);
+        return;
       }
 
+      // Sum all approved profits for the period
+      const baseAmount = approvedProfits.reduce((sum, p) => sum + Number(p.profit_amount), 0);
       const commissionAmount = (baseAmount * selectedManager.commission_percent) / 100;
 
       // Insert commission
@@ -285,7 +319,7 @@ export default function Commissions() {
 
       toast({
         title: 'Sucesso',
-        description: 'Comissão calculada com sucesso',
+        description: `Comissão calculada: ${formatCurrency(commissionAmount)} (${selectedManager.commission_percent}% de ${formatCurrency(baseAmount)})`,
       });
 
       setDialogOpen(false);
@@ -491,11 +525,39 @@ export default function Commissions() {
                   />
                 </div>
 
+                {/* Available profits indicator */}
+                {calcForm.store_id && calcForm.manager_id && calcForm.month && (
+                  <div className={`p-3 rounded-lg border ${availableProfits && availableProfits.count > 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
+                    {loadingProfits ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Verificando lucros aprovados...
+                      </div>
+                    ) : availableProfits && availableProfits.count > 0 ? (
+                      <div className="text-sm">
+                        <p className="font-medium text-emerald-400">
+                          ✓ {availableProfits.count} lucro(s) aprovado(s) encontrado(s)
+                        </p>
+                        <p className="text-muted-foreground">
+                          Total: {formatCurrency(availableProfits.total)}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-amber-400">
+                        ⚠ Nenhum lucro aprovado para este período. O gestor precisa registrar e ter os lucros aprovados primeiro.
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex justify-end gap-3 pt-4">
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button onClick={calculateCommission} disabled={calculating}>
+                  <Button 
+                    onClick={calculateCommission} 
+                    disabled={calculating || !availableProfits || availableProfits.count === 0}
+                  >
                     {calculating ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
