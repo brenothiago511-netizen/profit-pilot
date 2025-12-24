@@ -37,9 +37,21 @@ import {
   Legend,
 } from 'recharts';
 
+import StoreComparison from '@/components/reports/StoreComparison';
+
 interface StoreOption {
   id: string;
   name: string;
+}
+
+interface StorePerformanceData {
+  storeId: string;
+  storeName: string;
+  revenue: number;
+  expenses: number;
+  profit: number;
+  margin: number;
+  goalAchievement: number;
 }
 
 interface ReportData {
@@ -67,6 +79,9 @@ interface ReportData {
     capital: number;
     profitShare: number;
   }[];
+  
+  // Store comparison data
+  storesPerformance: StorePerformanceData[];
 }
 
 export default function ExecutiveReport() {
@@ -84,6 +99,7 @@ export default function ExecutiveReport() {
     netProfit: 0,
     goals: [],
     partners: [],
+    storesPerformance: [],
   });
 
   useEffect(() => {
@@ -274,6 +290,68 @@ export default function ExecutiveReport() {
         };
       }));
 
+      // Fetch store performance data for comparison (only when viewing all stores)
+      let storesPerformance: StorePerformanceData[] = [];
+      
+      if (selectedStore === 'all' && stores.length > 0) {
+        storesPerformance = await Promise.all(stores.map(async (store) => {
+          // Get store revenues
+          const { data: storeRevenues } = await supabase
+            .from('revenues')
+            .select('amount')
+            .eq('store_id', store.id)
+            .gte('date', periodStart)
+            .lte('date', periodEnd);
+          
+          const storeRevenue = storeRevenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
+
+          // Get store expenses
+          const { data: storeExpenses } = await supabase
+            .from('expenses')
+            .select('amount')
+            .eq('store_id', store.id)
+            .gte('date', periodStart)
+            .lte('date', periodEnd);
+          
+          const storeExpense = storeExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+
+          // Get store commissions
+          const { data: storeCommissions } = await supabase
+            .from('commissions')
+            .select('commission_amount')
+            .eq('store_id', store.id)
+            .gte('period_start', periodStart)
+            .lte('period_end', periodEnd);
+          
+          const storeCommission = storeCommissions?.reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0;
+
+          // Get store goal
+          const { data: storeGoal } = await supabase
+            .from('revenue_goals')
+            .select('goal_amount_original')
+            .eq('store_id', store.id)
+            .gte('period_start', periodStart)
+            .lte('period_end', periodEnd)
+            .maybeSingle();
+
+          const goalAmount = storeGoal?.goal_amount_original || 0;
+          const goalAchievement = goalAmount > 0 ? (storeRevenue / goalAmount) * 100 : 0;
+
+          const profit = storeRevenue - storeExpense - storeCommission;
+          const margin = storeRevenue > 0 ? (profit / storeRevenue) * 100 : 0;
+
+          return {
+            storeId: store.id,
+            storeName: store.name,
+            revenue: storeRevenue,
+            expenses: storeExpense,
+            profit,
+            margin,
+            goalAchievement,
+          };
+        }));
+      }
+
       setReportData({
         totalRevenue,
         revenueBySource,
@@ -284,6 +362,7 @@ export default function ExecutiveReport() {
         netProfit,
         goals,
         partners: partnersWithProfitShare,
+        storesPerformance,
       });
     } catch (error) {
       console.error('Error fetching report data:', error);
@@ -817,6 +896,17 @@ export default function ExecutiveReport() {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* Store Comparison */}
+          {selectedStore === 'all' && reportData.storesPerformance.length >= 2 && (
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <Store className="w-5 h-5 text-primary" />
+                Comparativo entre Lojas
+              </h2>
+              <StoreComparison storesData={reportData.storesPerformance} />
+            </div>
           )}
 
           {/* Partners Result */}
