@@ -9,10 +9,21 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Percent, Loader2, Calculator, Check } from 'lucide-react';
+import { Percent, Loader2, Calculator, Check, Pencil, Trash2 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Commission {
   id: string;
@@ -58,6 +69,22 @@ export default function Commissions() {
     manager_id: '',
     month: format(subMonths(new Date(), 1), 'yyyy-MM'),
   });
+
+  // Edit state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingCommission, setEditingCommission] = useState<Commission | null>(null);
+  const [editForm, setEditForm] = useState({
+    base_amount: '',
+    percent: '',
+    commission_amount: '',
+    status: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  // Delete state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingCommission, setDeletingCommission] = useState<Commission | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchCommissions();
@@ -293,6 +320,97 @@ export default function Commissions() {
     }
   };
 
+  const openEditDialog = (commission: Commission) => {
+    setEditingCommission(commission);
+    setEditForm({
+      base_amount: commission.base_amount.toString(),
+      percent: commission.percent.toString(),
+      commission_amount: commission.commission_amount.toString(),
+      status: commission.status,
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editingCommission) return;
+
+    setSaving(true);
+    const { error } = await supabase
+      .from('commissions')
+      .update({
+        base_amount: parseFloat(editForm.base_amount) || 0,
+        percent: parseFloat(editForm.percent) || 0,
+        commission_amount: parseFloat(editForm.commission_amount) || 0,
+        status: editForm.status,
+        paid_at: editForm.status === 'paga' ? new Date().toISOString() : null,
+      })
+      .eq('id', editingCommission.id);
+
+    setSaving(false);
+
+    if (error) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Sucesso',
+        description: 'Comissão atualizada com sucesso',
+      });
+      setEditDialogOpen(false);
+      setEditingCommission(null);
+      fetchCommissions();
+    }
+  };
+
+  const openDeleteDialog = (commission: Commission) => {
+    setDeletingCommission(commission);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingCommission) return;
+
+    setDeleting(true);
+    const { error } = await supabase
+      .from('commissions')
+      .delete()
+      .eq('id', deletingCommission.id);
+
+    setDeleting(false);
+
+    if (error) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Sucesso',
+        description: 'Comissão excluída com sucesso',
+      });
+      setDeleteDialogOpen(false);
+      setDeletingCommission(null);
+      fetchCommissions();
+    }
+  };
+
+  // Recalculate commission when percent or base changes
+  const handleEditFormChange = (field: string, value: string) => {
+    const newForm = { ...editForm, [field]: value };
+    
+    if (field === 'base_amount' || field === 'percent') {
+      const base = parseFloat(field === 'base_amount' ? value : newForm.base_amount) || 0;
+      const percent = parseFloat(field === 'percent' ? value : newForm.percent) || 0;
+      newForm.commission_amount = ((base * percent) / 100).toFixed(2);
+    }
+    
+    setEditForm(newForm);
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -447,17 +565,34 @@ export default function Commissions() {
                       </td>
                       {hasPermission('manage_commissions') && (
                         <td>
-                          {commission.status === 'pendente' && (
+                          <div className="flex items-center gap-1">
+                            {commission.status === 'pendente' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-success hover:text-success"
+                                onClick={() => markAsPaid(commission.id)}
+                              >
+                                <Check className="w-4 h-4 mr-1" />
+                                Pagar
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-success hover:text-success"
-                              onClick={() => markAsPaid(commission.id)}
+                              onClick={() => openEditDialog(commission)}
                             >
-                              <Check className="w-4 h-4 mr-1" />
-                              Pagar
+                              <Pencil className="w-4 h-4" />
                             </Button>
-                          )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => openDeleteDialog(commission)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -468,6 +603,120 @@ export default function Commissions() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Comissão</DialogTitle>
+          </DialogHeader>
+          {editingCommission && (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                <p><strong>Gestor:</strong> {editingCommission.manager_name}</p>
+                <p><strong>Loja:</strong> {editingCommission.store_name}</p>
+                <p><strong>Período:</strong> {format(new Date(editingCommission.period_start), 'MMM yyyy', { locale: ptBR })}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Base de Cálculo (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editForm.base_amount}
+                  onChange={(e) => handleEditFormChange('base_amount', e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Percentual (%)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={editForm.percent}
+                  onChange={(e) => handleEditFormChange('percent', e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Valor da Comissão (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editForm.commission_amount}
+                  onChange={(e) => setEditForm({ ...editForm, commission_amount: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={editForm.status}
+                  onValueChange={(v) => setEditForm({ ...editForm, status: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="paga">Paga</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleEditSave} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salvar'
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Comissão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta comissão de{' '}
+              <strong>{deletingCommission?.manager_name}</strong> referente a{' '}
+              <strong>
+                {deletingCommission && format(new Date(deletingCommission.period_start), 'MMM yyyy', { locale: ptBR })}
+              </strong>
+              ? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                'Excluir'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
