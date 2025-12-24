@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ROIAlerts from '@/components/alerts/ROIAlerts';
+import EarningsProjection from '@/components/projections/EarningsProjection';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -26,6 +27,7 @@ import {
   Scale,
   Trophy,
   Bell,
+  Sparkles,
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -616,6 +618,10 @@ export default function PartnerDashboardPage() {
             <Bell className="w-4 h-4" />
             Alertas
           </TabsTrigger>
+          <TabsTrigger value="projection" className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4" />
+            Projeção
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -1204,6 +1210,13 @@ export default function PartnerDashboardPage() {
             storePerformance={storePerformance} 
             partnerships={partnerships}
             onRefresh={fetchPartnerData}
+          />
+        </TabsContent>
+
+        <TabsContent value="projection" className="space-y-6">
+          <EarningsProjection 
+            monthlyData={monthlyData} 
+            avgPercentage={avgPercentage}
           />
         </TabsContent>
       </Tabs>
