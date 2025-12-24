@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Loader2, Percent, User, Store } from 'lucide-react';
+import { Plus, Users, Loader2, Percent, User, Store, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Manager {
@@ -45,9 +45,16 @@ export default function Managers() {
   const [availableUsers, setAvailableUsers] = useState<UserProfile[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingManager, setEditingManager] = useState<Manager | null>(null);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     user_id: '',
+    store_id: '',
+    commission_percent: '',
+    commission_type: 'lucro',
+  });
+  const [editFormData, setEditFormData] = useState({
     store_id: '',
     commission_percent: '',
     commission_type: 'lucro',
@@ -179,23 +186,52 @@ export default function Managers() {
     }
   };
 
-  const updateCommission = async (id: string, percent: number, type: string) => {
-    const { error } = await supabase
-      .from('managers')
-      .update({ commission_percent: percent, commission_type: type })
-      .eq('id', id);
-    
-    if (error) {
+  const openEditDialog = (manager: Manager) => {
+    setEditingManager(manager);
+    setEditFormData({
+      store_id: manager.store_id || '',
+      commission_percent: manager.commission_percent.toString(),
+      commission_type: manager.commission_type,
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingManager || !editFormData.commission_percent) {
       toast({
         title: 'Erro',
+        description: 'Preencha todos os campos obrigatórios',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSaving(true);
+    const { error } = await supabase
+      .from('managers')
+      .update({
+        store_id: editFormData.store_id || null,
+        commission_percent: parseFloat(editFormData.commission_percent),
+        commission_type: editFormData.commission_type,
+      })
+      .eq('id', editingManager.id);
+
+    setSaving(false);
+
+    if (error) {
+      toast({
+        title: 'Erro ao salvar',
         description: error.message,
         variant: 'destructive',
       });
     } else {
       toast({
-        title: 'Atualizado',
-        description: 'Comissão atualizada com sucesso',
+        title: 'Sucesso',
+        description: 'Gestor atualizado com sucesso',
       });
+      setEditDialogOpen(false);
+      setEditingManager(null);
       fetchManagers();
     }
   };
@@ -381,13 +417,23 @@ export default function Managers() {
                     Desde {format(new Date(manager.created_at), 'dd/MM/yyyy')}
                   </span>
                   <PermissionGate permission="manage_managers">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleStatus(manager.id, manager.status)}
-                    >
-                      {manager.status === 'active' ? 'Desativar' : 'Ativar'}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditDialog(manager)}
+                      >
+                        <Pencil className="w-4 h-4 mr-1" />
+                        Editar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toggleStatus(manager.id, manager.status)}
+                      >
+                        {manager.status === 'active' ? 'Desativar' : 'Ativar'}
+                      </Button>
+                    </div>
                   </PermissionGate>
                 </div>
               </CardContent>
@@ -395,6 +441,98 @@ export default function Managers() {
           ))
         )}
       </div>
+
+      {/* Edit Manager Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Gestor</DialogTitle>
+          </DialogHeader>
+          {editingManager && (
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                <User className="w-5 h-5 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">{editingManager.profile_name}</p>
+                  <p className="text-sm text-muted-foreground">{editingManager.profile_email}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Loja Associada</Label>
+                <Select
+                  value={editFormData.store_id}
+                  onValueChange={(v) => setEditFormData({ ...editFormData, store_id: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todas as lojas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todas as lojas</SelectItem>
+                    {stores.map((store) => (
+                      <SelectItem key={store.id} value={store.id}>
+                        {store.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Deixe em branco para comissão sobre todas as lojas
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Percentual de Comissão *</Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="10"
+                      value={editFormData.commission_percent}
+                      onChange={(e) => setEditFormData({ ...editFormData, commission_percent: e.target.value })}
+                    />
+                    <Percent className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tipo de Comissão</Label>
+                  <Select
+                    value={editFormData.commission_type}
+                    onValueChange={(v) => setEditFormData({ ...editFormData, commission_type: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="lucro">Sobre Lucro</SelectItem>
+                      <SelectItem value="faturamento">Sobre Faturamento</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salvar'
+                  )}
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
