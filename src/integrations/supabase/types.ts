@@ -485,6 +485,69 @@ export type Database = {
         }
         Relationships: []
       }
+      profits: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string
+          id: string
+          manager_id: string
+          notes: string | null
+          period_end: string
+          period_start: string
+          profit_amount: number
+          status: string
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          manager_id: string
+          notes?: string | null
+          period_end: string
+          period_start: string
+          profit_amount: number
+          status?: string
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          manager_id?: string
+          notes?: string | null
+          period_end?: string
+          period_start?: string
+          profit_amount?: number
+          status?: string
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profits_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profits_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revenue_goals: {
         Row: {
           created_at: string
