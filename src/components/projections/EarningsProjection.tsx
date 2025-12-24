@@ -37,6 +37,8 @@ interface ProjectionData {
   month: string;
   lucroReal?: number;
   lucroProjetado: number;
+  lucroOtimista?: number;
+  lucroPessimista?: number;
   isProjection: boolean;
   confidence?: number;
 }
@@ -121,6 +123,11 @@ export default function EarningsProjection({ monthlyData, avgPercentage }: Earni
     const today = new Date();
     const lastIndex = profits.length;
     
+    // Calculate volatility factor based on standard deviation
+    const volatilityFactor = stdDev / Math.abs(movingAvg || 1);
+    // Base margin starts at 15% and increases with volatility
+    const baseMargin = 0.15 + Math.min(0.25, volatilityFactor * 0.5);
+    
     for (let i = 1; i <= 3; i++) {
       const projectedMonth = addMonths(today, i);
       const monthLabel = format(projectedMonth, 'MMM', { locale: ptBR });
@@ -131,26 +138,43 @@ export default function EarningsProjection({ monthlyData, avgPercentage }: Earni
       const maProjection = movingAvg * (1 + (growthRate / 100) * i * 0.5);
       const projectedValue = linearProjection * 0.6 + maProjection * 0.4;
       
+      // Margin increases with distance (uncertainty grows)
+      const margin = baseMargin * (1 + (i - 1) * 0.3);
+      
+      // Optimistic scenario: add margin + growth momentum
+      const optimisticValue = projectedValue * (1 + margin) * (1 + Math.max(0, growthRate / 100) * 0.2);
+      
+      // Pessimistic scenario: subtract margin + consider negative momentum
+      const pessimisticValue = projectedValue * (1 - margin) * (1 - Math.abs(Math.min(0, growthRate / 100)) * 0.2);
+      
       // Confidence decreases with distance
-      const confidence = Math.max(50, 95 - (i * 15) - (stdDev / Math.abs(movingAvg || 1)) * 10);
+      const confidence = Math.max(50, 95 - (i * 15) - volatilityFactor * 10);
       
       combined.push({
         month: capitalizedMonth,
         lucroReal: undefined,
         lucroProjetado: Math.max(0, projectedValue),
+        lucroOtimista: Math.max(0, optimisticValue),
+        lucroPessimista: Math.max(0, pessimisticValue),
         isProjection: true,
         confidence: Math.min(95, Math.max(30, confidence)),
       });
     }
 
+    const projections = combined.filter(d => d.isProjection);
+    
     return {
       data: combined,
       slope,
       movingAvg,
       growthRate,
       stdDev,
-      nextMonthProjection: combined.find(d => d.isProjection)?.lucroProjetado || 0,
-      threeMonthProjection: combined.filter(d => d.isProjection).reduce((sum, d) => sum + d.lucroProjetado, 0),
+      nextMonthProjection: projections[0]?.lucroProjetado || 0,
+      nextMonthOptimistic: projections[0]?.lucroOtimista || 0,
+      nextMonthPessimistic: projections[0]?.lucroPessimista || 0,
+      threeMonthProjection: projections.reduce((sum, d) => sum + d.lucroProjetado, 0),
+      threeMonthOptimistic: projections.reduce((sum, d) => sum + (d.lucroOtimista || 0), 0),
+      threeMonthPessimistic: projections.reduce((sum, d) => sum + (d.lucroPessimista || 0), 0),
     };
   }, [monthlyData]);
 
@@ -193,9 +217,11 @@ export default function EarningsProjection({ monthlyData, avgPercentage }: Earni
             <div className="text-2xl font-bold">
               {formatCurrency(projectionData.nextMonthProjection)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Lucro projetado (sua parte)
-            </p>
+            <div className="flex items-center gap-2 mt-2 text-xs">
+              <span className="text-success">{formatCurrency(projectionData.nextMonthOptimistic)}</span>
+              <span className="text-muted-foreground">~</span>
+              <span className="text-destructive">{formatCurrency(projectionData.nextMonthPessimistic)}</span>
+            </div>
           </CardContent>
         </Card>
 
@@ -210,9 +236,11 @@ export default function EarningsProjection({ monthlyData, avgPercentage }: Earni
             <div className="text-2xl font-bold">
               {formatCurrency(projectionData.threeMonthProjection)}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Acumulado projetado
-            </p>
+            <div className="flex items-center gap-2 mt-2 text-xs">
+              <span className="text-success">{formatCurrency(projectionData.threeMonthOptimistic)}</span>
+              <span className="text-muted-foreground">~</span>
+              <span className="text-destructive">{formatCurrency(projectionData.threeMonthPessimistic)}</span>
+            </div>
           </CardContent>
         </Card>
 
@@ -262,9 +290,9 @@ export default function EarningsProjection({ monthlyData, avgPercentage }: Earni
                     <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
                   </linearGradient>
-                  <linearGradient id="colorProjetado" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  <linearGradient id="colorScenario" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -282,10 +310,15 @@ export default function EarningsProjection({ monthlyData, avgPercentage }: Earni
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                   }}
-                  formatter={(value: number, name: string) => [
-                    formatCurrency(value), 
-                    name === 'lucroReal' ? 'Lucro Real' : 'Projeção'
-                  ]}
+                  formatter={(value: number, name: string) => {
+                    const labels: Record<string, string> = {
+                      lucroReal: 'Lucro Real',
+                      lucroProjetado: 'Projeção Base',
+                      lucroOtimista: 'Cenário Otimista',
+                      lucroPessimista: 'Cenário Pessimista',
+                    };
+                    return [formatCurrency(value), labels[name] || name];
+                  }}
                   labelFormatter={(label, payload) => {
                     const item = payload?.[0]?.payload;
                     if (item?.isProjection && item?.confidence) {
@@ -295,7 +328,15 @@ export default function EarningsProjection({ monthlyData, avgPercentage }: Earni
                   }}
                 />
                 <Legend 
-                  formatter={(value) => value === 'lucroReal' ? 'Lucro Real' : 'Projeção'}
+                  formatter={(value) => {
+                    const labels: Record<string, string> = {
+                      lucroReal: 'Lucro Real',
+                      lucroProjetado: 'Projeção Base',
+                      lucroOtimista: 'Cenário Otimista',
+                      lucroPessimista: 'Cenário Pessimista',
+                    };
+                    return labels[value] || value;
+                  }}
                 />
                 
                 {/* Reference line for current month */}
@@ -321,6 +362,32 @@ export default function EarningsProjection({ monthlyData, avgPercentage }: Earni
                   strokeWidth={2}
                   connectNulls={false}
                 />
+                
+                {/* Optimistic scenario line */}
+                <Line
+                  type="monotone"
+                  dataKey="lucroOtimista"
+                  name="lucroOtimista"
+                  stroke="hsl(var(--success))"
+                  strokeWidth={1.5}
+                  strokeDasharray="3 3"
+                  dot={false}
+                  connectNulls
+                />
+                
+                {/* Pessimistic scenario line */}
+                <Line
+                  type="monotone"
+                  dataKey="lucroPessimista"
+                  name="lucroPessimista"
+                  stroke="hsl(var(--destructive))"
+                  strokeWidth={1.5}
+                  strokeDasharray="3 3"
+                  dot={false}
+                  connectNulls
+                />
+                
+                {/* Base projection line */}
                 <Line
                   type="monotone"
                   dataKey="lucroProjetado"
@@ -351,44 +418,70 @@ export default function EarningsProjection({ monthlyData, avgPercentage }: Earni
         </CardContent>
       </Card>
 
-      {/* Projection Details */}
+      {/* Projection Details with Scenarios */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Detalhes da Projeção</CardTitle>
+          <CardTitle className="text-base">Detalhes da Projeção por Cenário</CardTitle>
           <CardDescription>
-            Valores projetados para os próximos meses
+            Valores projetados para os próximos meses com cenários otimista e pessimista
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {projectionData.data.filter(d => d.isProjection).map((item, index) => (
               <div 
                 key={item.month}
-                className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                className="p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Calendar className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">{item.month}</p>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        Mês +{index + 1}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        Confiança: {item.confidence?.toFixed(0)}%
-                      </span>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Calendar className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{item.month}</p>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          Mês +{index + 1}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          Confiança: {item.confidence?.toFixed(0)}%
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-primary">
-                    {formatCurrency(item.lucroProjetado)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Lucro projetado
-                  </p>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <div className="flex items-center gap-1 mb-1">
+                      <TrendingDown className="w-3 h-3 text-destructive" />
+                      <span className="text-xs font-medium text-destructive">Pessimista</span>
+                    </div>
+                    <p className="text-sm font-bold text-destructive">
+                      {formatCurrency(item.lucroPessimista || 0)}
+                    </p>
+                  </div>
+                  
+                  <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                    <div className="flex items-center gap-1 mb-1">
+                      <Target className="w-3 h-3 text-primary" />
+                      <span className="text-xs font-medium text-primary">Base</span>
+                    </div>
+                    <p className="text-sm font-bold text-primary">
+                      {formatCurrency(item.lucroProjetado)}
+                    </p>
+                  </div>
+                  
+                  <div className="p-3 rounded-lg bg-success/10 border border-success/20">
+                    <div className="flex items-center gap-1 mb-1">
+                      <TrendingUp className="w-3 h-3 text-success" />
+                      <span className="text-xs font-medium text-success">Otimista</span>
+                    </div>
+                    <p className="text-sm font-bold text-success">
+                      {formatCurrency(item.lucroOtimista || 0)}
+                    </p>
+                  </div>
                 </div>
               </div>
             ))}
@@ -396,8 +489,9 @@ export default function EarningsProjection({ monthlyData, avgPercentage }: Earni
           
           <div className="mt-4 p-3 rounded-lg bg-muted/50">
             <p className="text-xs text-muted-foreground">
-              <strong>Nota:</strong> As projeções são baseadas em regressão linear e média móvel dos dados históricos. 
-              Resultados reais podem variar significativamente devido a fatores externos não considerados no modelo.
+              <strong>Nota:</strong> Os cenários são calculados com base na volatilidade histórica e tendência de crescimento.
+              O cenário <span className="text-success font-medium">otimista</span> considera condições favoráveis, 
+              enquanto o <span className="text-destructive font-medium">pessimista</span> considera condições adversas.
             </p>
           </div>
         </CardContent>
