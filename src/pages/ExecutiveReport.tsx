@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PermissionGate } from '@/components/permissions/PermissionGate';
+import { Progress } from '@/components/ui/progress';
 import { 
   FileText, 
   Download, 
@@ -22,6 +23,19 @@ import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
 
 interface StoreOption {
   id: string;
@@ -286,6 +300,14 @@ export default function ExecutiveReport() {
   };
 
   const monthLabel = format(new Date(selectedMonth + '-01'), 'MMMM yyyy', { locale: ptBR });
+
+  // Chart colors
+  const CHART_COLORS = [
+    '#22c55e', '#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4', '#ec4899', '#10b981', '#6366f1'
+  ];
+  const EXPENSE_COLORS = [
+    '#ef4444', '#f97316', '#eab308', '#84cc16', '#14b8a6', '#0ea5e9', '#a855f7', '#f43f5e'
+  ];
 
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -585,8 +607,50 @@ export default function ExecutiveReport() {
             </Card>
           </div>
 
+          {/* Financial Overview Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-primary" />
+                Visão Geral Financeira
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={[
+                      { name: 'Receita', valor: reportData.totalRevenue, fill: 'hsl(var(--success))' },
+                      { name: 'Despesas', valor: reportData.totalExpenses, fill: 'hsl(var(--danger))' },
+                      { name: 'Comissões', valor: reportData.totalCommissions, fill: 'hsl(var(--warning))' },
+                      { name: 'Lucro Líquido', valor: Math.max(0, reportData.netProfit), fill: 'hsl(var(--primary))' },
+                    ]}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" className="text-xs fill-muted-foreground" />
+                    <YAxis 
+                      tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                      className="text-xs fill-muted-foreground"
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => formatCurrency(value)}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
+                    />
+                    <Bar dataKey="valor" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid gap-6 lg:grid-cols-2">
-            {/* Revenue by Source */}
+            {/* Revenue by Source Pie Chart */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -598,19 +662,46 @@ export default function ExecutiveReport() {
                 {reportData.revenueBySource.length === 0 ? (
                   <p className="text-muted-foreground text-sm text-center py-4">Nenhuma receita no período</p>
                 ) : (
-                  <div className="space-y-3">
-                    {reportData.revenueBySource.map((r, i) => (
-                      <div key={i} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-                        <span className="text-muted-foreground">{r.source}</span>
-                        <span className="font-medium text-success">{formatCurrency(r.amount)}</span>
-                      </div>
-                    ))}
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={reportData.revenueBySource.map((r, i) => ({
+                            name: r.source,
+                            value: r.amount,
+                          }))}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {reportData.revenueBySource.map((_, index) => (
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={CHART_COLORS[index % CHART_COLORS.length]} 
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: number) => formatCurrency(value)}
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))', 
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                          }}
+                        />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Expenses by Category */}
+            {/* Expenses by Category Pie Chart */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -622,20 +713,47 @@ export default function ExecutiveReport() {
                 {reportData.expensesByCategory.length === 0 ? (
                   <p className="text-muted-foreground text-sm text-center py-4">Nenhuma despesa no período</p>
                 ) : (
-                  <div className="space-y-3">
-                    {reportData.expensesByCategory.map((e, i) => (
-                      <div key={i} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-                        <span className="text-muted-foreground">{e.category}</span>
-                        <span className="font-medium text-danger">{formatCurrency(e.amount)}</span>
-                      </div>
-                    ))}
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={reportData.expensesByCategory.map((e, i) => ({
+                            name: e.category,
+                            value: e.amount,
+                          }))}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {reportData.expensesByCategory.map((_, index) => (
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={EXPENSE_COLORS[index % EXPENSE_COLORS.length]} 
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: number) => formatCurrency(value)}
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))', 
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                          }}
+                        />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Goals */}
+          {/* Goals with Progress Bars */}
           {reportData.goals.length > 0 && (
             <Card>
               <CardHeader>
@@ -645,31 +763,57 @@ export default function ExecutiveReport() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Loja</th>
-                        <th className="text-right">Meta</th>
-                        <th className="text-right">Realizado</th>
-                        <th className="text-center">% Atingido</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {reportData.goals.map((goal, i) => (
-                        <tr key={i}>
-                          <td>{goal.storeName}</td>
-                          <td className="text-right">{formatCurrency(goal.goal)}</td>
-                          <td className="text-right">{formatCurrency(goal.achieved)}</td>
-                          <td className="text-center">
-                            <Badge variant={goal.percentage >= 100 ? 'default' : 'secondary'}>
-                              {goal.percentage.toFixed(1)}%
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-6">
+                  {reportData.goals.map((goal, i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{goal.storeName}</span>
+                        <Badge variant={goal.percentage >= 100 ? 'default' : goal.percentage >= 80 ? 'secondary' : 'destructive'}>
+                          {goal.percentage.toFixed(1)}%
+                        </Badge>
+                      </div>
+                      <Progress 
+                        value={Math.min(goal.percentage, 100)} 
+                        className="h-3"
+                      />
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Realizado: {formatCurrency(goal.achieved)}</span>
+                        <span>Meta: {formatCurrency(goal.goal)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Goals Bar Chart */}
+                <div className="mt-8 h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={reportData.goals.map(g => ({
+                        loja: g.storeName,
+                        meta: g.goal,
+                        realizado: g.achieved,
+                      }))}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="loja" className="text-xs fill-muted-foreground" />
+                      <YAxis 
+                        tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                        className="text-xs fill-muted-foreground"
+                      />
+                      <Tooltip 
+                        formatter={(value: number) => formatCurrency(value)}
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                      />
+                      <Legend />
+                      <Bar dataKey="meta" name="Meta" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="realizado" name="Realizado" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
