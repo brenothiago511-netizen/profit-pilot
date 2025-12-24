@@ -10,8 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Percent, Loader2, Calculator, Check, Pencil, Trash2 } from 'lucide-react';
+import { Percent, Loader2, Calculator, Check, Pencil, Trash2, BarChart3, List } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -24,6 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { CommissionTrendChart } from '@/components/commissions/CommissionTrendChart';
 
 interface Commission {
   id: string;
@@ -510,99 +512,124 @@ export default function Commissions() {
       </PermissionGate>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Percent className="w-5 h-5 text-info" />
-            Comissões
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Tabs defaultValue="charts" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="charts" className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Gráficos
+          </TabsTrigger>
+          <TabsTrigger value="list" className="flex items-center gap-2">
+            <List className="w-4 h-4" />
+            Lista
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="charts">
           {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          ) : commissions.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhuma comissão calculada
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Período</th>
-                    <th>Gestor</th>
-                    <th>Loja</th>
-                    <th>Tipo</th>
-                    <th className="text-right">Base</th>
-                    <th className="text-center">%</th>
-                    <th className="text-right">Valor</th>
-                    <th>Status</th>
-                    {hasPermission('manage_commissions') && <th></th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {commissions.map((commission) => (
-                    <tr key={commission.id}>
-                      <td>
-                        {format(new Date(commission.period_start), 'MMM yyyy', { locale: ptBR })}
-                      </td>
-                      <td>{commission.manager_name}</td>
-                      <td>{commission.store_name}</td>
-                      <td className="capitalize">
-                        {commission.manager_commission_type === 'lucro' ? 'Lucro' : 'Faturamento'}
-                      </td>
-                      <td className="text-right">{formatCurrency(commission.base_amount)}</td>
-                      <td className="text-center">{commission.percent}%</td>
-                      <td className="text-right font-medium text-info">
-                        {formatCurrency(commission.commission_amount)}
-                      </td>
-                      <td>
-                        <Badge variant={commission.status === 'paga' ? 'default' : 'secondary'}>
-                          {commission.status === 'paga' ? 'Paga' : 'Pendente'}
-                        </Badge>
-                      </td>
-                      {hasPermission('manage_commissions') && (
-                        <td>
-                          <div className="flex items-center gap-1">
-                            {commission.status === 'pendente' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-success hover:text-success"
-                                onClick={() => markAsPaid(commission.id)}
-                              >
-                                <Check className="w-4 h-4 mr-1" />
-                                Pagar
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEditDialog(commission)}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => openDeleteDialog(commission)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <CommissionTrendChart commissions={commissions} />
           )}
-        </CardContent>
-      </Card>
+        </TabsContent>
+
+        <TabsContent value="list">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Percent className="w-5 h-5 text-info" />
+                Comissões
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+              ) : commissions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhuma comissão calculada
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Período</th>
+                        <th>Gestor</th>
+                        <th>Loja</th>
+                        <th>Tipo</th>
+                        <th className="text-right">Base</th>
+                        <th className="text-center">%</th>
+                        <th className="text-right">Valor</th>
+                        <th>Status</th>
+                        {hasPermission('manage_commissions') && <th></th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {commissions.map((commission) => (
+                        <tr key={commission.id}>
+                          <td>
+                            {format(new Date(commission.period_start), 'MMM yyyy', { locale: ptBR })}
+                          </td>
+                          <td>{commission.manager_name}</td>
+                          <td>{commission.store_name}</td>
+                          <td className="capitalize">
+                            {commission.manager_commission_type === 'lucro' ? 'Lucro' : 'Faturamento'}
+                          </td>
+                          <td className="text-right">{formatCurrency(commission.base_amount)}</td>
+                          <td className="text-center">{commission.percent}%</td>
+                          <td className="text-right font-medium text-info">
+                            {formatCurrency(commission.commission_amount)}
+                          </td>
+                          <td>
+                            <Badge variant={commission.status === 'paga' ? 'default' : 'secondary'}>
+                              {commission.status === 'paga' ? 'Paga' : 'Pendente'}
+                            </Badge>
+                          </td>
+                          {hasPermission('manage_commissions') && (
+                            <td>
+                              <div className="flex items-center gap-1">
+                                {commission.status === 'pendente' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-success hover:text-success"
+                                    onClick={() => markAsPaid(commission.id)}
+                                  >
+                                    <Check className="w-4 h-4 mr-1" />
+                                    Pagar
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openEditDialog(commission)}
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => openDeleteDialog(commission)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
