@@ -22,7 +22,7 @@ import { format } from 'date-fns';
 import { CsvImportDialog } from '@/components/users/CsvImportDialog';
 import { PermissionsDialog } from '@/components/users/PermissionsDialog';
 
-type AppRole = 'admin' | 'financeiro' | 'gestor';
+type AppRole = 'admin' | 'financeiro' | 'gestor' | 'socio';
 
 interface UserProfile {
   id: string;
@@ -342,6 +342,7 @@ export default function Users() {
       admin: 'Administrador',
       financeiro: 'Financeiro',
       gestor: 'Gestor',
+      socio: 'Sócio',
     };
     return roles[role] || role;
   };
@@ -419,6 +420,7 @@ export default function Users() {
                     <SelectItem value="admin">Administrador</SelectItem>
                     <SelectItem value="financeiro">Financeiro</SelectItem>
                     <SelectItem value="gestor">Gestor</SelectItem>
+                    <SelectItem value="socio">Sócio</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -478,6 +480,7 @@ export default function Users() {
                   <SelectItem value="admin">Administrador</SelectItem>
                   <SelectItem value="financeiro">Financeiro</SelectItem>
                   <SelectItem value="gestor">Gestor</SelectItem>
+                  <SelectItem value="socio">Sócio</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -705,6 +708,7 @@ export default function Users() {
                   <SelectItem value="admin">Administrador</SelectItem>
                   <SelectItem value="financeiro">Financeiro</SelectItem>
                   <SelectItem value="gestor">Gestor</SelectItem>
+                  <SelectItem value="socio">Sócio</SelectItem>
                 </SelectContent>
               </Select>
             </div>

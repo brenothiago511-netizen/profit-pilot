@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 
-type AppRole = 'admin' | 'financeiro' | 'gestor';
+type AppRole = 'admin' | 'financeiro' | 'gestor' | 'socio';
 
 interface ParsedUser {
   email: string;
@@ -57,7 +57,7 @@ export function CsvImportDialog({ onImportComplete }: CsvImportDialogProps) {
 
     // Skip header row
     const dataLines = lines.slice(1);
-    const validRoles: AppRole[] = ['admin', 'financeiro', 'gestor'];
+    const validRoles: AppRole[] = ['admin', 'financeiro', 'gestor', 'socio'];
 
     return dataLines.map(line => {
       // Handle CSV with possible quoted values
@@ -94,7 +94,7 @@ export function CsvImportDialog({ onImportComplete }: CsvImportDialogProps) {
         error = 'Senha deve ter 6+ caracteres';
       } else if (!validRoles.includes(role)) {
         valid = false;
-        error = 'Papel inválido (admin, financeiro, gestor)';
+        error = 'Papel inválido (admin, financeiro, gestor, socio)';
       }
 
       return {

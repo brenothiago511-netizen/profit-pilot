@@ -9,7 +9,7 @@ interface UserToImport {
   email: string;
   name: string;
   password: string;
-  role: 'admin' | 'financeiro' | 'gestor';
+  role: 'admin' | 'financeiro' | 'gestor' | 'socio';
 }
 
 interface ImportResult {
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const validRoles = ['admin', 'financeiro', 'gestor'];
+        const validRoles = ['admin', 'financeiro', 'gestor', 'socio'];
         const role = validRoles.includes(userData.role) ? userData.role : 'financeiro';
 
         // Create the user with admin API

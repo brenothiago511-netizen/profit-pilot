@@ -118,6 +118,7 @@ export default function AppLayout() {
       admin: 'Administrador',
       financeiro: 'Financeiro',
       gestor: 'Gestor',
+      socio: 'Sócio',
     };
     return roles[role] || role;
   };
