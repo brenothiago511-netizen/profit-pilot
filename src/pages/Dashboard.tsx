@@ -186,10 +186,13 @@ export default function Dashboard() {
       const { data: paidRecords } = await commissionQuery;
       const totalCommissions = paidRecords?.reduce((sum, r) => sum + Number(r.commission_amount || 0), 0) || 0;
 
+      // Calculate net profit: revenue - expenses - paid commissions
+      const netProfit = totalRevenue - totalExpenses - totalCommissions;
+
       setData({
         totalRevenue,
-        totalExpenses,
-        netProfit: totalRevenue - totalExpenses,
+        totalExpenses: totalExpenses + totalCommissions, // Include commissions in total expenses
+        netProfit,
         totalCommissions,
       });
     } catch (error) {
