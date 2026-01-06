@@ -33,6 +33,7 @@ import {
   ClipboardList,
   DollarSign,
 } from 'lucide-react';
+import logoAglomerado from '@/assets/logo-aglomerado.png';
 
 // Navigation sections with items
 const navigationSections = [
@@ -142,10 +143,11 @@ export default function AppLayout() {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex h-16 items-center gap-3 px-6 border-b border-sidebar-border">
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-sidebar-primary">
-              <Building2 className="w-5 h-5 text-sidebar-primary-foreground" />
-            </div>
-            <span className="text-lg font-semibold text-sidebar-foreground">FinControl</span>
+            <img 
+              src={logoAglomerado} 
+              alt="Aglomerado" 
+              className="h-8 w-auto"
+            />
             <button
               className="ml-auto lg:hidden text-sidebar-foreground"
               onClick={() => setSidebarOpen(false)}
