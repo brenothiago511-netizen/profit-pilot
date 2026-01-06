@@ -403,30 +403,32 @@ export default function Commissions() {
     }
   };
 
-  const markManagerPaid = async (id: string) => {
+  const toggleManagerPaid = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'paid' ? 'approved' : 'paid';
     const { error } = await supabase
       .from('daily_records')
-      .update({ status: 'paid' })
+      .update({ status: newStatus })
       .eq('id', id);
 
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Pagamento ao gestor confirmado' });
+      toast({ title: newStatus === 'paid' ? 'Pagamento ao gestor confirmado' : 'Pagamento ao gestor desmarcado' });
       fetchDailyRecords();
     }
   };
 
-  const markShopifyPaid = async (id: string) => {
+  const toggleShopifyPaid = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'paid' ? 'pending' : 'paid';
     const { error } = await supabase
       .from('daily_records')
-      .update({ shopify_status: 'paid' })
+      .update({ shopify_status: newStatus })
       .eq('id', id);
 
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Pagamento Shopify confirmado' });
+      toast({ title: newStatus === 'paid' ? 'Recebimento Shopify confirmado' : 'Recebimento Shopify desmarcado' });
       fetchDailyRecords();
     }
   };
@@ -748,7 +750,7 @@ export default function Commissions() {
                           </td>
                           {canApprove && (
                             <td>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 flex-wrap">
                                 {record.status === 'pending' && (
                                   <Button
                                     variant="ghost"
@@ -760,28 +762,34 @@ export default function Commissions() {
                                     <Check className="w-4 h-4" />
                                   </Button>
                                 )}
-                                {record.status === 'approved' && (
+                                {record.status !== 'pending' && (
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="text-primary border-primary/50 hover:bg-primary/10"
-                                    onClick={() => markManagerPaid(record.id)}
-                                    title="Confirmar pagamento ao gestor"
+                                    className={record.status === 'paid' 
+                                      ? "text-emerald-500 border-emerald-500/50 hover:bg-emerald-500/10" 
+                                      : "text-primary border-primary/50 hover:bg-primary/10"
+                                    }
+                                    onClick={() => toggleManagerPaid(record.id, record.status)}
+                                    title={record.status === 'paid' ? "Desmarcar pagamento ao gestor" : "Confirmar pagamento ao gestor"}
                                   >
                                     <DollarSign className="w-4 h-4 mr-1" />
-                                    Pagar Gestor
+                                    {record.status === 'paid' ? 'Pago ✓' : 'Pagar Gestor'}
                                   </Button>
                                 )}
-                                {record.shopify_status === 'pending' && record.status !== 'pending' && (
+                                {record.status !== 'pending' && (
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="text-amber-500 border-amber-500/50 hover:bg-amber-500/10"
-                                    onClick={() => markShopifyPaid(record.id)}
-                                    title="Confirmar recebimento da Shopify"
+                                    className={record.shopify_status === 'paid'
+                                      ? "text-emerald-500 border-emerald-500/50 hover:bg-emerald-500/10"
+                                      : "text-amber-500 border-amber-500/50 hover:bg-amber-500/10"
+                                    }
+                                    onClick={() => toggleShopifyPaid(record.id, record.shopify_status)}
+                                    title={record.shopify_status === 'paid' ? "Desmarcar recebimento Shopify" : "Confirmar recebimento Shopify"}
                                   >
                                     <Check className="w-4 h-4 mr-1" />
-                                    Shopify Pagou
+                                    {record.shopify_status === 'paid' ? 'Recebido ✓' : 'Shopify Pagou'}
                                   </Button>
                                 )}
                                 {isAdmin && (
