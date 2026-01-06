@@ -1,20 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { PermissionGate } from '@/components/permissions/PermissionGate';
-import { usePermissions } from '@/hooks/usePermissions';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Percent, Loader2, Calculator, Check, Pencil, Trash2, BarChart3, List, Plus, DollarSign, Clock, TrendingUp, X } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { Percent, Loader2, Check, Pencil, Trash2, BarChart3, Plus, DollarSign, Clock, TrendingUp, X, Settings, Calculator } from 'lucide-react';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   AlertDialog,
@@ -26,21 +25,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { CommissionTrendChart } from '@/components/commissions/CommissionTrendChart';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 
-interface Commission {
+interface CommissionTier {
+  id: string;
+  min_profit: number;
+  max_profit: number | null;
+  commission_percentage: number;
+  active: boolean;
+}
+
+interface DailyRecord {
   id: string;
   manager_id: string;
   store_id: string;
-  period_start: string;
-  period_end: string;
-  base_amount: number;
-  percent: number;
+  date: string;
+  daily_profit: number;
   commission_amount: number;
   status: string;
-  paid_at: string | null;
+  notes: string | null;
+  created_at: string;
   manager_name?: string;
-  manager_commission_type?: string;
   store_name?: string;
 }
 
@@ -53,204 +58,106 @@ interface ManagerOption {
   id: string;
   user_id: string;
   store_id: string | null;
-  commission_percent: number;
-  commission_type: string;
   profile_name?: string;
-}
-
-interface Profit {
-  id: string;
-  store_id: string;
-  manager_id: string;
-  period_start: string;
-  period_end: string;
-  profit_amount: number;
-  notes: string | null;
-  status: string;
-  created_at: string;
-  store_name?: string;
-  manager_name?: string;
 }
 
 export default function Commissions() {
   const { user, isAdmin, isGestor, profile } = useAuth();
   const { toast } = useToast();
-  const { hasPermission } = usePermissions();
   const [loading, setLoading] = useState(true);
-  const [commissions, setCommissions] = useState<Commission[]>([]);
-  const [profits, setProfits] = useState<Profit[]>([]);
+  const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
+  const [commissionTiers, setCommissionTiers] = useState<CommissionTier[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [managers, setManagers] = useState<ManagerOption[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [profitDialogOpen, setProfitDialogOpen] = useState(false);
-  const [calculating, setCalculating] = useState(false);
-  const [savingProfit, setSavingProfit] = useState(false);
-  const [availableProfits, setAvailableProfits] = useState<{ total: number; count: number } | null>(null);
-  const [loadingProfits, setLoadingProfits] = useState(false);
-  const [calcForm, setCalcForm] = useState({
-    store_id: '',
-    manager_id: '',
-    month: format(subMonths(new Date(), 1), 'yyyy-MM'),
-  });
   
-  // Profit registration form
-  const [profitForm, setProfitForm] = useState({
+  // Dialog states
+  const [recordDialogOpen, setRecordDialogOpen] = useState(false);
+  const [tierDialogOpen, setTierDialogOpen] = useState(false);
+  const [savingRecord, setSavingRecord] = useState(false);
+  const [savingTier, setSavingTier] = useState(false);
+  
+  // Forms
+  const [recordForm, setRecordForm] = useState({
     store_id: '',
     manager_id: '',
-    period_start: '',
-    period_end: '',
-    profit_amount: '',
+    date: format(new Date(), 'yyyy-MM-dd'),
+    daily_profit: '',
     notes: '',
   });
+  
+  const [tierForm, setTierForm] = useState({
+    min_profit: '',
+    max_profit: '',
+    commission_percentage: '',
+  });
+  
+  // Edit/Delete states
+  const [editingTier, setEditingTier] = useState<CommissionTier | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingRecord, setDeletingRecord] = useState<DailyRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const isFinanceiro = profile?.role === 'financeiro';
   const canApprove = isAdmin || isFinanceiro;
+  const canManageTiers = isAdmin;
 
-  // Check available profits when form changes
-  const checkAvailableProfits = async () => {
-    if (!calcForm.store_id || !calcForm.manager_id || !calcForm.month) {
-      setAvailableProfits(null);
-      return;
-    }
+  // Calculate estimated commission based on tiers
+  const estimatedCommission = useMemo(() => {
+    const profit = parseFloat(recordForm.daily_profit) || 0;
+    if (profit <= 0 || commissionTiers.length === 0) return 0;
+    
+    const tier = commissionTiers
+      .filter(t => t.active)
+      .find(t => profit >= t.min_profit && (t.max_profit === null || profit <= t.max_profit));
+    
+    if (!tier) return 0;
+    return profit * tier.commission_percentage;
+  }, [recordForm.daily_profit, commissionTiers]);
 
-    setLoadingProfits(true);
-    const monthDate = new Date(calcForm.month + '-01');
-    const periodStart = format(startOfMonth(monthDate), 'yyyy-MM-dd');
-    const periodEnd = format(endOfMonth(monthDate), 'yyyy-MM-dd');
-
-    const { data } = await supabase
-      .from('profits')
-      .select('profit_amount')
-      .eq('manager_id', calcForm.manager_id)
-      .eq('store_id', calcForm.store_id)
-      .eq('status', 'approved')
-      .gte('period_start', periodStart)
-      .lte('period_end', periodEnd);
-
-    if (data && data.length > 0) {
-      const total = data.reduce((sum, p) => sum + Number(p.profit_amount), 0);
-      setAvailableProfits({ total, count: data.length });
-    } else {
-      setAvailableProfits({ total: 0, count: 0 });
-    }
-    setLoadingProfits(false);
-  };
+  // Find matching tier for display
+  const matchingTier = useMemo(() => {
+    const profit = parseFloat(recordForm.daily_profit) || 0;
+    if (profit <= 0) return null;
+    
+    return commissionTiers
+      .filter(t => t.active)
+      .find(t => profit >= t.min_profit && (t.max_profit === null || profit <= t.max_profit));
+  }, [recordForm.daily_profit, commissionTiers]);
 
   useEffect(() => {
-    checkAvailableProfits();
-  }, [calcForm.store_id, calcForm.manager_id, calcForm.month]);
-
-  // Edit state
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingCommission, setEditingCommission] = useState<Commission | null>(null);
-  const [editForm, setEditForm] = useState({
-    base_amount: '',
-    percent: '',
-    commission_amount: '',
-    status: '',
-  });
-  const [saving, setSaving] = useState(false);
-
-  // Delete state
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletingCommission, setDeletingCommission] = useState<Commission | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    fetchCommissions();
-    fetchProfits();
-    fetchStores();
-    fetchManagers();
+    fetchAll();
   }, []);
 
-  const fetchCommissions = async () => {
+  const fetchAll = async () => {
     setLoading(true);
-    
-    // Fetch commissions with stores
-    const { data: commissionsData, error } = await supabase
-      .from('commissions')
-      .select('*, stores(name)')
-      .order('period_start', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching commissions:', error);
-      setLoading(false);
-      return;
-    }
-
-    if (!commissionsData || commissionsData.length === 0) {
-      setCommissions([]);
-      setLoading(false);
-      return;
-    }
-
-    // Get unique manager_ids
-    const managerIds = [...new Set(commissionsData.map(c => c.manager_id))];
-    
-    // Fetch managers for these commissions
-    const { data: managersData } = await supabase
-      .from('managers')
-      .select('id, user_id, commission_type')
-      .in('id', managerIds);
-
-    // Get user_ids from managers
-    const userIds = managersData?.map(m => m.user_id) || [];
-    
-    // Fetch profiles
-    const { data: profilesData } = await supabase
-      .from('profiles')
-      .select('id, name')
-      .in('id', userIds);
-
-    // Create lookup maps
-    const managersMap = new Map(managersData?.map(m => [m.id, m]) || []);
-    const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
-
-    // Combine data
-    const enrichedCommissions: Commission[] = commissionsData.map(c => {
-      const manager = managersMap.get(c.manager_id);
-      const profile = manager ? profilesMap.get(manager.user_id) : null;
-      
-      return {
-        id: c.id,
-        manager_id: c.manager_id,
-        store_id: c.store_id,
-        period_start: c.period_start,
-        period_end: c.period_end,
-        base_amount: c.base_amount,
-        percent: c.percent,
-        commission_amount: c.commission_amount,
-        status: c.status,
-        paid_at: c.paid_at,
-        manager_name: profile?.name || '-',
-        manager_commission_type: manager?.commission_type || 'lucro',
-        store_name: c.stores?.name || '-',
-      };
-    });
-
-    setCommissions(enrichedCommissions);
+    await Promise.all([
+      fetchDailyRecords(),
+      fetchCommissionTiers(),
+      fetchStores(),
+      fetchManagers(),
+    ]);
     setLoading(false);
   };
 
-  const fetchProfits = async () => {
-    const { data: profitsData, error } = await supabase
-      .from('profits')
+  const fetchDailyRecords = async () => {
+    const { data, error } = await supabase
+      .from('daily_records')
       .select('*, stores:store_id(name)')
-      .order('created_at', { ascending: false })
-      .limit(50);
+      .order('date', { ascending: false })
+      .limit(100);
     
     if (error) {
-      console.error('Error fetching profits:', error);
+      console.error('Error fetching daily records:', error);
       return;
     }
 
-    if (!profitsData || profitsData.length === 0) {
-      setProfits([]);
+    if (!data || data.length === 0) {
+      setDailyRecords([]);
       return;
     }
 
     // Fetch manager names
-    const managerIds = [...new Set(profitsData.map(p => p.manager_id))];
+    const managerIds = [...new Set(data.map(r => r.manager_id))];
     const { data: managersData } = await supabase
       .from('managers')
       .select('id, user_id')
@@ -268,86 +175,35 @@ export default function Commissions() {
       if (profile) managerProfileMap.set(m.id, profile.name);
     });
 
-    const enrichedProfits: Profit[] = profitsData.map(p => ({
-      id: p.id,
-      store_id: p.store_id,
-      manager_id: p.manager_id,
-      period_start: p.period_start,
-      period_end: p.period_end,
-      profit_amount: p.profit_amount,
-      notes: p.notes,
-      status: p.status,
-      created_at: p.created_at,
-      store_name: p.stores?.name || '-',
-      manager_name: managerProfileMap.get(p.manager_id) || '-',
+    const enrichedRecords: DailyRecord[] = data.map(r => ({
+      id: r.id,
+      manager_id: r.manager_id,
+      store_id: r.store_id,
+      date: r.date,
+      daily_profit: r.daily_profit,
+      commission_amount: r.commission_amount || 0,
+      status: r.status,
+      notes: r.notes,
+      created_at: r.created_at,
+      store_name: (r.stores as any)?.name || '-',
+      manager_name: managerProfileMap.get(r.manager_id) || '-',
     }));
 
-    setProfits(enrichedProfits);
+    setDailyRecords(enrichedRecords);
   };
 
-  const handleProfitSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const fetchCommissionTiers = async () => {
+    const { data, error } = await supabase
+      .from('commission_tiers')
+      .select('*')
+      .order('min_profit', { ascending: true });
     
-    if (!profitForm.store_id || !profitForm.manager_id || !profitForm.period_start || !profitForm.period_end || !profitForm.profit_amount) {
-      toast({
-        title: 'Erro',
-        description: 'Preencha todos os campos obrigatórios',
-        variant: 'destructive',
-      });
+    if (error) {
+      console.error('Error fetching commission tiers:', error);
       return;
     }
 
-    setSavingProfit(true);
-    
-    const { error } = await supabase.from('profits').insert({
-      store_id: profitForm.store_id,
-      manager_id: profitForm.manager_id,
-      period_start: profitForm.period_start,
-      period_end: profitForm.period_end,
-      profit_amount: parseFloat(profitForm.profit_amount),
-      notes: profitForm.notes || null,
-      created_by: user?.id,
-      status: canApprove ? 'approved' : 'pending',
-      approved_by: canApprove ? user?.id : null,
-      approved_at: canApprove ? new Date().toISOString() : null,
-    });
-
-    setSavingProfit(false);
-
-    if (error) {
-      toast({
-        title: 'Erro ao registrar',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Sucesso',
-        description: 'Lucro registrado com sucesso',
-      });
-      setProfitDialogOpen(false);
-      setProfitForm({ store_id: '', manager_id: '', period_start: '', period_end: '', profit_amount: '', notes: '' });
-      fetchProfits();
-      checkAvailableProfits();
-    }
-  };
-
-  const approveProfit = async (id: string, approved: boolean) => {
-    const { error } = await supabase
-      .from('profits')
-      .update({
-        status: approved ? 'approved' : 'rejected',
-        approved_by: user?.id,
-        approved_at: new Date().toISOString(),
-      })
-      .eq('id', id);
-    
-    if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Sucesso', description: approved ? 'Lucro aprovado!' : 'Lucro rejeitado' });
-      fetchProfits();
-    }
+    setCommissionTiers(data || []);
   };
 
   const fetchStores = async () => {
@@ -362,7 +218,7 @@ export default function Commissions() {
   const fetchManagers = async () => {
     const { data: managersData } = await supabase
       .from('managers')
-      .select('id, user_id, store_id, commission_percent, commission_type')
+      .select('id, user_id, store_id')
       .eq('status', 'active');
     
     if (!managersData) {
@@ -370,7 +226,6 @@ export default function Commissions() {
       return;
     }
 
-    // Fetch profiles for managers
     const userIds = managersData.map(m => m.user_id);
     const { data: profilesData } = await supabase
       .from('profiles')
@@ -383,218 +238,187 @@ export default function Commissions() {
       id: m.id,
       user_id: m.user_id,
       store_id: m.store_id,
-      commission_percent: m.commission_percent,
-      commission_type: m.commission_type,
       profile_name: profilesMap.get(m.user_id)?.name || 'N/A',
     }));
 
     setManagers(enrichedManagers);
   };
 
-  const calculateCommission = async () => {
-    if (!calcForm.store_id || !calcForm.manager_id || !calcForm.month) {
+  const handleRecordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!recordForm.store_id || !recordForm.manager_id || !recordForm.date || !recordForm.daily_profit) {
       toast({
         title: 'Erro',
-        description: 'Preencha todos os campos',
+        description: 'Preencha todos os campos obrigatórios',
         variant: 'destructive',
       });
       return;
     }
 
-    const selectedManager = managers.find(m => m.id === calcForm.manager_id);
-    if (!selectedManager) return;
+    setSavingRecord(true);
+    
+    // Commission is calculated automatically by the database trigger
+    const { error } = await supabase.from('daily_records').insert({
+      store_id: recordForm.store_id,
+      manager_id: recordForm.manager_id,
+      date: recordForm.date,
+      daily_profit: parseFloat(recordForm.daily_profit),
+      notes: recordForm.notes || null,
+      created_by: user?.id,
+      status: canApprove ? 'approved' : 'pending',
+      approved_by: canApprove ? user?.id : null,
+      approved_at: canApprove ? new Date().toISOString() : null,
+    });
 
-    const monthDate = new Date(calcForm.month + '-01');
-    const periodStart = format(startOfMonth(monthDate), 'yyyy-MM-dd');
-    const periodEnd = format(endOfMonth(monthDate), 'yyyy-MM-dd');
+    setSavingRecord(false);
 
-    setCalculating(true);
-
-    try {
-      // Check if commission already exists
-      const { data: existing } = await supabase
-        .from('commissions')
-        .select('id')
-        .eq('manager_id', calcForm.manager_id)
-        .eq('store_id', calcForm.store_id)
-        .eq('period_start', periodStart)
-        .maybeSingle();
-
-      if (existing) {
-        toast({
-          title: 'Aviso',
-          description: 'Já existe comissão calculada para este período',
-          variant: 'destructive',
-        });
-        setCalculating(false);
-        return;
-      }
-
-      // Fetch approved profits for this manager, store, and period
-      const { data: approvedProfits } = await supabase
-        .from('profits')
-        .select('profit_amount')
-        .eq('manager_id', calcForm.manager_id)
-        .eq('store_id', calcForm.store_id)
-        .eq('status', 'approved')
-        .gte('period_start', periodStart)
-        .lte('period_end', periodEnd);
-
-      if (!approvedProfits || approvedProfits.length === 0) {
-        toast({
-          title: 'Aviso',
-          description: 'Não há lucros aprovados para este período. O gestor precisa registrar os lucros primeiro.',
-          variant: 'destructive',
-        });
-        setCalculating(false);
-        return;
-      }
-
-      // Sum all approved profits for the period
-      const baseAmount = approvedProfits.reduce((sum, p) => sum + Number(p.profit_amount), 0);
-      const commissionAmount = (baseAmount * selectedManager.commission_percent) / 100;
-
-      // Insert commission
-      const { error } = await supabase.from('commissions').insert({
-        manager_id: calcForm.manager_id,
-        store_id: calcForm.store_id,
-        period_start: periodStart,
-        period_end: periodEnd,
-        base_amount: baseAmount,
-        percent: selectedManager.commission_percent,
-        commission_amount: Math.max(0, commissionAmount),
-      });
-
-      if (error) throw error;
-
+    if (error) {
       toast({
-        title: 'Sucesso',
-        description: `Comissão calculada: ${formatCurrency(commissionAmount)} (${selectedManager.commission_percent}% de ${formatCurrency(baseAmount)})`,
-      });
-
-      setDialogOpen(false);
-      fetchCommissions();
-    } catch (error: any) {
-      toast({
-        title: 'Erro',
+        title: 'Erro ao registrar',
         description: error.message,
         variant: 'destructive',
       });
+    } else {
+      toast({
+        title: 'Sucesso',
+        description: `Registro salvo! Comissão calculada: ${formatCurrency(estimatedCommission)}`,
+      });
+      setRecordDialogOpen(false);
+      setRecordForm({ store_id: '', manager_id: '', date: format(new Date(), 'yyyy-MM-dd'), daily_profit: '', notes: '' });
+      fetchDailyRecords();
+    }
+  };
+
+  const handleTierSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!tierForm.min_profit || !tierForm.commission_percentage) {
+      toast({
+        title: 'Erro',
+        description: 'Preencha os campos obrigatórios',
+        variant: 'destructive',
+      });
+      return;
     }
 
-    setCalculating(false);
+    setSavingTier(true);
+    
+    const tierData = {
+      min_profit: parseFloat(tierForm.min_profit),
+      max_profit: tierForm.max_profit ? parseFloat(tierForm.max_profit) : null,
+      commission_percentage: parseFloat(tierForm.commission_percentage) / 100, // Convert % to decimal
+      active: true,
+    };
+
+    let error;
+    if (editingTier) {
+      const result = await supabase
+        .from('commission_tiers')
+        .update(tierData)
+        .eq('id', editingTier.id);
+      error = result.error;
+    } else {
+      const result = await supabase
+        .from('commission_tiers')
+        .insert(tierData);
+      error = result.error;
+    }
+
+    setSavingTier(false);
+
+    if (error) {
+      toast({
+        title: 'Erro ao salvar',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Sucesso',
+        description: editingTier ? 'Faixa atualizada!' : 'Nova faixa criada!',
+      });
+      setTierDialogOpen(false);
+      setEditingTier(null);
+      setTierForm({ min_profit: '', max_profit: '', commission_percentage: '' });
+      fetchCommissionTiers();
+    }
+  };
+
+  const openEditTier = (tier: CommissionTier) => {
+    setEditingTier(tier);
+    setTierForm({
+      min_profit: tier.min_profit.toString(),
+      max_profit: tier.max_profit?.toString() || '',
+      commission_percentage: (tier.commission_percentage * 100).toString(),
+    });
+    setTierDialogOpen(true);
+  };
+
+  const deleteTier = async (tierId: string) => {
+    const { error } = await supabase
+      .from('commission_tiers')
+      .delete()
+      .eq('id', tierId);
+    
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Faixa excluída' });
+      fetchCommissionTiers();
+    }
+  };
+
+  const approveRecord = async (id: string, approved: boolean) => {
+    const { error } = await supabase
+      .from('daily_records')
+      .update({
+        status: approved ? 'approved' : 'pending',
+        approved_by: user?.id,
+        approved_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+    
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Sucesso', description: approved ? 'Registro aprovado!' : 'Status atualizado' });
+      fetchDailyRecords();
+    }
   };
 
   const markAsPaid = async (id: string) => {
     const { error } = await supabase
-      .from('commissions')
-      .update({ status: 'paga', paid_at: new Date().toISOString() })
+      .from('daily_records')
+      .update({ status: 'paid' })
       .eq('id', id);
 
     if (error) {
-      toast({
-        title: 'Erro',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
-      toast({
-        title: 'Atualizado',
-        description: 'Comissão marcada como paga',
-      });
-      fetchCommissions();
+      toast({ title: 'Comissão marcada como paga' });
+      fetchDailyRecords();
     }
   };
 
-  const openEditDialog = (commission: Commission) => {
-    setEditingCommission(commission);
-    setEditForm({
-      base_amount: commission.base_amount.toString(),
-      percent: commission.percent.toString(),
-      commission_amount: commission.commission_amount.toString(),
-      status: commission.status,
-    });
-    setEditDialogOpen(true);
-  };
-
-  const handleEditSave = async () => {
-    if (!editingCommission) return;
-
-    setSaving(true);
-    const { error } = await supabase
-      .from('commissions')
-      .update({
-        base_amount: parseFloat(editForm.base_amount) || 0,
-        percent: parseFloat(editForm.percent) || 0,
-        commission_amount: parseFloat(editForm.commission_amount) || 0,
-        status: editForm.status,
-        paid_at: editForm.status === 'paga' ? new Date().toISOString() : null,
-      })
-      .eq('id', editingCommission.id);
-
-    setSaving(false);
-
-    if (error) {
-      toast({
-        title: 'Erro',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Sucesso',
-        description: 'Comissão atualizada com sucesso',
-      });
-      setEditDialogOpen(false);
-      setEditingCommission(null);
-      fetchCommissions();
-    }
-  };
-
-  const openDeleteDialog = (commission: Commission) => {
-    setDeletingCommission(commission);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleDelete = async () => {
-    if (!deletingCommission) return;
-
+  const handleDeleteRecord = async () => {
+    if (!deletingRecord) return;
     setDeleting(true);
+    
     const { error } = await supabase
-      .from('commissions')
+      .from('daily_records')
       .delete()
-      .eq('id', deletingCommission.id);
+      .eq('id', deletingRecord.id);
 
     setDeleting(false);
-
     if (error) {
-      toast({
-        title: 'Erro',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
-      toast({
-        title: 'Sucesso',
-        description: 'Comissão excluída com sucesso',
-      });
+      toast({ title: 'Registro excluído' });
       setDeleteDialogOpen(false);
-      setDeletingCommission(null);
-      fetchCommissions();
+      setDeletingRecord(null);
+      fetchDailyRecords();
     }
-  };
-
-  // Recalculate commission when percent or base changes
-  const handleEditFormChange = (field: string, value: string) => {
-    const newForm = { ...editForm, [field]: value };
-    
-    if (field === 'base_amount' || field === 'percent') {
-      const base = parseFloat(field === 'base_amount' ? value : newForm.base_amount) || 0;
-      const percent = parseFloat(field === 'percent' ? value : newForm.percent) || 0;
-      newForm.commission_amount = ((base * percent) / 100).toFixed(2);
-    }
-    
-    setEditForm(newForm);
   };
 
   const formatCurrency = (value: number) => {
@@ -604,34 +428,70 @@ export default function Commissions() {
     }).format(value);
   };
 
+  // Stats
+  const stats = useMemo(() => {
+    const approved = dailyRecords.filter(r => r.status === 'approved' || r.status === 'paid');
+    const totalProfit = approved.reduce((sum, r) => sum + r.daily_profit, 0);
+    const totalCommission = approved.reduce((sum, r) => sum + r.commission_amount, 0);
+    const pending = dailyRecords.filter(r => r.status === 'pending').length;
+    const paid = dailyRecords.filter(r => r.status === 'paid').reduce((sum, r) => sum + r.commission_amount, 0);
+    
+    return { totalProfit, totalCommission, pending, paid };
+  }, [dailyRecords]);
+
+  // Chart data
+  const chartData = useMemo(() => {
+    const last30Days = dailyRecords
+      .filter(r => r.status === 'approved' || r.status === 'paid')
+      .slice(0, 30)
+      .reverse();
+    
+    return last30Days.map(r => ({
+      date: format(new Date(r.date), 'dd/MM'),
+      lucro: r.daily_profit,
+      comissao: r.commission_amount,
+    }));
+  }, [dailyRecords]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="page-title">Comissões</h1>
           <p className="page-description">
-            {isGestor ? 'Visualize suas comissões' : 'Gerencie as comissões dos gestores'}
+            {isGestor ? 'Registre seus lucros e visualize suas comissões' : 'Gerencie lucros e comissões dos gestores'}
           </p>
         </div>
 
-        <PermissionGate permission="manage_commissions">
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <PermissionGate permission="register_profits">
+          <Dialog open={recordDialogOpen} onOpenChange={setRecordDialogOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Calculator className="w-4 h-4 mr-2" />
-                Calcular Comissão
+                <Plus className="w-4 h-4 mr-2" />
+                Registrar Lucro do Dia
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Calcular Comissão</DialogTitle>
+                <DialogTitle>Registrar Lucro Diário</DialogTitle>
+                <DialogDescription>
+                  A comissão será calculada automaticamente com base nas faixas configuradas.
+                </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
+              <form onSubmit={handleRecordSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Loja</Label>
+                  <Label>Loja *</Label>
                   <Select
-                    value={calcForm.store_id}
-                    onValueChange={(v) => setCalcForm({ ...calcForm, store_id: v })}
+                    value={recordForm.store_id}
+                    onValueChange={(v) => setRecordForm({ ...recordForm, store_id: v, manager_id: '' })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a loja" />
@@ -647,385 +507,242 @@ export default function Commissions() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Gestor</Label>
+                  <Label>Gestor *</Label>
                   <Select
-                    value={calcForm.manager_id}
-                    onValueChange={(v) => setCalcForm({ ...calcForm, manager_id: v })}
+                    value={recordForm.manager_id}
+                    onValueChange={(v) => setRecordForm({ ...recordForm, manager_id: v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o gestor" />
                     </SelectTrigger>
                     <SelectContent>
-                      {managers.map((manager) => (
-                        <SelectItem key={manager.id} value={manager.id}>
-                          {manager.profile_name} ({manager.commission_percent}% - {manager.commission_type})
-                        </SelectItem>
-                      ))}
+                      {managers
+                        .filter((m) => !recordForm.store_id || !m.store_id || m.store_id === recordForm.store_id)
+                        .map((manager) => (
+                          <SelectItem key={manager.id} value={manager.id}>
+                            {manager.profile_name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Mês de Referência</Label>
-                  <input
-                    type="month"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={calcForm.month}
-                    onChange={(e) => setCalcForm({ ...calcForm, month: e.target.value })}
+                  <Label>Data *</Label>
+                  <Input
+                    type="date"
+                    value={recordForm.date}
+                    onChange={(e) => setRecordForm({ ...recordForm, date: e.target.value })}
+                    required
                   />
                 </div>
 
-                {/* Available profits indicator */}
-                {calcForm.store_id && calcForm.manager_id && calcForm.month && (
-                  <div className={`p-3 rounded-lg border ${availableProfits && availableProfits.count > 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
-                    {loadingProfits ? (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Verificando lucros aprovados...
-                      </div>
-                    ) : availableProfits && availableProfits.count > 0 ? (
-                      <div className="text-sm">
-                        <p className="font-medium text-emerald-400">
-                          ✓ {availableProfits.count} lucro(s) aprovado(s) encontrado(s)
-                        </p>
-                        <p className="text-muted-foreground">
-                          Total: {formatCurrency(availableProfits.total)}
+                <div className="space-y-2">
+                  <Label>Lucro do Dia (R$) *</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
+                      R$
+                    </span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={recordForm.daily_profit}
+                      onChange={(e) => setRecordForm({ ...recordForm, daily_profit: e.target.value })}
+                      placeholder="0,00"
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Estimated commission preview */}
+                {recordForm.daily_profit && parseFloat(recordForm.daily_profit) > 0 && (
+                  <div className={`p-4 rounded-lg border ${matchingTier ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
+                    {matchingTier ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Calculator className="w-4 h-4 text-emerald-400" />
+                          <span className="font-medium text-emerald-400">Comissão Estimada</span>
+                        </div>
+                        <p className="text-2xl font-bold text-foreground">{formatCurrency(estimatedCommission)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Faixa: {matchingTier.commission_percentage * 100}% ({formatCurrency(matchingTier.min_profit)} - {matchingTier.max_profit ? formatCurrency(matchingTier.max_profit) : '∞'})
                         </p>
                       </div>
                     ) : (
-                      <div className="text-sm text-amber-400">
-                        ⚠ Nenhum lucro aprovado para este período. O gestor precisa registrar e ter os lucros aprovados primeiro.
-                      </div>
+                      <p className="text-sm text-amber-400">
+                        ⚠ Nenhuma faixa de comissão encontrada para este valor
+                      </p>
                     )}
                   </div>
                 )}
 
-                <div className="flex justify-end gap-3 pt-4">
-                  <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button 
-                    onClick={calculateCommission} 
-                    disabled={calculating || !availableProfits || availableProfits.count === 0}
-                  >
-                    {calculating ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Calculando...
-                      </>
-                    ) : (
-                      'Calcular'
-                    )}
-                  </Button>
+                <div className="space-y-2">
+                  <Label>Observações</Label>
+                  <Textarea
+                    value={recordForm.notes}
+                    onChange={(e) => setRecordForm({ ...recordForm, notes: e.target.value })}
+                    placeholder="Observações opcionais..."
+                    rows={2}
+                  />
                 </div>
-              </div>
-          </DialogContent>
-        </Dialog>
-      </PermissionGate>
+
+                <Button type="submit" className="w-full" disabled={savingRecord}>
+                  {savingRecord ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Registrar'
+                  )}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </PermissionGate>
       </div>
 
-      <Tabs defaultValue="lucros" className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Lucro Total</CardDescription>
+            <CardTitle className="text-2xl text-success">{formatCurrency(stats.totalProfit)}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Comissão Total</CardDescription>
+            <CardTitle className="text-2xl text-primary">{formatCurrency(stats.totalCommission)}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Comissões Pagas</CardDescription>
+            <CardTitle className="text-2xl">{formatCurrency(stats.paid)}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Pendentes</CardDescription>
+            <CardTitle className="text-2xl text-amber-500">{stats.pending}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="registros" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="lucros" className="flex items-center gap-2">
+          <TabsTrigger value="registros" className="flex items-center gap-2">
             <DollarSign className="w-4 h-4" />
-            Lucros
-          </TabsTrigger>
-          <TabsTrigger value="comissoes" className="flex items-center gap-2">
-            <Percent className="w-4 h-4" />
-            Comissões
+            Registros Diários
           </TabsTrigger>
           <TabsTrigger value="charts" className="flex items-center gap-2">
             <BarChart3 className="w-4 h-4" />
             Gráficos
           </TabsTrigger>
+          {canManageTiers && (
+            <TabsTrigger value="faixas" className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              Faixas de Comissão
+            </TabsTrigger>
+          )}
         </TabsList>
 
-        {/* Lucros Tab */}
-        <TabsContent value="lucros">
+        {/* Daily Records Tab */}
+        <TabsContent value="registros">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-success" />
-                Registro de Lucros
+                Registros de Lucro Diário
               </CardTitle>
-              <PermissionGate permission="register_profits">
-                <Dialog open={profitDialogOpen} onOpenChange={setProfitDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Registrar Lucro
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Registrar Lucro</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleProfitSubmit} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>Loja *</Label>
-                        <Select
-                          value={profitForm.store_id}
-                          onValueChange={(v) => setProfitForm({ ...profitForm, store_id: v, manager_id: '' })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione a loja" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {stores.map((store) => (
-                              <SelectItem key={store.id} value={store.id}>
-                                {store.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Gestor *</Label>
-                        <Select
-                          value={profitForm.manager_id}
-                          onValueChange={(v) => setProfitForm({ ...profitForm, manager_id: v })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o gestor" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {managers
-                              .filter((m) => !profitForm.store_id || !m.store_id || m.store_id === profitForm.store_id)
-                              .map((manager) => (
-                                <SelectItem key={manager.id} value={manager.id}>
-                                  {manager.profile_name}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Período Início *</Label>
-                          <Input
-                            type="date"
-                            value={profitForm.period_start}
-                            onChange={(e) => setProfitForm({ ...profitForm, period_start: e.target.value })}
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Período Fim *</Label>
-                          <Input
-                            type="date"
-                            value={profitForm.period_end}
-                            onChange={(e) => setProfitForm({ ...profitForm, period_end: e.target.value })}
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Valor do Lucro (R$) *</Label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
-                            R$
-                          </span>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={profitForm.profit_amount}
-                            onChange={(e) => setProfitForm({ ...profitForm, profit_amount: e.target.value })}
-                            placeholder="0,00"
-                            className="pl-10"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Observações</Label>
-                        <Textarea
-                          value={profitForm.notes}
-                          onChange={(e) => setProfitForm({ ...profitForm, notes: e.target.value })}
-                          placeholder="Observações opcionais..."
-                          rows={3}
-                        />
-                      </div>
-
-                      <Button type="submit" className="w-full" disabled={savingProfit}>
-                        {savingProfit ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Salvando...
-                          </>
-                        ) : (
-                          'Registrar Lucro'
-                        )}
-                      </Button>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-              </PermissionGate>
+              <CardDescription>
+                Cada registro tem sua comissão calculada automaticamente com base nas faixas
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {profits.length === 0 ? (
+              {dailyRecords.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  Nenhum lucro registrado
+                  Nenhum registro encontrado
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Período</th>
+                        <th>Data</th>
                         <th>Gestor</th>
                         <th>Loja</th>
-                        <th className="text-right">Valor (R$)</th>
+                        <th className="text-right">Lucro</th>
+                        <th className="text-right">Comissão</th>
                         <th>Status</th>
                         {canApprove && <th></th>}
                       </tr>
                     </thead>
                     <tbody>
-                      {profits.map((profit) => (
-                        <tr key={profit.id}>
+                      {dailyRecords.map((record) => (
+                        <tr key={record.id}>
+                          <td>{format(new Date(record.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
+                          <td>{record.manager_name}</td>
+                          <td>{record.store_name}</td>
+                          <td className="text-right font-medium">{formatCurrency(record.daily_profit)}</td>
+                          <td className="text-right font-medium text-primary">{formatCurrency(record.commission_amount)}</td>
                           <td>
-                            {format(new Date(profit.period_start), 'dd/MM', { locale: ptBR })} - {format(new Date(profit.period_end), 'dd/MM/yy', { locale: ptBR })}
-                          </td>
-                          <td>{profit.manager_name}</td>
-                          <td>{profit.store_name}</td>
-                          <td className="text-right font-medium">{formatCurrency(profit.profit_amount)}</td>
-                          <td>
-                            {profit.status === 'approved' ? (
+                            {record.status === 'paid' ? (
                               <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                                <Check className="w-3 h-3 mr-1" />Paga
+                              </Badge>
+                            ) : record.status === 'approved' ? (
+                              <Badge variant="secondary">
                                 <Check className="w-3 h-3 mr-1" />Aprovado
                               </Badge>
-                            ) : profit.status === 'rejected' ? (
-                              <Badge variant="destructive">
-                                <X className="w-3 h-3 mr-1" />Rejeitado
-                              </Badge>
                             ) : (
-                              <Badge variant="secondary">
+                              <Badge variant="outline">
                                 <Clock className="w-3 h-3 mr-1" />Pendente
                               </Badge>
                             )}
                           </td>
                           {canApprove && (
                             <td>
-                              {profit.status === 'pending' && (
-                                <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1">
+                                {record.status === 'pending' && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     className="text-success hover:text-success"
-                                    onClick={() => approveProfit(profit.id, true)}
+                                    onClick={() => approveRecord(record.id, true)}
+                                    title="Aprovar"
                                   >
                                     <Check className="w-4 h-4" />
                                   </Button>
+                                )}
+                                {record.status === 'approved' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-primary"
+                                    onClick={() => markAsPaid(record.id)}
+                                    title="Marcar como paga"
+                                  >
+                                    <DollarSign className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                {isAdmin && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     className="text-destructive hover:text-destructive"
-                                    onClick={() => approveProfit(profit.id, false)}
+                                    onClick={() => {
+                                      setDeletingRecord(record);
+                                      setDeleteDialogOpen(true);
+                                    }}
+                                    title="Excluir"
                                   >
-                                    <X className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              )}
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Comissões Tab */}
-        <TabsContent value="comissoes">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Percent className="w-5 h-5 text-info" />
-                Comissões Calculadas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                </div>
-              ) : commissions.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Nenhuma comissão calculada
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Período</th>
-                        <th>Gestor</th>
-                        <th>Loja</th>
-                        <th>Tipo</th>
-                        <th className="text-right">Base</th>
-                        <th className="text-center">%</th>
-                        <th className="text-right">Valor</th>
-                        <th>Status</th>
-                        {hasPermission('manage_commissions') && <th></th>}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {commissions.map((commission) => (
-                        <tr key={commission.id}>
-                          <td>
-                            {format(new Date(commission.period_start), 'MMM yyyy', { locale: ptBR })}
-                          </td>
-                          <td>{commission.manager_name}</td>
-                          <td>{commission.store_name}</td>
-                          <td className="capitalize">
-                            {commission.manager_commission_type === 'lucro' ? 'Lucro' : 'Faturamento'}
-                          </td>
-                          <td className="text-right">{formatCurrency(commission.base_amount)}</td>
-                          <td className="text-center">{commission.percent}%</td>
-                          <td className="text-right font-medium text-info">
-                            {formatCurrency(commission.commission_amount)}
-                          </td>
-                          <td>
-                            <Badge variant={commission.status === 'paga' ? 'default' : 'secondary'}>
-                              {commission.status === 'paga' ? 'Paga' : 'Pendente'}
-                            </Badge>
-                          </td>
-                          {hasPermission('manage_commissions') && (
-                            <td>
-                              <div className="flex items-center gap-1">
-                                {commission.status === 'pendente' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-success hover:text-success"
-                                    onClick={() => markAsPaid(commission.id)}
-                                  >
-                                    <Check className="w-4 h-4 mr-1" />
-                                    Pagar
+                                    <Trash2 className="w-4 h-4" />
                                   </Button>
                                 )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openEditDialog(commission)}
-                                >
-                                  <Pencil className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => openDeleteDialog(commission)}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
                               </div>
                             </td>
                           )}
@@ -1041,125 +758,194 @@ export default function Commissions() {
 
         {/* Charts Tab */}
         <TabsContent value="charts">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <CommissionTrendChart commissions={commissions} />
-          )}
+          <Card>
+            <CardHeader>
+              <CardTitle>Lucro vs Comissão por Dia</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {chartData.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Sem dados para exibir
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="date" className="text-xs" />
+                    <YAxis className="text-xs" />
+                    <Tooltip 
+                      formatter={(value: number) => formatCurrency(value)}
+                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                    />
+                    <Legend />
+                    <Bar dataKey="lucro" name="Lucro" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="comissao" name="Comissão" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
+
+        {/* Commission Tiers Tab (Admin only) */}
+        {canManageTiers && (
+          <TabsContent value="faixas">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Percent className="w-5 h-5" />
+                    Faixas de Comissão
+                  </CardTitle>
+                  <CardDescription>
+                    Configure as faixas de lucro e seus percentuais de comissão
+                  </CardDescription>
+                </div>
+                <Dialog open={tierDialogOpen} onOpenChange={(open) => {
+                  setTierDialogOpen(open);
+                  if (!open) {
+                    setEditingTier(null);
+                    setTierForm({ min_profit: '', max_profit: '', commission_percentage: '' });
+                  }
+                }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Nova Faixa
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{editingTier ? 'Editar Faixa' : 'Nova Faixa de Comissão'}</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleTierSubmit} className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Lucro Mínimo (R$) *</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={tierForm.min_profit}
+                            onChange={(e) => setTierForm({ ...tierForm, min_profit: e.target.value })}
+                            placeholder="0.00"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Lucro Máximo (R$)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={tierForm.max_profit}
+                            onChange={(e) => setTierForm({ ...tierForm, max_profit: e.target.value })}
+                            placeholder="Sem limite"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Percentual de Comissão (%) *</Label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={tierForm.commission_percentage}
+                            onChange={(e) => setTierForm({ ...tierForm, commission_percentage: e.target.value })}
+                            placeholder="20"
+                            className="pr-8"
+                            required
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
+                        </div>
+                      </div>
+                      <Button type="submit" className="w-full" disabled={savingTier}>
+                        {savingTier ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingTier ? 'Atualizar' : 'Criar Faixa')}
+                      </Button>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </CardHeader>
+              <CardContent>
+                {commissionTiers.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Nenhuma faixa configurada. Adicione faixas para calcular comissões automaticamente.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Lucro Mínimo</th>
+                          <th>Lucro Máximo</th>
+                          <th>Comissão</th>
+                          <th>Status</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {commissionTiers.map((tier) => (
+                          <tr key={tier.id}>
+                            <td>{formatCurrency(tier.min_profit)}</td>
+                            <td>{tier.max_profit ? formatCurrency(tier.max_profit) : '∞ (Sem limite)'}</td>
+                            <td className="font-medium text-primary">{(tier.commission_percentage * 100).toFixed(1)}%</td>
+                            <td>
+                              {tier.active ? (
+                                <Badge className="bg-emerald-500/20 text-emerald-400">Ativa</Badge>
+                              ) : (
+                                <Badge variant="secondary">Inativa</Badge>
+                              )}
+                            </td>
+                            <td>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openEditTier(tier)}
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive"
+                                  onClick={() => deleteTier(tier.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
 
-      {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Editar Comissão</DialogTitle>
-          </DialogHeader>
-          {editingCommission && (
-            <div className="space-y-4">
-              <div className="text-sm text-muted-foreground">
-                <p><strong>Gestor:</strong> {editingCommission.manager_name}</p>
-                <p><strong>Loja:</strong> {editingCommission.store_name}</p>
-                <p><strong>Período:</strong> {format(new Date(editingCommission.period_start), 'MMM yyyy', { locale: ptBR })}</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Base de Cálculo (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={editForm.base_amount}
-                  onChange={(e) => handleEditFormChange('base_amount', e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Percentual (%)</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={editForm.percent}
-                  onChange={(e) => handleEditFormChange('percent', e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Valor da Comissão (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={editForm.commission_amount}
-                  onChange={(e) => setEditForm({ ...editForm, commission_amount: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={editForm.status}
-                  onValueChange={(v) => setEditForm({ ...editForm, status: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pendente">Pendente</SelectItem>
-                    <SelectItem value="paga">Paga</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleEditSave} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    'Salvar'
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation */}
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Comissão</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta comissão de{' '}
-              <strong>{deletingCommission?.manager_name}</strong> referente a{' '}
-              <strong>
-                {deletingCommission && format(new Date(deletingCommission.period_start), 'MMM yyyy', { locale: ptBR })}
-              </strong>
-              ? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleting}
+              onClick={handleDeleteRecord}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting}
             >
-              {deleting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Excluindo...
-                </>
-              ) : (
-                'Excluir'
-              )}
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Excluir'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
