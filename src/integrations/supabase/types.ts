@@ -109,6 +109,36 @@ export type Database = {
           },
         ]
       }
+      commission_tiers: {
+        Row: {
+          active: boolean | null
+          commission_percentage: number
+          created_at: string | null
+          id: string
+          max_profit: number | null
+          min_profit: number
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          commission_percentage: number
+          created_at?: string | null
+          id?: string
+          max_profit?: number | null
+          min_profit: number
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          commission_percentage?: number
+          created_at?: string | null
+          id?: string
+          max_profit?: number | null
+          min_profit?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       commissions: {
         Row: {
           base_amount: number
@@ -162,6 +192,69 @@ export type Database = {
           },
           {
             foreignKeyName: "commissions_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_records: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          commission_amount: number | null
+          created_at: string | null
+          created_by: string | null
+          daily_profit: number
+          date: string
+          id: string
+          manager_id: string
+          notes: string | null
+          status: string | null
+          store_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          commission_amount?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          daily_profit: number
+          date: string
+          id?: string
+          manager_id: string
+          notes?: string | null
+          status?: string | null
+          store_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          commission_amount?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          daily_profit?: number
+          date?: string
+          id?: string
+          manager_id?: string
+          notes?: string | null
+          status?: string | null
+          store_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_records_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "managers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_records_store_id_fkey"
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
