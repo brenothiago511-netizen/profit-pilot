@@ -171,19 +171,20 @@ export default function Dashboard() {
       const { data: expenses } = await expenseQuery;
       const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
 
-      // Fetch commissions
+      // Fetch paid commissions from daily_records
       let commissionQuery = supabase
-        .from('commissions')
+        .from('daily_records')
         .select('commission_amount')
-        .gte('period_start', dateStart)
-        .lte('period_end', dateEnd);
+        .eq('status', 'paid')
+        .gte('date', dateStart)
+        .lte('date', dateEnd);
       
       if (selectedStore !== 'all') {
         commissionQuery = commissionQuery.eq('store_id', selectedStore);
       }
       
-      const { data: commissions } = await commissionQuery;
-      const totalCommissions = commissions?.reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0;
+      const { data: paidRecords } = await commissionQuery;
+      const totalCommissions = paidRecords?.reduce((sum, r) => sum + Number(r.commission_amount || 0), 0) || 0;
 
       setData({
         totalRevenue,
@@ -200,14 +201,15 @@ export default function Dashboard() {
   const fetchGestorData = async () => {
     setLoading(true);
     try {
-      // For gestor, only show their commissions
-      const { data: commissions } = await supabase
-        .from('commissions')
+      // For gestor, only show their paid commissions from daily_records
+      const { data: paidRecords } = await supabase
+        .from('daily_records')
         .select('commission_amount')
-        .gte('period_start', dateStart)
-        .lte('period_end', dateEnd);
+        .eq('status', 'paid')
+        .gte('date', dateStart)
+        .lte('date', dateEnd);
       
-      const totalCommissions = commissions?.reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0;
+      const totalCommissions = paidRecords?.reduce((sum, r) => sum + Number(r.commission_amount || 0), 0) || 0;
 
       setData({
         totalRevenue: 0,
