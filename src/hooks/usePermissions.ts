@@ -26,10 +26,12 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'view_reports',
     'export_reports',
     'view_commissions',
+    'manage_commissions',
+    'register_profits',
     'manage_goals',
     'manage_bank_accounts',
   ],
-  gestor: ['view_dashboard', 'view_commissions'],
+  gestor: ['view_dashboard', 'view_commissions', 'register_profits'],
   socio: ['view_dashboard_socios', 'view_partner_results', 'view_reports'],
 };
 
