@@ -481,16 +481,22 @@ export default function Profits() {
               </div>
 
               <div className="space-y-2">
-                <Label>Valor do Lucro</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.profit_amount}
-                  onChange={(e) => setFormData({ ...formData, profit_amount: e.target.value })}
-                  placeholder="0.00"
-                  required
-                />
+                <Label>Valor do Lucro (R$)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
+                    R$
+                  </span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.profit_amount}
+                    onChange={(e) => setFormData({ ...formData, profit_amount: e.target.value })}
+                    placeholder="0,00"
+                    className="pl-10"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
