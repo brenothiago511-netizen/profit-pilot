@@ -431,7 +431,7 @@ export default function Profits() {
                       </SelectTrigger>
                       <SelectContent>
                         {managers
-                          .filter((m) => !formData.store_id || m.store_id === formData.store_id)
+                          .filter((m) => !formData.store_id || !m.store_id || m.store_id === formData.store_id)
                           .map((manager) => (
                             <SelectItem key={manager.id} value={manager.id}>
                               {manager.profiles?.name || 'Gestor sem nome'}
