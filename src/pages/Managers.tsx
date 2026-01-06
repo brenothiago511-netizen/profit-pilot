@@ -50,7 +50,7 @@ export default function Managers() {
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     user_id: '',
-    store_id: '',
+    store_id: 'all',
     commission_percent: '',
     commission_type: 'lucro',
   });
@@ -139,7 +139,7 @@ export default function Managers() {
     setSaving(true);
     const { error } = await supabase.from('managers').insert({
       user_id: formData.user_id,
-      store_id: formData.store_id || null,
+      store_id: formData.store_id === 'all' ? null : formData.store_id || null,
       commission_percent: parseFloat(formData.commission_percent),
       commission_type: formData.commission_type,
     });
@@ -158,7 +158,7 @@ export default function Managers() {
         description: 'Gestor cadastrado com sucesso',
       });
       setDialogOpen(false);
-      setFormData({ user_id: '', store_id: '', commission_percent: '', commission_type: 'lucro' });
+      setFormData({ user_id: '', store_id: 'all', commission_percent: '', commission_type: 'lucro' });
       fetchManagers();
       fetchAvailableUsers();
     }
@@ -189,7 +189,7 @@ export default function Managers() {
   const openEditDialog = (manager: Manager) => {
     setEditingManager(manager);
     setEditFormData({
-      store_id: manager.store_id || '',
+      store_id: manager.store_id || 'all',
       commission_percent: manager.commission_percent.toString(),
       commission_type: manager.commission_type,
     });
@@ -211,7 +211,7 @@ export default function Managers() {
     const { error } = await supabase
       .from('managers')
       .update({
-        store_id: editFormData.store_id || null,
+        store_id: editFormData.store_id === 'all' ? null : editFormData.store_id || null,
         commission_percent: parseFloat(editFormData.commission_percent),
         commission_type: editFormData.commission_type,
       })
@@ -291,7 +291,7 @@ export default function Managers() {
                     <SelectValue placeholder="Todas as lojas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas as lojas</SelectItem>
+                    <SelectItem value="all">Todas as lojas</SelectItem>
                     {stores.map((store) => (
                       <SelectItem key={store.id} value={store.id}>
                         {store.name}
@@ -468,7 +468,7 @@ export default function Managers() {
                     <SelectValue placeholder="Todas as lojas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas as lojas</SelectItem>
+                    <SelectItem value="all">Todas as lojas</SelectItem>
                     {stores.map((store) => (
                       <SelectItem key={store.id} value={store.id}>
                         {store.name}
