@@ -43,6 +43,7 @@ interface DailyRecord {
   daily_profit: number;
   commission_amount: number;
   status: string;
+  shopify_status: string;
   notes: string | null;
   created_at: string;
   manager_name?: string;
@@ -196,7 +197,8 @@ export default function Commissions() {
       date: r.date,
       daily_profit: r.daily_profit,
       commission_amount: r.commission_amount || 0,
-      status: r.status,
+      status: r.status || 'pending',
+      shopify_status: r.shopify_status || 'pending',
       notes: r.notes,
       created_at: r.created_at,
       store_name: (r.stores as any)?.name || '-',
@@ -401,7 +403,7 @@ export default function Commissions() {
     }
   };
 
-  const markAsPaid = async (id: string) => {
+  const markManagerPaid = async (id: string) => {
     const { error } = await supabase
       .from('daily_records')
       .update({ status: 'paid' })
@@ -410,7 +412,21 @@ export default function Commissions() {
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Comissão marcada como paga' });
+      toast({ title: 'Pagamento ao gestor confirmado' });
+      fetchDailyRecords();
+    }
+  };
+
+  const markShopifyPaid = async (id: string) => {
+    const { error } = await supabase
+      .from('daily_records')
+      .update({ shopify_status: 'paid' })
+      .eq('id', id);
+
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Pagamento Shopify confirmado' });
       fetchDailyRecords();
     }
   };
@@ -691,8 +707,9 @@ export default function Commissions() {
                         <th>Loja</th>
                         <th className="text-right">Lucro</th>
                         <th className="text-right">Comissão</th>
-                        <th>Status</th>
-                        {canApprove && <th></th>}
+                        <th>Pago Gestor</th>
+                        <th>Shopify Pagou</th>
+                        {canApprove && <th>Ações</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -706,11 +723,22 @@ export default function Commissions() {
                           <td>
                             {record.status === 'paid' ? (
                               <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                                <Check className="w-3 h-3 mr-1" />Paga
+                                <Check className="w-3 h-3 mr-1" />Pago
                               </Badge>
                             ) : record.status === 'approved' ? (
                               <Badge variant="secondary">
-                                <Check className="w-3 h-3 mr-1" />Aprovado
+                                <Clock className="w-3 h-3 mr-1" />Aprovado
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">
+                                <Clock className="w-3 h-3 mr-1" />Pendente
+                              </Badge>
+                            )}
+                          </td>
+                          <td>
+                            {record.shopify_status === 'paid' ? (
+                              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                                <Check className="w-3 h-3 mr-1" />Recebido
                               </Badge>
                             ) : (
                               <Badge variant="outline">
@@ -727,20 +755,33 @@ export default function Commissions() {
                                     size="sm"
                                     className="text-success hover:text-success"
                                     onClick={() => approveRecord(record.id, true)}
-                                    title="Aprovar"
+                                    title="Aprovar lucro"
                                   >
                                     <Check className="w-4 h-4" />
                                   </Button>
                                 )}
                                 {record.status === 'approved' && (
                                   <Button
-                                    variant="ghost"
+                                    variant="outline"
                                     size="sm"
-                                    className="text-primary"
-                                    onClick={() => markAsPaid(record.id)}
-                                    title="Marcar como paga"
+                                    className="text-primary border-primary/50 hover:bg-primary/10"
+                                    onClick={() => markManagerPaid(record.id)}
+                                    title="Confirmar pagamento ao gestor"
                                   >
-                                    <DollarSign className="w-4 h-4" />
+                                    <DollarSign className="w-4 h-4 mr-1" />
+                                    Pagar Gestor
+                                  </Button>
+                                )}
+                                {record.shopify_status === 'pending' && record.status !== 'pending' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-amber-500 border-amber-500/50 hover:bg-amber-500/10"
+                                    onClick={() => markShopifyPaid(record.id)}
+                                    title="Confirmar recebimento da Shopify"
+                                  >
+                                    <Check className="w-4 h-4 mr-1" />
+                                    Shopify Pagou
                                   </Button>
                                 )}
                                 {isAdmin && (

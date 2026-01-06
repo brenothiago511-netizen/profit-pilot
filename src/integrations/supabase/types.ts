@@ -211,6 +211,7 @@ export type Database = {
           id: string
           manager_id: string
           notes: string | null
+          shopify_status: string | null
           status: string | null
           store_id: string
           updated_at: string | null
@@ -226,6 +227,7 @@ export type Database = {
           id?: string
           manager_id: string
           notes?: string | null
+          shopify_status?: string | null
           status?: string | null
           store_id: string
           updated_at?: string | null
@@ -241,6 +243,7 @@ export type Database = {
           id?: string
           manager_id?: string
           notes?: string | null
+          shopify_status?: string | null
           status?: string | null
           store_id?: string
           updated_at?: string | null
