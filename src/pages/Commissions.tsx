@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Percent, Loader2, Calculator, Check, Pencil, Trash2, BarChart3, List } from 'lucide-react';
+import { Percent, Loader2, Calculator, Check, Pencil, Trash2, BarChart3, List, Plus, DollarSign, Clock, TrendingUp, X } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -51,21 +52,39 @@ interface StoreOption {
 interface ManagerOption {
   id: string;
   user_id: string;
+  store_id: string | null;
   commission_percent: number;
   commission_type: string;
   profile_name?: string;
 }
 
+interface Profit {
+  id: string;
+  store_id: string;
+  manager_id: string;
+  period_start: string;
+  period_end: string;
+  profit_amount: number;
+  notes: string | null;
+  status: string;
+  created_at: string;
+  store_name?: string;
+  manager_name?: string;
+}
+
 export default function Commissions() {
-  const { isAdmin, isGestor } = useAuth();
+  const { user, isAdmin, isGestor, profile } = useAuth();
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [commissions, setCommissions] = useState<Commission[]>([]);
+  const [profits, setProfits] = useState<Profit[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [managers, setManagers] = useState<ManagerOption[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [profitDialogOpen, setProfitDialogOpen] = useState(false);
   const [calculating, setCalculating] = useState(false);
+  const [savingProfit, setSavingProfit] = useState(false);
   const [availableProfits, setAvailableProfits] = useState<{ total: number; count: number } | null>(null);
   const [loadingProfits, setLoadingProfits] = useState(false);
   const [calcForm, setCalcForm] = useState({
@@ -73,6 +92,19 @@ export default function Commissions() {
     manager_id: '',
     month: format(subMonths(new Date(), 1), 'yyyy-MM'),
   });
+  
+  // Profit registration form
+  const [profitForm, setProfitForm] = useState({
+    store_id: '',
+    manager_id: '',
+    period_start: '',
+    period_end: '',
+    profit_amount: '',
+    notes: '',
+  });
+
+  const isFinanceiro = profile?.role === 'financeiro';
+  const canApprove = isAdmin || isFinanceiro;
 
   // Check available profits when form changes
   const checkAvailableProfits = async () => {
@@ -126,11 +158,10 @@ export default function Commissions() {
 
   useEffect(() => {
     fetchCommissions();
-    if (isAdmin) {
-      fetchStores();
-      fetchManagers();
-    }
-  }, [isAdmin]);
+    fetchProfits();
+    fetchStores();
+    fetchManagers();
+  }, []);
 
   const fetchCommissions = async () => {
     setLoading(true);
@@ -201,6 +232,124 @@ export default function Commissions() {
     setLoading(false);
   };
 
+  const fetchProfits = async () => {
+    const { data: profitsData, error } = await supabase
+      .from('profits')
+      .select('*, stores:store_id(name)')
+      .order('created_at', { ascending: false })
+      .limit(50);
+    
+    if (error) {
+      console.error('Error fetching profits:', error);
+      return;
+    }
+
+    if (!profitsData || profitsData.length === 0) {
+      setProfits([]);
+      return;
+    }
+
+    // Fetch manager names
+    const managerIds = [...new Set(profitsData.map(p => p.manager_id))];
+    const { data: managersData } = await supabase
+      .from('managers')
+      .select('id, user_id')
+      .in('id', managerIds);
+    
+    const userIds = managersData?.map(m => m.user_id) || [];
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', userIds);
+    
+    const managerProfileMap = new Map<string, string>();
+    managersData?.forEach(m => {
+      const profile = profilesData?.find(p => p.id === m.user_id);
+      if (profile) managerProfileMap.set(m.id, profile.name);
+    });
+
+    const enrichedProfits: Profit[] = profitsData.map(p => ({
+      id: p.id,
+      store_id: p.store_id,
+      manager_id: p.manager_id,
+      period_start: p.period_start,
+      period_end: p.period_end,
+      profit_amount: p.profit_amount,
+      notes: p.notes,
+      status: p.status,
+      created_at: p.created_at,
+      store_name: p.stores?.name || '-',
+      manager_name: managerProfileMap.get(p.manager_id) || '-',
+    }));
+
+    setProfits(enrichedProfits);
+  };
+
+  const handleProfitSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!profitForm.store_id || !profitForm.manager_id || !profitForm.period_start || !profitForm.period_end || !profitForm.profit_amount) {
+      toast({
+        title: 'Erro',
+        description: 'Preencha todos os campos obrigatórios',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSavingProfit(true);
+    
+    const { error } = await supabase.from('profits').insert({
+      store_id: profitForm.store_id,
+      manager_id: profitForm.manager_id,
+      period_start: profitForm.period_start,
+      period_end: profitForm.period_end,
+      profit_amount: parseFloat(profitForm.profit_amount),
+      notes: profitForm.notes || null,
+      created_by: user?.id,
+      status: canApprove ? 'approved' : 'pending',
+      approved_by: canApprove ? user?.id : null,
+      approved_at: canApprove ? new Date().toISOString() : null,
+    });
+
+    setSavingProfit(false);
+
+    if (error) {
+      toast({
+        title: 'Erro ao registrar',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Sucesso',
+        description: 'Lucro registrado com sucesso',
+      });
+      setProfitDialogOpen(false);
+      setProfitForm({ store_id: '', manager_id: '', period_start: '', period_end: '', profit_amount: '', notes: '' });
+      fetchProfits();
+      checkAvailableProfits();
+    }
+  };
+
+  const approveProfit = async (id: string, approved: boolean) => {
+    const { error } = await supabase
+      .from('profits')
+      .update({
+        status: approved ? 'approved' : 'rejected',
+        approved_by: user?.id,
+        approved_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+    
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Sucesso', description: approved ? 'Lucro aprovado!' : 'Lucro rejeitado' });
+      fetchProfits();
+    }
+  };
+
   const fetchStores = async () => {
     const { data } = await supabase
       .from('stores')
@@ -213,7 +362,7 @@ export default function Commissions() {
   const fetchManagers = async () => {
     const { data: managersData } = await supabase
       .from('managers')
-      .select('id, user_id, commission_percent, commission_type')
+      .select('id, user_id, store_id, commission_percent, commission_type')
       .eq('status', 'active');
     
     if (!managersData) {
@@ -233,6 +382,7 @@ export default function Commissions() {
     const enrichedManagers: ManagerOption[] = managersData.map(m => ({
       id: m.id,
       user_id: m.user_id,
+      store_id: m.store_id,
       commission_percent: m.commission_percent,
       commission_type: m.commission_type,
       profile_name: profilesMap.get(m.user_id)?.name || 'N/A',
@@ -574,34 +724,231 @@ export default function Commissions() {
       </PermissionGate>
       </div>
 
-      <Tabs defaultValue="charts" className="space-y-6">
+      <Tabs defaultValue="lucros" className="space-y-6">
         <TabsList>
+          <TabsTrigger value="lucros" className="flex items-center gap-2">
+            <DollarSign className="w-4 h-4" />
+            Lucros
+          </TabsTrigger>
+          <TabsTrigger value="comissoes" className="flex items-center gap-2">
+            <Percent className="w-4 h-4" />
+            Comissões
+          </TabsTrigger>
           <TabsTrigger value="charts" className="flex items-center gap-2">
             <BarChart3 className="w-4 h-4" />
             Gráficos
           </TabsTrigger>
-          <TabsTrigger value="list" className="flex items-center gap-2">
-            <List className="w-4 h-4" />
-            Lista
-          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="charts">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <CommissionTrendChart commissions={commissions} />
-          )}
+        {/* Lucros Tab */}
+        <TabsContent value="lucros">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-success" />
+                Registro de Lucros
+              </CardTitle>
+              <PermissionGate permission="register_profits">
+                <Dialog open={profitDialogOpen} onOpenChange={setProfitDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Registrar Lucro
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Registrar Lucro</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleProfitSubmit} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Loja *</Label>
+                        <Select
+                          value={profitForm.store_id}
+                          onValueChange={(v) => setProfitForm({ ...profitForm, store_id: v, manager_id: '' })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a loja" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {stores.map((store) => (
+                              <SelectItem key={store.id} value={store.id}>
+                                {store.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Gestor *</Label>
+                        <Select
+                          value={profitForm.manager_id}
+                          onValueChange={(v) => setProfitForm({ ...profitForm, manager_id: v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o gestor" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {managers
+                              .filter((m) => !profitForm.store_id || !m.store_id || m.store_id === profitForm.store_id)
+                              .map((manager) => (
+                                <SelectItem key={manager.id} value={manager.id}>
+                                  {manager.profile_name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Período Início *</Label>
+                          <Input
+                            type="date"
+                            value={profitForm.period_start}
+                            onChange={(e) => setProfitForm({ ...profitForm, period_start: e.target.value })}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Período Fim *</Label>
+                          <Input
+                            type="date"
+                            value={profitForm.period_end}
+                            onChange={(e) => setProfitForm({ ...profitForm, period_end: e.target.value })}
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Valor do Lucro (R$) *</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
+                            R$
+                          </span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={profitForm.profit_amount}
+                            onChange={(e) => setProfitForm({ ...profitForm, profit_amount: e.target.value })}
+                            placeholder="0,00"
+                            className="pl-10"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Observações</Label>
+                        <Textarea
+                          value={profitForm.notes}
+                          onChange={(e) => setProfitForm({ ...profitForm, notes: e.target.value })}
+                          placeholder="Observações opcionais..."
+                          rows={3}
+                        />
+                      </div>
+
+                      <Button type="submit" className="w-full" disabled={savingProfit}>
+                        {savingProfit ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Salvando...
+                          </>
+                        ) : (
+                          'Registrar Lucro'
+                        )}
+                      </Button>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </PermissionGate>
+            </CardHeader>
+            <CardContent>
+              {profits.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhum lucro registrado
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Período</th>
+                        <th>Gestor</th>
+                        <th>Loja</th>
+                        <th className="text-right">Valor (R$)</th>
+                        <th>Status</th>
+                        {canApprove && <th></th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {profits.map((profit) => (
+                        <tr key={profit.id}>
+                          <td>
+                            {format(new Date(profit.period_start), 'dd/MM', { locale: ptBR })} - {format(new Date(profit.period_end), 'dd/MM/yy', { locale: ptBR })}
+                          </td>
+                          <td>{profit.manager_name}</td>
+                          <td>{profit.store_name}</td>
+                          <td className="text-right font-medium">{formatCurrency(profit.profit_amount)}</td>
+                          <td>
+                            {profit.status === 'approved' ? (
+                              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                                <Check className="w-3 h-3 mr-1" />Aprovado
+                              </Badge>
+                            ) : profit.status === 'rejected' ? (
+                              <Badge variant="destructive">
+                                <X className="w-3 h-3 mr-1" />Rejeitado
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary">
+                                <Clock className="w-3 h-3 mr-1" />Pendente
+                              </Badge>
+                            )}
+                          </td>
+                          {canApprove && (
+                            <td>
+                              {profit.status === 'pending' && (
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-success hover:text-success"
+                                    onClick={() => approveProfit(profit.id, true)}
+                                  >
+                                    <Check className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => approveProfit(profit.id, false)}
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        <TabsContent value="list">
+        {/* Comissões Tab */}
+        <TabsContent value="comissoes">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Percent className="w-5 h-5 text-info" />
-                Comissões
+                Comissões Calculadas
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -690,6 +1037,17 @@ export default function Commissions() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Charts Tab */}
+        <TabsContent value="charts">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <CommissionTrendChart commissions={commissions} />
+          )}
         </TabsContent>
       </Tabs>
 
