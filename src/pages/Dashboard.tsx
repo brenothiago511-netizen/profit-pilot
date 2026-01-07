@@ -483,7 +483,7 @@ export default function Dashboard() {
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Selecione a loja" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" className="z-50">
                     <SelectItem value="all">Todas as lojas</SelectItem>
                     {stores.map((store) => (
                       <SelectItem key={store.id} value={store.id}>
