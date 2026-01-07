@@ -282,8 +282,8 @@ export default function Commissions() {
           user_id: user.id,
           store_id: recordForm.store_id,
           status: 'active',
-          commission_percent: 0,
-          commission_type: 'percentage',
+          commission_percent: 30,
+          commission_type: 'lucro',
         })
         .select('id')
         .single();
