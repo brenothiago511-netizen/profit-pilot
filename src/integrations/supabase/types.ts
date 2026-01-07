@@ -438,7 +438,7 @@ export type Database = {
           description: string | null
           id: string
           partner_id: string
-          store_id: string
+          store_id: string | null
           type: string
         }
         Insert: {
@@ -449,7 +449,7 @@ export type Database = {
           description?: string | null
           id?: string
           partner_id: string
-          store_id: string
+          store_id?: string | null
           type: string
         }
         Update: {
@@ -460,7 +460,7 @@ export type Database = {
           description?: string | null
           id?: string
           partner_id?: string
-          store_id?: string
+          store_id?: string | null
           type?: string
         }
         Relationships: [
@@ -487,7 +487,7 @@ export type Database = {
           created_at: string
           id: string
           status: string
-          store_id: string
+          store_id: string | null
           updated_at: string
           user_id: string
         }
@@ -497,7 +497,7 @@ export type Database = {
           created_at?: string
           id?: string
           status?: string
-          store_id: string
+          store_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -507,7 +507,7 @@ export type Database = {
           created_at?: string
           id?: string
           status?: string
-          store_id?: string
+          store_id?: string | null
           updated_at?: string
           user_id?: string
         }
