@@ -18,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Loader2, Store, DollarSign, TrendingUp, TrendingDown, Percent, Search, Trash2 } from 'lucide-react';
+import { Plus, Users, Loader2, Store, DollarSign, TrendingUp, TrendingDown, Search, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -81,7 +81,6 @@ export default function Partners() {
     user_id: '',
     store_id: '',
     capital_amount: '',
-    capital_percentage: '',
   });
 
   const [transactionForm, setTransactionForm] = useState({
@@ -194,7 +193,7 @@ export default function Partners() {
       user_id: formData.user_id,
       store_id: formData.store_id,
       capital_amount: parseFloat(formData.capital_amount) || 0,
-      capital_percentage: parseFloat(formData.capital_percentage) || 0,
+      capital_percentage: 0,
     });
 
     setSaving(false);
@@ -211,7 +210,7 @@ export default function Partners() {
         description: 'Sócio adicionado com sucesso',
       });
       setDialogOpen(false);
-      setFormData({ user_id: '', store_id: '', capital_amount: '', capital_percentage: '' });
+      setFormData({ user_id: '', store_id: '', capital_amount: '' });
       fetchPartners();
     }
   };
@@ -332,9 +331,9 @@ export default function Partners() {
   };
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'BRL',
+      currency: 'USD',
     }).format(value);
   };
 
@@ -424,26 +423,13 @@ export default function Partners() {
               </div>
 
               <div className="space-y-2">
-                <Label>Capital Inicial (R$)</Label>
+                <Label>Capital Inicial (USD)</Label>
                 <Input
                   type="number"
                   step="0.01"
-                  placeholder="0,00"
+                  placeholder="0.00"
                   value={formData.capital_amount}
                   onChange={(e) => setFormData({ ...formData, capital_amount: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Participação (%)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  placeholder="0"
-                  value={formData.capital_percentage}
-                  onChange={(e) => setFormData({ ...formData, capital_percentage: e.target.value })}
                 />
               </div>
 
@@ -557,8 +543,7 @@ export default function Partners() {
                   <TableRow>
                     <TableHead>Sócio</TableHead>
                     <TableHead>Loja</TableHead>
-                    <TableHead className="text-right">Capital</TableHead>
-                    <TableHead className="text-right">Participação</TableHead>
+                    <TableHead className="text-right">Capital (USD)</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -576,10 +561,9 @@ export default function Partners() {
                       <TableCell className="text-right font-medium">
                         {formatCurrency(partner.capital_amount || 0)}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="outline">
-                          <Percent className="w-3 h-3 mr-1" />
-                          {partner.capital_percentage || 0}%
+                      <TableCell>
+                        <Badge variant={partner.status === 'active' ? 'default' : 'secondary'}>
+                          {partner.status === 'active' ? 'Ativo' : 'Inativo'}
                         </Badge>
                       </TableCell>
                       <TableCell>
