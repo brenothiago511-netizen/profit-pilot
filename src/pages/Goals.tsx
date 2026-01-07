@@ -402,7 +402,7 @@ export default function Goals() {
                       {partners.map((partner) => (
                         <SelectItem key={partner.id} value={partner.id}>
                           {partner.profiles?.name || partner.profiles?.email || 'Sócio'} 
-                          {partner.stores?.name ? ` - ${partner.stores.name}` : ''}
+                          {` - ${partner.stores?.name || 'Sem loja'}`}
                           {` (${partner.capital_percentage}%)`}
                         </SelectItem>
                       ))}
