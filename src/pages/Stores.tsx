@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Store, Loader2, Building2, CreditCard, Pencil, Target } from 'lucide-react';
+import { Plus, Store, Loader2, Building2, CreditCard, Pencil, Target, Trash2 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import BankAccountsDialog from '@/components/stores/BankAccountsDialog';
@@ -168,6 +168,35 @@ export default function Stores() {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Atualizado', description: `Loja ${newStatus === 'active' ? 'ativada' : 'desativada'}` });
+      fetchData();
+    }
+  };
+
+  const deleteStore = async (store: StoreData) => {
+    if (!confirm(`Tem certeza que deseja excluir a loja "${store.name}"? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    // Delete related data first
+    await Promise.all([
+      supabase.from('revenues').delete().eq('store_id', store.id),
+      supabase.from('expenses').delete().eq('store_id', store.id),
+      supabase.from('revenue_goals').delete().eq('store_id', store.id),
+      supabase.from('bank_accounts').delete().eq('store_id', store.id),
+      supabase.from('partners').delete().eq('store_id', store.id),
+      supabase.from('profits').delete().eq('store_id', store.id),
+      supabase.from('commissions').delete().eq('store_id', store.id),
+      supabase.from('store_roi_alerts').delete().eq('store_id', store.id),
+      supabase.from('partner_transactions').delete().eq('store_id', store.id),
+      supabase.from('user_stores').delete().eq('store_id', store.id),
+    ]);
+
+    const { error } = await supabase.from('stores').delete().eq('id', store.id);
+
+    if (error) {
+      toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Sucesso', description: 'Loja excluída' });
       fetchData();
     }
   };
@@ -344,6 +373,9 @@ export default function Stores() {
                   <div className="flex items-center gap-2">
                     <Button variant="ghost" size="icon" onClick={() => openEditDialog(store)}>
                       <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteStore(store)}>
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                     <Badge variant={store.status === 'active' ? 'default' : 'secondary'}>
                       {store.status === 'active' ? 'Ativa' : 'Inativa'}
