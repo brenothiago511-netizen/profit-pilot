@@ -54,9 +54,11 @@ export default function Users() {
   const [storeDialogOpen, setStoreDialogOpen] = useState(false);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
+  const [partnerStoreDialogOpen, setPartnerStoreDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [selectedStores, setSelectedStores] = useState<string[]>([]);
   const [selectedRole, setSelectedRole] = useState<AppRole>('financeiro');
+  const [selectedPartnerStore, setSelectedPartnerStore] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -314,6 +316,19 @@ export default function Users() {
   const handleRoleUpdate = async () => {
     if (!selectedUser) return;
 
+    // If changing to socio, ask for a store first
+    if (selectedRole === 'socio') {
+      setRoleDialogOpen(false);
+      setPartnerStoreDialogOpen(true);
+      return;
+    }
+
+    await executeRoleUpdate();
+  };
+
+  const executeRoleUpdate = async () => {
+    if (!selectedUser) return;
+
     setSaving(true);
 
     // Update profile role
@@ -346,11 +361,44 @@ export default function Users() {
       console.error('Error updating user_roles:', roleError);
     }
 
+    // If role is socio and a store is selected, create partner record
+    if (selectedRole === 'socio' && selectedPartnerStore) {
+      // Check if partner already exists for this user and store
+      const { data: existingPartner } = await supabase
+        .from('partners')
+        .select('id')
+        .eq('user_id', selectedUser.id)
+        .eq('store_id', selectedPartnerStore)
+        .maybeSingle();
+
+      if (!existingPartner) {
+        const { error: partnerError } = await supabase
+          .from('partners')
+          .insert({
+            user_id: selectedUser.id,
+            store_id: selectedPartnerStore,
+            capital_amount: 0,
+            capital_percentage: 0,
+          });
+
+        if (partnerError) {
+          console.error('Error creating partner:', partnerError);
+          toast({
+            title: 'Aviso',
+            description: 'Papel atualizado, mas houve erro ao criar registro de sócio',
+            variant: 'destructive',
+          });
+        }
+      }
+    }
+
     toast({
       title: 'Sucesso',
       description: 'Papel atualizado com sucesso',
     });
     setRoleDialogOpen(false);
+    setPartnerStoreDialogOpen(false);
+    setSelectedPartnerStore('');
     setSaving(false);
     fetchUsers();
   };
@@ -778,6 +826,53 @@ export default function Users() {
         userName={selectedUser?.name || ''}
         userRole={selectedUser?.role || 'financeiro'}
       />
+
+      {/* Partner Store Selection Dialog */}
+      <Dialog open={partnerStoreDialogOpen} onOpenChange={setPartnerStoreDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Selecionar Loja do Sócio</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Selecione a loja em que {selectedUser?.name} será sócio:
+            </p>
+            <Select
+              value={selectedPartnerStore}
+              onValueChange={setSelectedPartnerStore}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma loja" />
+              </SelectTrigger>
+              <SelectContent>
+                {stores.map((store) => (
+                  <SelectItem key={store.id} value={store.id}>
+                    {store.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex justify-end gap-3 pt-4">
+              <Button variant="outline" onClick={() => {
+                setPartnerStoreDialogOpen(false);
+                setSelectedPartnerStore('');
+              }}>
+                Cancelar
+              </Button>
+              <Button onClick={executeRoleUpdate} disabled={saving || !selectedPartnerStore}>
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  'Confirmar'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

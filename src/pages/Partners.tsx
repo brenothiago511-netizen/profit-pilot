@@ -18,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Loader2, Store, DollarSign, TrendingUp, TrendingDown, Percent, Search } from 'lucide-react';
+import { Plus, Users, Loader2, Store, DollarSign, TrendingUp, TrendingDown, Percent, Search, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -302,6 +302,35 @@ export default function Partners() {
     }
   };
 
+  const deletePartner = async (partner: Partner) => {
+    if (!confirm(`Tem certeza que deseja excluir o sócio "${partner.user?.name}"? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    // Delete related transactions first
+    await supabase.from('partner_transactions').delete().eq('partner_id', partner.id);
+    
+    // Delete partner
+    const { error } = await supabase
+      .from('partners')
+      .delete()
+      .eq('id', partner.id);
+    
+    if (error) {
+      toast({
+        title: 'Erro ao excluir',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Sócio excluído',
+        description: 'O sócio foi removido com sucesso',
+      });
+      fetchPartners();
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -575,6 +604,16 @@ export default function Partners() {
                           >
                             {partner.status === 'active' ? 'Desativar' : 'Ativar'}
                           </Button>
+                          <PermissionGate permission="manage_partners">
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => deletePartner(partner)}
+                              title="Excluir sócio"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </PermissionGate>
                         </div>
                       </TableCell>
                     </TableRow>
