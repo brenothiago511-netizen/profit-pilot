@@ -55,8 +55,9 @@ interface StorePartner {
 
 export default function Stores() {
   const { can } = usePermissions();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user, profile } = useAuth();
   const { toast } = useToast();
+  const isSocio = profile?.role === 'socio';
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreData[]>([]);
   const [goals, setGoals] = useState<GoalData[]>([]);
@@ -94,16 +95,55 @@ export default function Stores() {
   const fetchData = async () => {
     setLoading(true);
     
+    let storeIds: string[] | null = null;
+    
+    // For sócios, first get their linked stores
+    if (isSocio && user?.id) {
+      const { data: partnerData } = await supabase
+        .from('partners')
+        .select('store_id')
+        .eq('user_id', user.id)
+        .eq('status', 'active');
+      
+      storeIds = partnerData?.map(p => p.store_id).filter(Boolean) as string[] || [];
+      
+      if (storeIds.length === 0) {
+        setStores([]);
+        setGoals([]);
+        setRevenues([]);
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Build store query based on role
+    let storesQuery = supabase.from('stores').select('*').order('name');
+    if (storeIds && storeIds.length > 0) {
+      storesQuery = storesQuery.in('id', storeIds);
+    }
+    
+    // Build goals query
+    let goalsQuery = supabase.from('revenue_goals')
+      .select('*')
+      .gte('period_start', periodStart)
+      .lte('period_end', periodEnd);
+    if (storeIds && storeIds.length > 0) {
+      goalsQuery = goalsQuery.in('store_id', storeIds);
+    }
+    
+    // Build revenues query
+    let revenuesQuery = supabase.from('revenues')
+      .select('store_id, amount')
+      .gte('date', periodStart)
+      .lte('date', periodEnd);
+    if (storeIds && storeIds.length > 0) {
+      revenuesQuery = revenuesQuery.in('store_id', storeIds);
+    }
+
     const [storesRes, goalsRes, revenuesRes] = await Promise.all([
-      supabase.from('stores').select('*').order('name'),
-      supabase.from('revenue_goals')
-        .select('*')
-        .gte('period_start', periodStart)
-        .lte('period_end', periodEnd),
-      supabase.from('revenues')
-        .select('store_id, amount')
-        .gte('date', periodStart)
-        .lte('date', periodEnd),
+      storesQuery,
+      goalsQuery,
+      revenuesQuery,
     ]);
 
     if (storesRes.data) setStores(storesRes.data);
@@ -347,71 +387,73 @@ export default function Stores() {
         <div>
           <h1 className="page-title">Lojas</h1>
           <p className="page-description">
-            Gerencie as unidades • {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+            {isSocio ? 'Suas lojas vinculadas' : 'Gerencie as unidades'} • {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
           </p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); else setDialogOpen(true); }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Loja
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>{editingStore ? 'Editar Loja' : 'Cadastrar Loja'}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Nome da Loja *</Label>
-                <Input
-                  placeholder="Ex: Loja Centro"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+        {!isSocio && (
+          <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); else setDialogOpen(true); }}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Nova Loja
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>{editingStore ? 'Editar Loja' : 'Cadastrar Loja'}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>País</Label>
+                  <Label>Nome da Loja *</Label>
                   <Input
-                    placeholder="Brasil"
-                    value={formData.country}
-                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                    placeholder="Ex: Loja Centro"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Moeda</Label>
-                  <Select
-                    value={formData.currency}
-                    onValueChange={(v) => setFormData({ ...formData, currency: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="BRL">BRL (R$)</SelectItem>
-                      <SelectItem value="USD">USD ($)</SelectItem>
-                      <SelectItem value="EUR">EUR (€)</SelectItem>
-                      <SelectItem value="GBP">GBP (£)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
 
-              <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={closeDialog}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={saving}>
-                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                  {editingStore ? 'Atualizar' : 'Salvar'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>País</Label>
+                    <Input
+                      placeholder="Brasil"
+                      value={formData.country}
+                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Moeda</Label>
+                    <Select
+                      value={formData.currency}
+                      onValueChange={(v) => setFormData({ ...formData, currency: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="BRL">BRL (R$)</SelectItem>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="EUR">EUR (€)</SelectItem>
+                        <SelectItem value="GBP">GBP (£)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button type="button" variant="outline" onClick={closeDialog}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={saving}>
+                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                    {editingStore ? 'Atualizar' : 'Salvar'}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -449,12 +491,16 @@ export default function Stores() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(store)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteStore(store)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {!isSocio && (
+                      <>
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(store)}>
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteStore(store)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </>
+                    )}
                     <Badge variant={store.status === 'active' ? 'default' : 'secondary'}>
                       {store.status === 'active' ? 'Ativa' : 'Inativa'}
                     </Badge>
@@ -491,25 +537,27 @@ export default function Stores() {
                     <span className="text-sm text-muted-foreground">
                       {format(new Date(store.created_at), 'dd/MM/yyyy')}
                     </span>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button variant="outline" size="sm" onClick={() => openGoalDialog(store)}>
-                        <Target className="w-4 h-4 mr-1" />
-                        Meta
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => openBankDialog(store)}>
-                        <CreditCard className="w-4 h-4 mr-1" />
-                        Banco
-                      </Button>
-                      {isAdmin && (
-                        <Button variant="outline" size="sm" onClick={() => openPartnerDialog(store)}>
-                          <Users className="w-4 h-4 mr-1" />
-                          Sócios
+                    {!isSocio && (
+                      <div className="flex gap-2 flex-wrap">
+                        <Button variant="outline" size="sm" onClick={() => openGoalDialog(store)}>
+                          <Target className="w-4 h-4 mr-1" />
+                          Meta
                         </Button>
-                      )}
-                      <Button variant="outline" size="sm" onClick={() => toggleStatus(store.id, store.status)}>
-                        {store.status === 'active' ? 'Desativar' : 'Ativar'}
-                      </Button>
-                    </div>
+                        <Button variant="outline" size="sm" onClick={() => openBankDialog(store)}>
+                          <CreditCard className="w-4 h-4 mr-1" />
+                          Banco
+                        </Button>
+                        {isAdmin && (
+                          <Button variant="outline" size="sm" onClick={() => openPartnerDialog(store)}>
+                            <Users className="w-4 h-4 mr-1" />
+                            Sócios
+                          </Button>
+                        )}
+                        <Button variant="outline" size="sm" onClick={() => toggleStatus(store.id, store.status)}>
+                          {store.status === 'active' ? 'Desativar' : 'Ativar'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
