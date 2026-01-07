@@ -953,6 +953,7 @@ export type Database = {
         }
         Returns: number
       }
+      get_partner_store_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -975,6 +976,7 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_admin_or_financeiro: { Args: { _user_id: string }; Returns: boolean }
+      is_partner: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "financeiro" | "gestor" | "socio"
