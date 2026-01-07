@@ -479,17 +479,27 @@ export default function Dashboard() {
               {/* Store Filter */}
               <div className="flex items-center gap-2">
                 <Store className="w-4 h-4 text-muted-foreground" />
-                <Select value={selectedStore} onValueChange={setSelectedStore}>
+                <Select 
+                  value={selectedStore} 
+                  onValueChange={setSelectedStore}
+                  disabled={stores.length === 0}
+                >
                   <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Selecione a loja" />
+                    <SelectValue placeholder={stores.length === 0 ? "Nenhuma loja vinculada" : "Selecione a loja"} />
                   </SelectTrigger>
                   <SelectContent position="popper" className="z-50">
-                    <SelectItem value="all">Todas as lojas</SelectItem>
-                    {stores.map((store) => (
-                      <SelectItem key={store.id} value={store.id}>
-                        {store.name}
-                      </SelectItem>
-                    ))}
+                    {stores.length > 0 ? (
+                      <>
+                        <SelectItem value="all">Todas as lojas</SelectItem>
+                        {stores.map((store) => (
+                          <SelectItem key={store.id} value={store.id}>
+                            {store.name}
+                          </SelectItem>
+                        ))}
+                      </>
+                    ) : (
+                      <SelectItem value="all" disabled>Nenhuma loja disponível</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
