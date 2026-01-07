@@ -98,13 +98,25 @@ export default function Commissions() {
   const [deleting, setDeleting] = useState(false);
 
   const isFinanceiro = profile?.role === 'financeiro';
-  const canApprove = isAdmin || isFinanceiro;
+  const isSocio = profile?.role === 'socio';
+  const canApprove = isAdmin || isFinanceiro || isSocio;
   const canManageTiers = isAdmin;
+  
+  // Fixed commission rate for partners (30%)
+  const PARTNER_COMMISSION_RATE = 0.30;
 
-  // Calculate estimated commission based on tiers
+  // Calculate estimated commission - fixed 30% for partners, or based on tiers for others
   const estimatedCommission = useMemo(() => {
     const profit = parseFloat(recordForm.daily_profit) || 0;
-    if (profit <= 0 || commissionTiers.length === 0) return 0;
+    if (profit <= 0) return 0;
+    
+    // Partners use fixed 30% commission
+    if (isSocio) {
+      return profit * PARTNER_COMMISSION_RATE;
+    }
+    
+    // Others use tier-based commission
+    if (commissionTiers.length === 0) return 0;
     
     const tier = commissionTiers
       .filter(t => t.active)
@@ -112,17 +124,17 @@ export default function Commissions() {
     
     if (!tier) return 0;
     return profit * tier.commission_percentage;
-  }, [recordForm.daily_profit, commissionTiers]);
+  }, [recordForm.daily_profit, commissionTiers, isSocio]);
 
-  // Find matching tier for display
+  // Find matching tier for display (not used for partners - they have fixed rate)
   const matchingTier = useMemo(() => {
     const profit = parseFloat(recordForm.daily_profit) || 0;
-    if (profit <= 0) return null;
+    if (profit <= 0 || isSocio) return null;
     
     return commissionTiers
       .filter(t => t.active)
       .find(t => profit >= t.min_profit && (t.max_profit === null || profit <= t.max_profit));
-  }, [recordForm.daily_profit, commissionTiers]);
+  }, [recordForm.daily_profit, commissionTiers, isSocio]);
 
   useEffect(() => {
     fetchAll();
@@ -299,12 +311,17 @@ export default function Commissions() {
 
     setSavingRecord(true);
     
-    // Commission is calculated automatically by the database trigger
+    const profit = parseFloat(recordForm.daily_profit);
+    
+    // Calculate commission: fixed 30% for partners, database trigger for others
+    const commissionAmount = isSocio ? profit * PARTNER_COMMISSION_RATE : undefined;
+    
     const { error } = await supabase.from('daily_records').insert({
       store_id: recordForm.store_id,
       manager_id: managerId,
       date: recordForm.date,
-      daily_profit: parseFloat(recordForm.daily_profit),
+      daily_profit: profit,
+      commission_amount: commissionAmount,
       notes: recordForm.notes || null,
       created_by: user?.id,
       status: canApprove ? 'approved' : 'pending',
@@ -594,8 +611,19 @@ export default function Commissions() {
 
                 {/* Estimated commission preview */}
                 {recordForm.daily_profit && parseFloat(recordForm.daily_profit) > 0 && (
-                  <div className={`p-4 rounded-lg border ${matchingTier ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
-                    {matchingTier ? (
+                  <div className={`p-4 rounded-lg border ${(isSocio || matchingTier) ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
+                    {isSocio ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Calculator className="w-4 h-4 text-emerald-400" />
+                          <span className="font-medium text-emerald-400">Comissão Estimada</span>
+                        </div>
+                        <p className="text-2xl font-bold text-foreground">{formatCurrency(estimatedCommission)}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Taxa fixa: 30%
+                        </p>
+                      </div>
+                    ) : matchingTier ? (
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <Calculator className="w-4 h-4 text-emerald-400" />
