@@ -19,7 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { useCurrency, AVAILABLE_CURRENCIES } from '@/hooks/useCurrency';
+import { useCurrency } from '@/hooks/useCurrency';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   Plus, 
@@ -27,7 +27,7 @@ import {
   Target, 
   TrendingUp,
   Calendar,
-  Store,
+  User,
   Pencil,
   Trash2,
   AlertTriangle,
@@ -37,9 +37,19 @@ import {
 import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+interface Partner {
+  id: string;
+  user_id: string;
+  store_id: string | null;
+  capital_percentage: number;
+  profiles?: { name: string; email: string };
+  stores?: { name: string; currency: string };
+}
+
 interface RevenueGoal {
   id: string;
-  store_id: string;
+  partner_id: string | null;
+  store_id: string | null;
   period_start: string;
   period_end: string;
   goal_amount_original: number;
@@ -47,23 +57,23 @@ interface RevenueGoal {
   goal_amount_converted: number | null;
   exchange_rate_used: number | null;
   created_at: string;
-  stores?: { name: string; currency: string };
-}
-
-interface Store {
-  id: string;
-  name: string;
-  currency: string;
+  partners?: { 
+    user_id: string;
+    store_id: string | null;
+    profiles?: { name: string };
+    stores?: { name: string };
+  };
 }
 
 export default function Goals() {
   const { toast } = useToast();
   const { can } = usePermissions();
-  const { formatCurrency, getCurrencySymbol, config, getExchangeRate } = useCurrency();
+  const { user, isSocio, isAdmin } = useAuth();
+  const { formatCurrency, config, getExchangeRate } = useCurrency();
   
   const [goals, setGoals] = useState<RevenueGoal[]>([]);
-  const [stores, setStores] = useState<Store[]>([]);
-  const [revenuesByStore, setRevenuesByStore] = useState<Record<string, number>>({});
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [revenuesByPartner, setRevenuesByPartner] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<RevenueGoal | null>(null);
@@ -71,7 +81,7 @@ export default function Goals() {
   const [deleting, setDeleting] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
-    store_id: '',
+    partner_id: '',
     period_start: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
     period_end: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
     goal_amount_original: '',
@@ -80,45 +90,110 @@ export default function Goals() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [user]);
 
   const fetchData = async () => {
+    if (!user) return;
+    
     setLoading(true);
     try {
-      // Fetch stores
-      const { data: storesData } = await supabase
-        .from('stores')
-        .select('id, name, currency')
-        .eq('status', 'active')
-        .order('name');
+      // Fetch partners based on role
+      let partnersQuery = supabase
+        .from('partners')
+        .select('id, user_id, store_id, capital_percentage, stores(name, currency)')
+        .eq('status', 'active');
       
-      setStores(storesData || []);
+      // If socio, only fetch their own partner record
+      if (isSocio && !isAdmin) {
+        partnersQuery = partnersQuery.eq('user_id', user.id);
+      }
+      
+      const { data: partnersData } = await partnersQuery;
+      
+      // Fetch profile names for partners
+      if (partnersData && partnersData.length > 0) {
+        const userIds = [...new Set(partnersData.map(p => p.user_id))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name, email')
+          .in('id', userIds);
+        
+        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+        
+        const partnersWithProfiles = partnersData.map(p => ({
+          ...p,
+          profiles: profileMap.get(p.user_id)
+        }));
+        
+        setPartners(partnersWithProfiles as Partner[]);
+      } else {
+        setPartners([]);
+      }
 
-      // Fetch goals with store info
-      const { data: goalsData } = await supabase
+      // Fetch goals with partner info
+      let goalsQuery = supabase
         .from('revenue_goals')
-        .select('*, stores(name, currency)')
+        .select('*')
+        .not('partner_id', 'is', null)
         .order('period_start', { ascending: false });
       
-      setGoals(goalsData || []);
+      const { data: goalsData } = await goalsQuery;
+      
+      // Fetch partner details for goals
+      if (goalsData && goalsData.length > 0) {
+        const partnerIds = [...new Set(goalsData.map(g => g.partner_id).filter(Boolean))];
+        const { data: goalPartners } = await supabase
+          .from('partners')
+          .select('id, user_id, store_id, stores(name)')
+          .in('id', partnerIds as string[]);
+        
+        const partnerUserIds = [...new Set(goalPartners?.map(p => p.user_id) || [])];
+        const { data: partnerProfiles } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .in('id', partnerUserIds);
+        
+        const profileMap = new Map(partnerProfiles?.map(p => [p.id, p]) || []);
+        const partnerMap = new Map(goalPartners?.map(p => [p.id, { ...p, profiles: profileMap.get(p.user_id) }]) || []);
+        
+        const goalsWithPartners = goalsData.map(g => ({
+          ...g,
+          partners: partnerMap.get(g.partner_id)
+        }));
+        
+        setGoals(goalsWithPartners as RevenueGoal[]);
+      } else {
+        setGoals([]);
+      }
 
-      // Fetch current month revenues by store
+      // Fetch current month revenues by partner's store
       const currentMonthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
       const currentMonthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
       
-      const { data: revenuesData } = await supabase
-        .from('revenues')
-        .select('store_id, converted_amount, amount')
-        .gte('date', currentMonthStart)
-        .lte('date', currentMonthEnd);
+      // Get store IDs from partners
+      const storeIds = partnersData?.map(p => p.store_id).filter(Boolean) || [];
+      
+      if (storeIds.length > 0) {
+        const { data: revenuesData } = await supabase
+          .from('revenues')
+          .select('store_id, converted_amount, amount')
+          .in('store_id', storeIds as string[])
+          .gte('date', currentMonthStart)
+          .lte('date', currentMonthEnd);
 
-      // Sum revenues by store
-      const revenueMap: Record<string, number> = {};
-      (revenuesData || []).forEach(rev => {
-        const amount = rev.converted_amount || rev.amount;
-        revenueMap[rev.store_id] = (revenueMap[rev.store_id] || 0) + amount;
-      });
-      setRevenuesByStore(revenueMap);
+        // Map revenues to partners
+        const revenueMap: Record<string, number> = {};
+        partnersData?.forEach(partner => {
+          if (partner.store_id) {
+            const storeRevenue = (revenuesData || [])
+              .filter(rev => rev.store_id === partner.store_id)
+              .reduce((sum, rev) => sum + (rev.converted_amount || rev.amount), 0);
+            // Partner gets their percentage of the revenue
+            revenueMap[partner.id] = storeRevenue * (partner.capital_percentage / 100);
+          }
+        });
+        setRevenuesByPartner(revenueMap);
+      }
 
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -129,7 +204,7 @@ export default function Goals() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.store_id || !formData.goal_amount_original) {
+    if (!formData.partner_id || !formData.goal_amount_original) {
       toast({
         title: 'Erro',
         description: 'Preencha todos os campos obrigatórios',
@@ -144,8 +219,11 @@ export default function Goals() {
     const exchangeRate = getExchangeRate(formData.goal_currency, config.baseCurrency);
     const convertedAmount = goalAmount * exchangeRate;
 
+    const partner = partners.find(p => p.id === formData.partner_id);
+
     const goalData = {
-      store_id: formData.store_id,
+      partner_id: formData.partner_id,
+      store_id: partner?.store_id || null,
       period_start: formData.period_start,
       period_end: formData.period_end,
       goal_amount_original: goalAmount,
@@ -192,7 +270,7 @@ export default function Goals() {
   const handleEdit = (goal: RevenueGoal) => {
     setEditingGoal(goal);
     setFormData({
-      store_id: goal.store_id,
+      partner_id: goal.partner_id || '',
       period_start: goal.period_start,
       period_end: goal.period_end,
       goal_amount_original: goal.goal_amount_original.toString(),
@@ -225,7 +303,7 @@ export default function Goals() {
 
   const resetForm = () => {
     setFormData({
-      store_id: '',
+      partner_id: '',
       period_start: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
       period_end: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
       goal_amount_original: '',
@@ -233,12 +311,12 @@ export default function Goals() {
     });
   };
 
-  const handleStoreChange = (storeId: string) => {
-    const store = stores.find(s => s.id === storeId);
+  const handlePartnerChange = (partnerId: string) => {
+    const partner = partners.find(p => p.id === partnerId);
     setFormData(prev => ({
       ...prev,
-      store_id: storeId,
-      goal_currency: store?.currency || 'BRL',
+      partner_id: partnerId,
+      goal_currency: partner?.stores?.currency || 'BRL',
     }));
   };
 
@@ -250,12 +328,12 @@ export default function Goals() {
       const end = parseISO(goal.period_end);
       return isWithinInterval(now, { start, end });
     }).map(goal => {
-      const revenue = revenuesByStore[goal.store_id] || 0;
+      const revenue = goal.partner_id ? (revenuesByPartner[goal.partner_id] || 0) : 0;
       const target = goal.goal_amount_converted || goal.goal_amount_original;
       const percentage = target > 0 ? (revenue / target) * 100 : 0;
       return { ...goal, revenue, percentage };
     });
-  }, [goals, revenuesByStore]);
+  }, [goals, revenuesByPartner]);
 
   const getStatusBadge = (percentage: number) => {
     if (percentage >= 100) {
@@ -282,7 +360,7 @@ export default function Goals() {
         <div>
           <h1 className="text-2xl font-bold">Metas de Faturamento</h1>
           <p className="text-muted-foreground">
-            Defina e acompanhe metas de receita por loja
+            Defina e acompanhe metas de receita por sócio
           </p>
         </div>
         <PermissionGate permission="manage_goals">
@@ -306,31 +384,26 @@ export default function Goals() {
                   {editingGoal ? 'Editar Meta' : 'Nova Meta de Faturamento'}
                 </DialogTitle>
                 <DialogDescription>
-                  Defina uma meta de receita para um período específico
+                  Defina uma meta de receita para um sócio em um período específico
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Loja *</Label>
+                  <Label>Sócio *</Label>
                   <Select
-                    value={formData.store_id}
-                    onValueChange={(v) => {
-                      const store = stores.find(s => s.id === v);
-                      setFormData({ 
-                        ...formData, 
-                        store_id: v, 
-                        goal_currency: store?.currency || 'BRL' 
-                      });
-                    }}
+                    value={formData.partner_id}
+                    onValueChange={handlePartnerChange}
                     disabled={!!editingGoal}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione a loja" />
+                      <SelectValue placeholder="Selecione o sócio" />
                     </SelectTrigger>
                     <SelectContent>
-                      {stores.map((store) => (
-                        <SelectItem key={store.id} value={store.id}>
-                          {store.name} ({store.currency})
+                      {partners.map((partner) => (
+                        <SelectItem key={partner.id} value={partner.id}>
+                          {partner.profiles?.name || partner.profiles?.email || 'Sócio'} 
+                          {partner.stores?.name ? ` - ${partner.stores.name}` : ''}
+                          {` (${partner.capital_percentage}%)`}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -416,12 +489,15 @@ export default function Goals() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Target className="w-5 h-5 text-primary" />
-                    {goal.stores?.name}
+                    <User className="w-5 h-5 text-primary" />
+                    {goal.partners?.profiles?.name || 'Sócio'}
                   </CardTitle>
                   {getStatusBadge(goal.percentage)}
                 </div>
                 <CardDescription>
+                  {goal.partners?.stores?.name && (
+                    <span className="mr-2">{goal.partners.stores.name} •</span>
+                  )}
                   <Calendar className="w-3 h-3 inline mr-1" />
                   {format(parseISO(goal.period_start), "dd MMM", { locale: ptBR })} - {format(parseISO(goal.period_end), "dd MMM, yyyy", { locale: ptBR })}
                 </CardDescription>
@@ -478,7 +554,7 @@ export default function Goals() {
             Histórico de Metas
           </CardTitle>
           <CardDescription>
-            Todas as metas cadastradas
+            Todas as metas cadastradas por sócio
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -491,6 +567,7 @@ export default function Goals() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Sócio</TableHead>
                     <TableHead>Loja</TableHead>
                     <TableHead>Período</TableHead>
                     <TableHead className="text-right">Meta (Original)</TableHead>
@@ -503,9 +580,12 @@ export default function Goals() {
                     <TableRow key={goal.id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          <Store className="w-4 h-4 text-muted-foreground" />
-                          {goal.stores?.name}
+                          <User className="w-4 h-4 text-muted-foreground" />
+                          {goal.partners?.profiles?.name || 'Sócio'}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {goal.partners?.stores?.name || '-'}
                       </TableCell>
                       <TableCell>
                         {format(parseISO(goal.period_start), "dd/MM/yyyy")} - {format(parseISO(goal.period_end), "dd/MM/yyyy")}
