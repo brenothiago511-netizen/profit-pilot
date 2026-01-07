@@ -28,6 +28,7 @@ import {
   Trophy,
   Bell,
   Sparkles,
+  User,
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -109,6 +110,12 @@ interface GoalData {
   progress: number;
 }
 
+interface PartnerProfile {
+  id: string;
+  user_id: string;
+  user_name: string;
+}
+
 const CHART_COLORS = [
   'hsl(var(--primary))',
   'hsl(var(--success))',
@@ -126,6 +133,8 @@ export default function PartnerDashboardPage() {
   const [storePerformance, setStorePerformance] = useState<StorePerformance[]>([]);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [goals, setGoals] = useState<GoalData[]>([]);
+  const [allPartners, setAllPartners] = useState<PartnerProfile[]>([]);
+  const [selectedPartner, setSelectedPartner] = useState<string>('all');
   const [selectedStore, setSelectedStore] = useState<string>('all');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('12');
 
@@ -198,10 +207,45 @@ export default function PartnerDashboardPage() {
   const worstStore = profitabilityData.length > 1 ? profitabilityData[profitabilityData.length - 1] : null;
 
   useEffect(() => {
-    if (user?.id) {
-      fetchPartnerData();
+    fetchAllPartners();
+  }, []);
+
+  useEffect(() => {
+    fetchPartnerData();
+  }, [selectedPartner, selectedPeriod]);
+
+  const fetchAllPartners = async () => {
+    try {
+      // Fetch all partners with their profile names
+      const { data: partnersData } = await supabase
+        .from('partners')
+        .select('id, user_id')
+        .eq('status', 'active');
+
+      if (partnersData && partnersData.length > 0) {
+        // Get unique user_ids
+        const uniqueUserIds = [...new Set(partnersData.map(p => p.user_id))];
+        
+        // Fetch profiles for these users
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .in('id', uniqueUserIds);
+
+        const profilesMap = new Map((profilesData || []).map(p => [p.id, p.name]));
+        
+        const partnersWithNames: PartnerProfile[] = uniqueUserIds.map(userId => ({
+          id: partnersData.find(p => p.user_id === userId)?.id || '',
+          user_id: userId,
+          user_name: profilesMap.get(userId) || 'Sócio',
+        }));
+
+        setAllPartners(partnersWithNames);
+      }
+    } catch (error) {
+      console.error('Error fetching partners:', error);
     }
-  }, [user?.id, selectedPeriod]);
+  };
 
   const fetchPartnerData = async () => {
     setLoading(true);
@@ -211,12 +255,17 @@ export default function PartnerDashboardPage() {
       const periodStart = format(subMonths(today, monthsBack), 'yyyy-MM-dd');
       const periodEnd = format(today, 'yyyy-MM-dd');
 
-      // Fetch partnerships
-      const { data: partnerData, error: partnerError } = await supabase
+      // Fetch partnerships - filter by selected partner or show all
+      let partnerQuery = supabase
         .from('partners')
         .select('*')
-        .eq('user_id', user?.id)
         .eq('status', 'active');
+
+      if (selectedPartner !== 'all') {
+        partnerQuery = partnerQuery.eq('user_id', selectedPartner);
+      }
+
+      const { data: partnerData, error: partnerError } = await partnerQuery;
 
       if (partnerError) throw partnerError;
 
@@ -456,6 +505,20 @@ export default function PartnerDashboardPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Select value={selectedPartner} onValueChange={setSelectedPartner}>
+            <SelectTrigger className="w-48">
+              <User className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="Todos os sócios" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os sócios</SelectItem>
+              {allPartners.map((partner) => (
+                <SelectItem key={partner.user_id} value={partner.user_id}>
+                  {partner.user_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={selectedStore} onValueChange={setSelectedStore}>
             <SelectTrigger className="w-48">
               <Store className="w-4 h-4 mr-2" />
