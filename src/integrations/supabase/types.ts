@@ -653,9 +653,10 @@ export type Database = {
           goal_amount_original: number
           goal_currency: string
           id: string
+          partner_id: string | null
           period_end: string
           period_start: string
-          store_id: string
+          store_id: string | null
           updated_at: string
         }
         Insert: {
@@ -666,9 +667,10 @@ export type Database = {
           goal_amount_original: number
           goal_currency?: string
           id?: string
+          partner_id?: string | null
           period_end: string
           period_start: string
-          store_id: string
+          store_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -679,12 +681,20 @@ export type Database = {
           goal_amount_original?: number
           goal_currency?: string
           id?: string
+          partner_id?: string | null
           period_end?: string
           period_start?: string
-          store_id?: string
+          store_id?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "revenue_goals_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "revenue_goals_store_id_fkey"
             columns: ["store_id"]
