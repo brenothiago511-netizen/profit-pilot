@@ -58,7 +58,7 @@ export default function Users() {
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [selectedStores, setSelectedStores] = useState<string[]>([]);
   const [selectedRole, setSelectedRole] = useState<AppRole>('financeiro');
-  const [selectedPartnerStore, setSelectedPartnerStore] = useState<string>('');
+  const [selectedPartnerStores, setSelectedPartnerStores] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -361,33 +361,30 @@ export default function Users() {
       console.error('Error updating user_roles:', roleError);
     }
 
-    // If role is socio and a store is selected, create partner record
-    if (selectedRole === 'socio' && selectedPartnerStore) {
-      // Check if partner already exists for this user and store
-      const { data: existingPartner } = await supabase
-        .from('partners')
-        .select('id')
-        .eq('user_id', selectedUser.id)
-        .eq('store_id', selectedPartnerStore)
-        .maybeSingle();
-
-      if (!existingPartner) {
-        const { error: partnerError } = await supabase
+    // If role is socio and stores are selected, create partner records
+    if (selectedRole === 'socio' && selectedPartnerStores.length > 0) {
+      for (const storeId of selectedPartnerStores) {
+        // Check if partner already exists for this user and store
+        const { data: existingPartner } = await supabase
           .from('partners')
-          .insert({
-            user_id: selectedUser.id,
-            store_id: selectedPartnerStore,
-            capital_amount: 0,
-            capital_percentage: 0,
-          });
+          .select('id')
+          .eq('user_id', selectedUser.id)
+          .eq('store_id', storeId)
+          .maybeSingle();
 
-        if (partnerError) {
-          console.error('Error creating partner:', partnerError);
-          toast({
-            title: 'Aviso',
-            description: 'Papel atualizado, mas houve erro ao criar registro de sócio',
-            variant: 'destructive',
-          });
+        if (!existingPartner) {
+          const { error: partnerError } = await supabase
+            .from('partners')
+            .insert({
+              user_id: selectedUser.id,
+              store_id: storeId,
+              capital_amount: 0,
+              capital_percentage: 0,
+            });
+
+          if (partnerError) {
+            console.error('Error creating partner for store:', storeId, partnerError);
+          }
         }
       }
     }
@@ -398,7 +395,7 @@ export default function Users() {
     });
     setRoleDialogOpen(false);
     setPartnerStoreDialogOpen(false);
-    setSelectedPartnerStore('');
+    setSelectedPartnerStores([]);
     setSaving(false);
     fetchUsers();
   };
@@ -831,42 +828,55 @@ export default function Users() {
       <Dialog open={partnerStoreDialogOpen} onOpenChange={setPartnerStoreDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Selecionar Loja do Sócio</DialogTitle>
+            <DialogTitle>Selecionar Lojas do Sócio</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Selecione a loja em que {selectedUser?.name} será sócio:
+              Selecione as lojas em que {selectedUser?.name} será sócio:
             </p>
-            <Select
-              value={selectedPartnerStore}
-              onValueChange={setSelectedPartnerStore}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione uma loja" />
-              </SelectTrigger>
-              <SelectContent>
-                {stores.map((store) => (
-                  <SelectItem key={store.id} value={store.id}>
+            <div className="space-y-3 max-h-[300px] overflow-y-auto">
+              {stores.map((store) => (
+                <div key={store.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`partner-${store.id}`}
+                    checked={selectedPartnerStores.includes(store.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedPartnerStores([...selectedPartnerStores, store.id]);
+                      } else {
+                        setSelectedPartnerStores(selectedPartnerStores.filter(id => id !== store.id));
+                      }
+                    }}
+                  />
+                  <label
+                    htmlFor={`partner-${store.id}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
                     {store.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </label>
+                </div>
+              ))}
+              {stores.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nenhuma loja cadastrada
+                </p>
+              )}
+            </div>
             <div className="flex justify-end gap-3 pt-4">
               <Button variant="outline" onClick={() => {
                 setPartnerStoreDialogOpen(false);
-                setSelectedPartnerStore('');
+                setSelectedPartnerStores([]);
               }}>
                 Cancelar
               </Button>
-              <Button onClick={executeRoleUpdate} disabled={saving || !selectedPartnerStore}>
+              <Button onClick={executeRoleUpdate} disabled={saving || selectedPartnerStores.length === 0}>
                 {saving ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Salvando...
                   </>
                 ) : (
-                  'Confirmar'
+                  `Confirmar (${selectedPartnerStores.length} loja${selectedPartnerStores.length !== 1 ? 's' : ''})`
                 )}
               </Button>
             </div>
