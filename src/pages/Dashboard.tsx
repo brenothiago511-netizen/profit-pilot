@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { TrendingUp, TrendingDown, DollarSign, Percent, Store, Loader2, CalendarIcon } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Percent, Store, Loader2, CalendarIcon, Users } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -21,7 +21,6 @@ import {
   BarChart,
   Bar,
 } from 'recharts';
-// PartnerDashboard removed - partners now see standard dashboard
 import { CurrencyToggle } from '@/components/currency/CurrencyToggle';
 import { useCurrency } from '@/hooks/useCurrency';
 
@@ -30,6 +29,8 @@ interface DashboardData {
   totalExpenses: number;
   netProfit: number;
   totalCommissions: number;
+  partnerShare: number;
+  partnerPercentage: number;
 }
 
 interface TrendData {
@@ -44,25 +45,37 @@ interface StoreOption {
   name: string;
 }
 
+interface PartnerOption {
+  user_id: string;
+  name: string;
+}
+
 interface DateRange {
   from: Date;
   to: Date;
 }
 
 export default function Dashboard() {
-  const { profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const { formatCurrency, config } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreOption[]>([]);
+  const [partners, setPartners] = useState<PartnerOption[]>([]);
+  const [partnerStoreIds, setPartnerStoreIds] = useState<string[]>([]);
   const [selectedStore, setSelectedStore] = useState<string>('all');
+  const [selectedPartner, setSelectedPartner] = useState<string>('all');
   const [displayCurrency, setDisplayCurrency] = useState<'base' | 'original' | 'preferred'>('base');
   const [data, setData] = useState<DashboardData>({
     totalRevenue: 0,
     totalExpenses: 0,
     netProfit: 0,
     totalCommissions: 0,
+    partnerShare: 0,
+    partnerPercentage: 0,
   });
   const [trendData, setTrendData] = useState<TrendData[]>([]);
+  
+  const isSocio = profile?.role === 'socio';
   
   // Date range state - default to current month
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -74,26 +87,111 @@ export default function Dashboard() {
   const dateEnd = format(dateRange.to, 'yyyy-MM-dd');
 
   useEffect(() => {
-    fetchStores();
-  }, []);
+    if (user?.id) {
+      fetchInitialData();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
-    fetchTrendData();
-    fetchDashboardData();
-  }, [selectedStore, dateRange]);
+    if (partnerStoreIds.length > 0 || isAdmin) {
+      fetchTrendData();
+      fetchDashboardData();
+    }
+  }, [selectedStore, selectedPartner, dateRange, partnerStoreIds]);
 
-  const fetchStores = async () => {
-    const { data } = await supabase
-      .from('stores')
-      .select('id, name')
-      .eq('status', 'active')
-      .order('name');
+  const fetchInitialData = async () => {
+    if (isSocio && user?.id) {
+      // Fetch partner's stores
+      const { data: partnerData } = await supabase
+        .from('partners')
+        .select('store_id, capital_percentage')
+        .eq('user_id', user.id)
+        .eq('status', 'active');
+      
+      const storeIds = partnerData?.map(p => p.store_id).filter(Boolean) as string[] || [];
+      setPartnerStoreIds(storeIds);
+      
+      // Fetch store names for partner
+      if (storeIds.length > 0) {
+        const { data: storesData } = await supabase
+          .from('stores')
+          .select('id, name')
+          .in('id', storeIds)
+          .eq('status', 'active')
+          .order('name');
+        
+        if (storesData) setStores(storesData);
+      }
+    } else if (isAdmin) {
+      // Admin sees all stores
+      const { data: storesData } = await supabase
+        .from('stores')
+        .select('id, name')
+        .eq('status', 'active')
+        .order('name');
+      
+      if (storesData) setStores(storesData);
+      
+      // Fetch all partners for filter
+      const { data: partnersData } = await supabase
+        .from('partners')
+        .select('user_id')
+        .eq('status', 'active');
+      
+      if (partnersData && partnersData.length > 0) {
+        const uniqueUserIds = [...new Set(partnersData.map(p => p.user_id))];
+        
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .in('id', uniqueUserIds);
+        
+        const partnersList: PartnerOption[] = (profilesData || []).map(p => ({
+          user_id: p.id,
+          name: p.name,
+        }));
+        
+        setPartners(partnersList);
+      }
+      
+      setPartnerStoreIds([]); // Admin has no restriction
+    } else {
+      // Financeiro - fetch all stores
+      const { data: storesData } = await supabase
+        .from('stores')
+        .select('id, name')
+        .eq('status', 'active')
+        .order('name');
+      
+      if (storesData) setStores(storesData);
+      setPartnerStoreIds([]);
+    }
+  };
+
+  const getStoreIdsForQuery = async (): Promise<string[] | null> => {
+    // For admin filtering by partner
+    if (isAdmin && selectedPartner !== 'all') {
+      const { data: partnerData } = await supabase
+        .from('partners')
+        .select('store_id')
+        .eq('user_id', selectedPartner)
+        .eq('status', 'active');
+      
+      return partnerData?.map(p => p.store_id).filter(Boolean) as string[] || [];
+    }
     
-    if (data) setStores(data);
+    // For sócio - use their own stores
+    if (isSocio && partnerStoreIds.length > 0) {
+      return partnerStoreIds;
+    }
+    
+    // For admin/financeiro with no partner filter - all stores
+    return null;
   };
 
   const fetchTrendData = async () => {
     try {
+      const storeIdsToFilter = await getStoreIdsForQuery();
       const months: TrendData[] = [];
       const today = new Date();
       
@@ -105,21 +203,31 @@ export default function Dashboard() {
         const monthLabel = format(monthDate, 'MMM', { locale: ptBR });
 
         // Fetch revenues for this month
-        const { data: revenues } = await supabase
+        let revenueQuery = supabase
           .from('revenues')
           .select('amount')
           .gte('date', start)
           .lte('date', end);
         
+        if (storeIdsToFilter && storeIdsToFilter.length > 0) {
+          revenueQuery = revenueQuery.in('store_id', storeIdsToFilter);
+        }
+        
+        const { data: revenues } = await revenueQuery;
         const totalRevenue = revenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
 
         // Fetch expenses for this month
-        const { data: expenses } = await supabase
+        let expenseQuery = supabase
           .from('expenses')
           .select('amount')
           .gte('date', start)
           .lte('date', end);
         
+        if (storeIdsToFilter && storeIdsToFilter.length > 0) {
+          expenseQuery = expenseQuery.in('store_id', storeIdsToFilter);
+        }
+        
+        const { data: expenses } = await expenseQuery;
         const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
 
         months.push({
@@ -139,6 +247,33 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
+      let storeIdsToFilter = await getStoreIdsForQuery();
+      
+      // Apply store filter if selected
+      if (selectedStore !== 'all') {
+        storeIdsToFilter = [selectedStore];
+      }
+
+      // Fetch partner percentage for sócio
+      let partnerPercentage = 0;
+      if (isSocio && user?.id) {
+        const { data: partnerData } = await supabase
+          .from('partners')
+          .select('capital_percentage, store_id')
+          .eq('user_id', user.id)
+          .eq('status', 'active');
+        
+        if (partnerData && partnerData.length > 0) {
+          // Calculate weighted average if filtering by store
+          if (selectedStore !== 'all') {
+            const partner = partnerData.find(p => p.store_id === selectedStore);
+            partnerPercentage = partner?.capital_percentage || 0;
+          } else {
+            partnerPercentage = partnerData.reduce((sum, p) => sum + (p.capital_percentage || 0), 0) / partnerData.length;
+          }
+        }
+      }
+
       // Fetch revenues
       let revenueQuery = supabase
         .from('revenues')
@@ -146,8 +281,8 @@ export default function Dashboard() {
         .gte('date', dateStart)
         .lte('date', dateEnd);
       
-      if (selectedStore !== 'all') {
-        revenueQuery = revenueQuery.eq('store_id', selectedStore);
+      if (storeIdsToFilter && storeIdsToFilter.length > 0) {
+        revenueQuery = revenueQuery.in('store_id', storeIdsToFilter);
       }
       
       const { data: revenues } = await revenueQuery;
@@ -160,8 +295,8 @@ export default function Dashboard() {
         .gte('date', dateStart)
         .lte('date', dateEnd);
       
-      if (selectedStore !== 'all') {
-        expenseQuery = expenseQuery.eq('store_id', selectedStore);
+      if (storeIdsToFilter && storeIdsToFilter.length > 0) {
+        expenseQuery = expenseQuery.in('store_id', storeIdsToFilter);
       }
       
       const { data: expenses } = await expenseQuery;
@@ -175,8 +310,8 @@ export default function Dashboard() {
         .gte('date', dateStart)
         .lte('date', dateEnd);
       
-      if (selectedStore !== 'all') {
-        commissionQuery = commissionQuery.eq('store_id', selectedStore);
+      if (storeIdsToFilter && storeIdsToFilter.length > 0) {
+        commissionQuery = commissionQuery.in('store_id', storeIdsToFilter);
       }
       
       const { data: paidRecords } = await commissionQuery;
@@ -184,12 +319,17 @@ export default function Dashboard() {
 
       // Calculate net profit: revenue - expenses - paid commissions
       const netProfit = totalRevenue - totalExpenses - totalCommissions;
+      
+      // Calculate partner share
+      const partnerShare = isSocio ? netProfit * (partnerPercentage / 100) : 0;
 
       setData({
         totalRevenue,
-        totalExpenses: totalExpenses + totalCommissions, // Include commissions in total expenses
+        totalExpenses: totalExpenses + totalCommissions,
         netProfit,
         totalCommissions,
+        partnerShare,
+        partnerPercentage,
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -227,16 +367,22 @@ export default function Dashboard() {
       show: true,
     },
     {
+      title: `Sua Parte (${data.partnerPercentage.toFixed(0)}%)`,
+      value: data.partnerShare,
+      icon: Percent,
+      className: data.partnerShare >= 0 ? 'metric-card-success' : 'metric-card-danger',
+      iconColor: data.partnerShare >= 0 ? 'text-success' : 'text-danger',
+      show: isSocio,
+    },
+    {
       title: 'Comissões',
       value: data.totalCommissions,
       icon: Percent,
       className: 'metric-card-info',
       iconColor: 'text-info',
-      show: true,
+      show: !isSocio,
     },
   ];
-
-  // Partners see the same dashboard as everyone else now
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -246,6 +392,7 @@ export default function Dashboard() {
             <h1 className="page-title">Dashboard</h1>
             <p className="page-description">
               {format(dateRange.from, "d 'de' MMM", { locale: ptBR })} - {format(dateRange.to, "d 'de' MMM, yyyy", { locale: ptBR })}
+              {isSocio && <span className="ml-2 text-primary">(Seus dados)</span>}
             </p>
           </div>
 
@@ -302,6 +449,26 @@ export default function Dashboard() {
                   </PopoverContent>
                 </Popover>
               </div>
+
+              {/* Partner Filter (Admin only) */}
+              {isAdmin && partners.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  <Select value={selectedPartner} onValueChange={setSelectedPartner}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Filtrar por sócio" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os sócios</SelectItem>
+                      {partners.map((partner) => (
+                        <SelectItem key={partner.user_id} value={partner.user_id}>
+                          {partner.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Store Filter */}
               <div className="flex items-center gap-2">
