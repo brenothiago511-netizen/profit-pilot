@@ -287,6 +287,7 @@ export default function Stores() {
                       <SelectItem value="BRL">BRL (R$)</SelectItem>
                       <SelectItem value="USD">USD ($)</SelectItem>
                       <SelectItem value="EUR">EUR (€)</SelectItem>
+                      <SelectItem value="GBP">GBP (£)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
