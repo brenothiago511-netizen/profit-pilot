@@ -148,15 +148,25 @@ export default function Profits() {
         .in('id', managerIds);
       
       const userIds = managersData?.map(m => m.user_id) || [];
+      
+      // Fetch created_by user names
+      const createdByIds = [...new Set(data.map(p => p.created_by).filter(Boolean))];
+      const allUserIds = [...new Set([...userIds, ...createdByIds])];
+      
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, name')
-        .in('id', userIds);
+        .in('id', allUserIds);
       
       const managerProfileMap = new Map<string, string>();
       managersData?.forEach(m => {
         const profile = profilesData?.find(p => p.id === m.user_id);
         if (profile) managerProfileMap.set(m.id, profile.name);
+      });
+      
+      const createdByMap = new Map<string, string>();
+      profilesData?.forEach(p => {
+        createdByMap.set(p.id, p.name);
       });
       
       return data.map(profit => ({
@@ -165,8 +175,9 @@ export default function Profits() {
           id: profit.manager_id,
           user_id: managersData?.find(m => m.id === profit.manager_id)?.user_id || '',
           profiles: { name: managerProfileMap.get(profit.manager_id) || '-' }
-        }
-      })) as Profit[];
+        },
+        created_by_name: createdByMap.get(profit.created_by) || '-'
+      })) as (Profit & { created_by_name: string })[];
     },
   });
 
@@ -531,7 +542,7 @@ export default function Profits() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Loja</TableHead>
-                    <TableHead>Gestor</TableHead>
+                    <TableHead>Registrado por</TableHead>
                     <TableHead>Período</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead>Status</TableHead>
@@ -542,8 +553,8 @@ export default function Profits() {
                 <TableBody>
                   {filteredProfits.map((profit) => (
                     <TableRow key={profit.id}>
-                      <TableCell className="font-medium">{profit.stores?.name}</TableCell>
-                      <TableCell>{profit.managers?.profiles?.name || '-'}</TableCell>
+                      <TableCell className="font-medium">{profit.stores?.name || '-'}</TableCell>
+                      <TableCell>{(profit as Profit & { created_by_name?: string }).created_by_name || '-'}</TableCell>
                       <TableCell>
                         {format(new Date(profit.period_start), 'dd/MM/yy', { locale: ptBR })} -{' '}
                         {format(new Date(profit.period_end), 'dd/MM/yy', { locale: ptBR })}
