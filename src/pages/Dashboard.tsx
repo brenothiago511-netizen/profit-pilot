@@ -61,10 +61,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [partners, setPartners] = useState<PartnerOption[]>([]);
-  const [partnerStoreIds, setPartnerStoreIds] = useState<string[]>([]);
+  const [partnerStoreIds, setPartnerStoreIds] = useState<string[] | null>(null);
   const [selectedStore, setSelectedStore] = useState<string>('all');
   const [selectedPartner, setSelectedPartner] = useState<string>('all');
   const [displayCurrency, setDisplayCurrency] = useState<'base' | 'original' | 'preferred'>('base');
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
   const [data, setData] = useState<DashboardData>({
     totalRevenue: 0,
     totalExpenses: 0,
@@ -87,17 +88,17 @@ export default function Dashboard() {
   const dateEnd = format(dateRange.to, 'yyyy-MM-dd');
 
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && profile) {
       fetchInitialData();
     }
-  }, [user?.id]);
+  }, [user?.id, profile?.role]);
 
   useEffect(() => {
-    if (partnerStoreIds.length > 0 || isAdmin) {
+    if (initialDataLoaded) {
       fetchTrendData();
       fetchDashboardData();
     }
-  }, [selectedStore, selectedPartner, dateRange, partnerStoreIds]);
+  }, [selectedStore, selectedPartner, dateRange, initialDataLoaded]);
 
   const fetchInitialData = async () => {
     if (isSocio && user?.id) {
@@ -121,42 +122,11 @@ export default function Dashboard() {
           .order('name');
         
         if (storesData) setStores(storesData);
+      } else {
+        setStores([]);
       }
-    } else if (isAdmin) {
-      // Admin sees all stores
-      const { data: storesData } = await supabase
-        .from('stores')
-        .select('id, name')
-        .eq('status', 'active')
-        .order('name');
-      
-      if (storesData) setStores(storesData);
-      
-      // Fetch all partners for filter
-      const { data: partnersData } = await supabase
-        .from('partners')
-        .select('user_id')
-        .eq('status', 'active');
-      
-      if (partnersData && partnersData.length > 0) {
-        const uniqueUserIds = [...new Set(partnersData.map(p => p.user_id))];
-        
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('id, name')
-          .in('id', uniqueUserIds);
-        
-        const partnersList: PartnerOption[] = (profilesData || []).map(p => ({
-          user_id: p.id,
-          name: p.name,
-        }));
-        
-        setPartners(partnersList);
-      }
-      
-      setPartnerStoreIds([]); // Admin has no restriction
     } else {
-      // Financeiro - fetch all stores
+      // Admin and Financeiro see all stores
       const { data: storesData } = await supabase
         .from('stores')
         .select('id, name')
@@ -164,8 +134,35 @@ export default function Dashboard() {
         .order('name');
       
       if (storesData) setStores(storesData);
-      setPartnerStoreIds([]);
+      
+      // Admin can filter by partner
+      if (isAdmin) {
+        const { data: partnersData } = await supabase
+          .from('partners')
+          .select('user_id')
+          .eq('status', 'active');
+        
+        if (partnersData && partnersData.length > 0) {
+          const uniqueUserIds = [...new Set(partnersData.map(p => p.user_id))];
+          
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, name')
+            .in('id', uniqueUserIds);
+          
+          const partnersList: PartnerOption[] = (profilesData || []).map(p => ({
+            user_id: p.id,
+            name: p.name,
+          }));
+          
+          setPartners(partnersList);
+        }
+      }
+      
+      setPartnerStoreIds(null); // null means no restriction
     }
+    
+    setInitialDataLoaded(true);
   };
 
   const getStoreIdsForQuery = async (): Promise<string[] | null> => {
@@ -181,7 +178,7 @@ export default function Dashboard() {
     }
     
     // For sócio - use their own stores
-    if (isSocio && partnerStoreIds.length > 0) {
+    if (isSocio && partnerStoreIds && partnerStoreIds.length > 0) {
       return partnerStoreIds;
     }
     
