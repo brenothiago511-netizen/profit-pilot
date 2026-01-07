@@ -189,7 +189,6 @@ export default function Profits() {
   // Form state
   const [formData, setFormData] = useState({
     store_id: '',
-    manager_id: '',
     period_start: '',
     period_end: '',
     profit_amount: '',
@@ -199,7 +198,6 @@ export default function Profits() {
   const resetForm = () => {
     setFormData({
       store_id: '',
-      manager_id: '',
       period_start: '',
       period_end: '',
       profit_amount: '',
@@ -211,10 +209,17 @@ export default function Profits() {
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const storeId = data.store_id;
-      const managerId = data.manager_id;
 
-      if (!storeId || !managerId) {
-        throw new Error('Loja e gestor são obrigatórios');
+      if (!storeId) {
+        throw new Error('Loja é obrigatória');
+      }
+
+      // Find manager for current user or use first available
+      const currentUserManager = managers.find(m => m.user_id === user?.id);
+      const managerId = currentUserManager?.id || managers[0]?.id;
+
+      if (!managerId) {
+        throw new Error('Nenhum gestor encontrado no sistema');
       }
 
       const payload = {
@@ -314,7 +319,6 @@ export default function Profits() {
   const handleEdit = (profit: Profit) => {
     setFormData({
       store_id: profit.store_id,
-      manager_id: profit.manager_id,
       period_start: profit.period_start,
       period_end: profit.period_end,
       profit_amount: profit.profit_amount.toString(),
@@ -369,7 +373,7 @@ export default function Profits() {
                 <Label>Loja</Label>
                 <Select
                   value={formData.store_id}
-                  onValueChange={(v) => setFormData({ ...formData, store_id: v, manager_id: '' })}
+                  onValueChange={(v) => setFormData({ ...formData, store_id: v })}
                   disabled={!!editingProfit}
                 >
                   <SelectTrigger>
@@ -381,28 +385,6 @@ export default function Profits() {
                         {store.name}
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Gestor</Label>
-                <Select
-                  value={formData.manager_id}
-                  onValueChange={(v) => setFormData({ ...formData, manager_id: v })}
-                  disabled={!!editingProfit}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o gestor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {managers
-                      .filter((m) => !formData.store_id || !m.store_id || m.store_id === formData.store_id)
-                      .map((manager) => (
-                        <SelectItem key={manager.id} value={manager.id}>
-                          {manager.profiles?.name || 'Gestor sem nome'}
-                        </SelectItem>
-                      ))}
                   </SelectContent>
                 </Select>
               </div>

@@ -80,7 +80,6 @@ export default function Commissions() {
   // Forms
   const [recordForm, setRecordForm] = useState({
     store_id: '',
-    manager_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     daily_profit: '',
     notes: '',
@@ -250,10 +249,23 @@ export default function Commissions() {
   const handleRecordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!recordForm.store_id || !recordForm.manager_id || !recordForm.date || !recordForm.daily_profit) {
+    if (!recordForm.store_id || !recordForm.date || !recordForm.daily_profit) {
       toast({
         title: 'Erro',
         description: 'Preencha todos os campos obrigatórios',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Find manager for current user or create a dummy manager_id
+    const currentUserManager = managers.find(m => m.user_id === user?.id);
+    const managerId = currentUserManager?.id || managers[0]?.id;
+
+    if (!managerId) {
+      toast({
+        title: 'Erro',
+        description: 'Nenhum gestor encontrado no sistema',
         variant: 'destructive',
       });
       return;
@@ -264,7 +276,7 @@ export default function Commissions() {
     // Commission is calculated automatically by the database trigger
     const { error } = await supabase.from('daily_records').insert({
       store_id: recordForm.store_id,
-      manager_id: recordForm.manager_id,
+      manager_id: managerId,
       date: recordForm.date,
       daily_profit: parseFloat(recordForm.daily_profit),
       notes: recordForm.notes || null,
@@ -288,7 +300,7 @@ export default function Commissions() {
         description: `Registro salvo! Comissão calculada: ${formatCurrency(estimatedCommission)}`,
       });
       setRecordDialogOpen(false);
-      setRecordForm({ store_id: '', manager_id: '', date: format(new Date(), 'yyyy-MM-dd'), daily_profit: '', notes: '' });
+      setRecordForm({ store_id: '', date: format(new Date(), 'yyyy-MM-dd'), daily_profit: '', notes: '' });
       fetchDailyRecords();
     }
   };
@@ -510,7 +522,7 @@ export default function Commissions() {
                   <Label>Loja *</Label>
                   <Select
                     value={recordForm.store_id}
-                    onValueChange={(v) => setRecordForm({ ...recordForm, store_id: v, manager_id: '' })}
+                    onValueChange={(v) => setRecordForm({ ...recordForm, store_id: v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione a loja" />
@@ -521,27 +533,6 @@ export default function Commissions() {
                           {store.name}
                         </SelectItem>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Gestor *</Label>
-                  <Select
-                    value={recordForm.manager_id}
-                    onValueChange={(v) => setRecordForm({ ...recordForm, manager_id: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o gestor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {managers
-                        .filter((m) => !recordForm.store_id || !m.store_id || m.store_id === recordForm.store_id)
-                        .map((manager) => (
-                          <SelectItem key={manager.id} value={manager.id}>
-                            {manager.profile_name}
-                          </SelectItem>
-                        ))}
                     </SelectContent>
                   </Select>
                 </div>
