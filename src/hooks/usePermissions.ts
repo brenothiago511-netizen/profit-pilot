@@ -18,7 +18,6 @@ interface UserPermission {
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   admin: ['*'], // All permissions
   financeiro: [
-    'view_dashboard',
     'create_revenue',
     'edit_revenue',
     'view_revenues',
