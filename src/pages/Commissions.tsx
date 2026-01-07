@@ -258,14 +258,40 @@ export default function Commissions() {
       return;
     }
 
-    // Find manager for current user or create a dummy manager_id
-    const currentUserManager = managers.find(m => m.user_id === user?.id);
-    const managerId = currentUserManager?.id || managers[0]?.id;
+    // Find manager for current user or create one if needed
+    let currentUserManager = managers.find(m => m.user_id === user?.id);
+    let managerId = currentUserManager?.id || managers[0]?.id;
+
+    // If no manager exists, create one for the current user (for socios registering profits)
+    if (!managerId && user?.id) {
+      const { data: newManager, error: createError } = await supabase
+        .from('managers')
+        .insert({
+          user_id: user.id,
+          store_id: recordForm.store_id,
+          status: 'active',
+          commission_percent: 0,
+          commission_type: 'percentage',
+        })
+        .select('id')
+        .single();
+      
+      if (createError) {
+        toast({
+          title: 'Erro',
+          description: 'Erro ao criar registro de gestor: ' + createError.message,
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      managerId = newManager.id;
+    }
 
     if (!managerId) {
       toast({
         title: 'Erro',
-        description: 'Nenhum gestor encontrado no sistema',
+        description: 'Não foi possível identificar o gestor para este registro',
         variant: 'destructive',
       });
       return;
