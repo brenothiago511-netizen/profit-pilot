@@ -41,7 +41,7 @@ const navigationSections = [
     title: 'Visão Geral',
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permissions: ['view_dashboard', 'view_dashboard_socios'] },
-      { name: 'Meu Painel', href: '/my-dashboard', icon: Building2, permissions: ['view_partner_results'] },
+      { name: 'Painel de Sócios', href: '/my-dashboard', icon: Building2, permissions: ['manage_partners'] },
     ],
   },
   {
