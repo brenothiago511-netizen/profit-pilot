@@ -526,11 +526,17 @@ export default function PartnerDashboardPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as lojas</SelectItem>
-              {partnerships.map((p) => (
-                <SelectItem key={p.store_id} value={p.store_id}>
-                  {p.store?.name}
-                </SelectItem>
-              ))}
+              {partnerships
+                .filter((p, index, self) => 
+                  p.store_id && 
+                  p.store?.name && 
+                  self.findIndex(x => x.store_id === p.store_id) === index
+                )
+                .map((p) => (
+                  <SelectItem key={p.store_id} value={p.store_id}>
+                    {p.store?.name}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
