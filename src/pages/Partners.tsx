@@ -75,13 +75,11 @@ export default function Partners() {
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [storeFilter, setStoreFilter] = useState<string>('all');
   const [editingCapitalId, setEditingCapitalId] = useState<string | null>(null);
   const [editingCapitalValue, setEditingCapitalValue] = useState<string>('');
 
   const [formData, setFormData] = useState({
     user_id: '',
-    store_id: '',
     capital_amount: '',
   });
 
@@ -98,9 +96,7 @@ export default function Partners() {
       partner.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       partner.user?.email.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStore = storeFilter === 'all' || partner.store_id === storeFilter;
-
-    return matchesSearch && matchesStore;
+    return matchesSearch;
   });
 
   useEffect(() => {
@@ -180,10 +176,26 @@ export default function Partners() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.user_id || !formData.store_id) {
+    if (!formData.user_id) {
       toast({
         title: 'Erro',
-        description: 'Selecione o usuário e a loja',
+        description: 'Selecione o usuário',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Check if partner already exists for this user
+    const { data: existingPartner } = await supabase
+      .from('partners')
+      .select('id')
+      .eq('user_id', formData.user_id)
+      .maybeSingle();
+
+    if (existingPartner) {
+      toast({
+        title: 'Erro',
+        description: 'Este usuário já é um sócio',
         variant: 'destructive',
       });
       return;
@@ -193,7 +205,7 @@ export default function Partners() {
 
     const { error } = await supabase.from('partners').insert({
       user_id: formData.user_id,
-      store_id: formData.store_id,
+      store_id: null,
       capital_amount: parseFloat(formData.capital_amount) || 0,
       capital_percentage: 0,
     });
@@ -212,7 +224,7 @@ export default function Partners() {
         description: 'Sócio adicionado com sucesso',
       });
       setDialogOpen(false);
-      setFormData({ user_id: '', store_id: '', capital_amount: '' });
+      setFormData({ user_id: '', capital_amount: '' });
       fetchPartners();
     }
   };
@@ -418,7 +430,7 @@ export default function Partners() {
             <DialogHeader>
               <DialogTitle>Adicionar Sócio</DialogTitle>
               <DialogDescription>
-                Vincule um usuário como sócio de uma loja
+                Adicione um novo sócio com capital inicial
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -440,26 +452,6 @@ export default function Partners() {
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="space-y-2">
-                <Label>Loja *</Label>
-                <Select
-                  value={formData.store_id}
-                  onValueChange={(v) => setFormData({ ...formData, store_id: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a loja" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stores.map((store) => (
-                      <SelectItem key={store.id} value={store.id}>
-                        {store.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               <div className="space-y-2">
                 <Label>Capital Inicial (USD)</Label>
                 <Input
@@ -551,19 +543,6 @@ export default function Partners() {
                 className="pl-10"
               />
             </div>
-            <Select value={storeFilter} onValueChange={setStoreFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filtrar por loja" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as lojas</SelectItem>
-                {stores.map((store) => (
-                  <SelectItem key={store.id} value={store.id}>
-                    {store.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           {loading ? (
@@ -580,7 +559,6 @@ export default function Partners() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Sócio</TableHead>
-                    <TableHead>Loja</TableHead>
                     <TableHead className="text-right">Capital (USD)</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -595,7 +573,6 @@ export default function Partners() {
                           <p className="text-xs text-muted-foreground">{partner.user?.email}</p>
                         </div>
                       </TableCell>
-                      <TableCell>{partner.store?.name || 'N/A'}</TableCell>
                       <TableCell className="text-right">
                         {editingCapitalId === partner.id ? (
                           <div className="flex items-center justify-end gap-2">
