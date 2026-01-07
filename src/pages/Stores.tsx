@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/contexts/AuthContext';
 import { PermissionGate } from '@/components/permissions/PermissionGate';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,11 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Store, Loader2, Building2, CreditCard, Pencil, Target, Trash2 } from 'lucide-react';
+import { Plus, Store, Loader2, Building2, CreditCard, Pencil, Target, Trash2, Users } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import BankAccountsDialog from '@/components/stores/BankAccountsDialog';
-
 interface StoreData {
   id: string;
   name: string;
@@ -39,8 +39,23 @@ interface RevenueTotal {
   total: number;
 }
 
+interface PartnerUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface StorePartner {
+  id: string;
+  user_id: string;
+  store_id: string;
+  capital_percentage: number;
+  profiles?: { name: string; email: string };
+}
+
 export default function Stores() {
   const { can } = usePermissions();
+  const { isAdmin } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreData[]>([]);
@@ -50,8 +65,11 @@ export default function Stores() {
   const [saving, setSaving] = useState(false);
   const [bankDialogOpen, setBankDialogOpen] = useState(false);
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
+  const [partnerDialogOpen, setPartnerDialogOpen] = useState(false);
   const [selectedStore, setSelectedStore] = useState<StoreData | null>(null);
   const [editingStore, setEditingStore] = useState<StoreData | null>(null);
+  const [availablePartners, setAvailablePartners] = useState<PartnerUser[]>([]);
+  const [storePartners, setStorePartners] = useState<StorePartner[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     country: 'Brasil',
@@ -59,6 +77,10 @@ export default function Stores() {
   });
   const [goalFormData, setGoalFormData] = useState({
     goal_amount: '',
+  });
+  const [partnerFormData, setPartnerFormData] = useState({
+    user_id: '',
+    capital_percentage: '',
   });
 
   const currentMonth = new Date();
@@ -263,6 +285,62 @@ export default function Stores() {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(value);
   };
 
+  // Partner management functions
+  const openPartnerDialog = async (store: StoreData) => {
+    setSelectedStore(store);
+    setPartnerFormData({ user_id: '', capital_percentage: '' });
+    
+    // Fetch available partners (socios not yet linked to this store)
+    const [partnersRes, existingRes] = await Promise.all([
+      supabase.from('profiles').select('id, name, email').eq('role', 'socio').eq('status', 'active'),
+      supabase.from('partners').select('id, user_id, store_id, capital_percentage, profiles(name, email)').eq('store_id', store.id),
+    ]);
+
+    if (partnersRes.data) {
+      const existingUserIds = (existingRes.data || []).map(p => p.user_id);
+      setAvailablePartners(partnersRes.data.filter(p => !existingUserIds.includes(p.id)));
+    }
+    setStorePartners((existingRes.data as unknown as StorePartner[]) || []);
+    setPartnerDialogOpen(true);
+  };
+
+  const handlePartnerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStore || !partnerFormData.user_id) {
+      toast({ title: 'Erro', description: 'Selecione um sócio', variant: 'destructive' });
+      return;
+    }
+
+    setSaving(true);
+    const { error } = await supabase.from('partners').insert({
+      user_id: partnerFormData.user_id,
+      store_id: selectedStore.id,
+      capital_percentage: parseFloat(partnerFormData.capital_percentage) || 0,
+      capital_amount: 0,
+      status: 'active',
+    });
+
+    setSaving(false);
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Sucesso', description: 'Sócio vinculado à loja' });
+      openPartnerDialog(selectedStore); // Refresh partners list
+    }
+  };
+
+  const removePartner = async (partnerId: string) => {
+    if (!confirm('Tem certeza que deseja remover este sócio da loja?')) return;
+    
+    const { error } = await supabase.from('partners').delete().eq('id', partnerId);
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Sucesso', description: 'Sócio removido da loja' });
+      if (selectedStore) openPartnerDialog(selectedStore);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -413,7 +491,7 @@ export default function Stores() {
                     <span className="text-sm text-muted-foreground">
                       {format(new Date(store.created_at), 'dd/MM/yyyy')}
                     </span>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Button variant="outline" size="sm" onClick={() => openGoalDialog(store)}>
                         <Target className="w-4 h-4 mr-1" />
                         Meta
@@ -422,6 +500,12 @@ export default function Stores() {
                         <CreditCard className="w-4 h-4 mr-1" />
                         Banco
                       </Button>
+                      {isAdmin && (
+                        <Button variant="outline" size="sm" onClick={() => openPartnerDialog(store)}>
+                          <Users className="w-4 h-4 mr-1" />
+                          Sócios
+                        </Button>
+                      )}
                       <Button variant="outline" size="sm" onClick={() => toggleStatus(store.id, store.status)}>
                         {store.status === 'active' ? 'Desativar' : 'Ativar'}
                       </Button>
@@ -470,6 +554,91 @@ export default function Stores() {
                     {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                     Salvar Meta
                   </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Partner Dialog - Admin only */}
+          <Dialog open={partnerDialogOpen} onOpenChange={setPartnerDialogOpen}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Sócios - {selectedStore.name}</DialogTitle>
+              </DialogHeader>
+              
+              {/* Existing Partners */}
+              {storePartners.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Sócios Vinculados</Label>
+                  <div className="space-y-2">
+                    {storePartners.map((partner) => (
+                      <div key={partner.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                        <div>
+                          <p className="font-medium">{partner.profiles?.name}</p>
+                          <p className="text-sm text-muted-foreground">{partner.profiles?.email}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">{partner.capital_percentage}%</Badge>
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removePartner(partner.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Add New Partner */}
+              <form onSubmit={handlePartnerSubmit} className="space-y-4 pt-4 border-t">
+                <div className="space-y-2">
+                  <Label>Adicionar Sócio</Label>
+                  {availablePartners.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Todos os sócios já estão vinculados a esta loja</p>
+                  ) : (
+                    <Select
+                      value={partnerFormData.user_id}
+                      onValueChange={(v) => setPartnerFormData({ ...partnerFormData, user_id: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um sócio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availablePartners.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name} ({p.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                
+                {partnerFormData.user_id && (
+                  <div className="space-y-2">
+                    <Label>Percentual de Participação (%)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      placeholder="Ex: 50"
+                      value={partnerFormData.capital_percentage}
+                      onChange={(e) => setPartnerFormData({ ...partnerFormData, capital_percentage: e.target.value })}
+                    />
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setPartnerDialogOpen(false)}>
+                    Fechar
+                  </Button>
+                  {availablePartners.length > 0 && partnerFormData.user_id && (
+                    <Button type="submit" disabled={saving}>
+                      {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                      Vincular Sócio
+                    </Button>
+                  )}
                 </div>
               </form>
             </DialogContent>

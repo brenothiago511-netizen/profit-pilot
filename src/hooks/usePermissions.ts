@@ -18,12 +18,21 @@ interface UserPermission {
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   admin: ['*'], // All permissions
   financeiro: [
+    'view_dashboard',
+    'view_revenues',
+    'view_expenses',
+    'view_reports',
+    'view_commissions',
+    'view_goals',
     'create_revenue',
     'edit_revenue',
-    'view_revenues',
+    'delete_revenue',
     'create_expense',
     'edit_expense',
-    'view_expenses',
+    'delete_expense',
+    'manage_bank_accounts',
+    'manage_currency_rates',
+    'export_reports',
   ],
   socio: [
     'view_dashboard',
@@ -41,6 +50,9 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'edit_expense',
     'register_profits',
     'manage_partners',
+    'manage_stores',
+    'manage_goals',
+    'export_reports',
   ],
 };
 
