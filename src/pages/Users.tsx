@@ -54,11 +54,9 @@ export default function Users() {
   const [storeDialogOpen, setStoreDialogOpen] = useState(false);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
-  const [partnerStoreDialogOpen, setPartnerStoreDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [selectedStores, setSelectedStores] = useState<string[]>([]);
   const [selectedRole, setSelectedRole] = useState<AppRole>('financeiro');
-  const [selectedPartnerStores, setSelectedPartnerStores] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -316,13 +314,6 @@ export default function Users() {
   const handleRoleUpdate = async () => {
     if (!selectedUser) return;
 
-    // If changing to socio, ask for a store first
-    if (selectedRole === 'socio') {
-      setRoleDialogOpen(false);
-      setPartnerStoreDialogOpen(true);
-      return;
-    }
-
     await executeRoleUpdate();
   };
 
@@ -361,41 +352,11 @@ export default function Users() {
       console.error('Error updating user_roles:', roleError);
     }
 
-    // If role is socio and stores are selected, create partner records
-    if (selectedRole === 'socio' && selectedPartnerStores.length > 0) {
-      for (const storeId of selectedPartnerStores) {
-        // Check if partner already exists for this user and store
-        const { data: existingPartner } = await supabase
-          .from('partners')
-          .select('id')
-          .eq('user_id', selectedUser.id)
-          .eq('store_id', storeId)
-          .maybeSingle();
-
-        if (!existingPartner) {
-          const { error: partnerError } = await supabase
-            .from('partners')
-            .insert({
-              user_id: selectedUser.id,
-              store_id: storeId,
-              capital_amount: 0,
-              capital_percentage: 0,
-            });
-
-          if (partnerError) {
-            console.error('Error creating partner for store:', storeId, partnerError);
-          }
-        }
-      }
-    }
-
     toast({
       title: 'Sucesso',
       description: 'Papel atualizado com sucesso',
     });
     setRoleDialogOpen(false);
-    setPartnerStoreDialogOpen(false);
-    setSelectedPartnerStores([]);
     setSaving(false);
     fetchUsers();
   };
@@ -823,66 +784,6 @@ export default function Users() {
         userName={selectedUser?.name || ''}
         userRole={selectedUser?.role || 'financeiro'}
       />
-
-      {/* Partner Store Selection Dialog */}
-      <Dialog open={partnerStoreDialogOpen} onOpenChange={setPartnerStoreDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Selecionar Lojas do Sócio</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Selecione as lojas em que {selectedUser?.name} será sócio:
-            </p>
-            <div className="space-y-3 max-h-[300px] overflow-y-auto">
-              {stores.map((store) => (
-                <div key={store.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`partner-${store.id}`}
-                    checked={selectedPartnerStores.includes(store.id)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedPartnerStores([...selectedPartnerStores, store.id]);
-                      } else {
-                        setSelectedPartnerStores(selectedPartnerStores.filter(id => id !== store.id));
-                      }
-                    }}
-                  />
-                  <label
-                    htmlFor={`partner-${store.id}`}
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    {store.name}
-                  </label>
-                </div>
-              ))}
-              {stores.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Nenhuma loja cadastrada
-                </p>
-              )}
-            </div>
-            <div className="flex justify-end gap-3 pt-4">
-              <Button variant="outline" onClick={() => {
-                setPartnerStoreDialogOpen(false);
-                setSelectedPartnerStores([]);
-              }}>
-                Cancelar
-              </Button>
-              <Button onClick={executeRoleUpdate} disabled={saving || selectedPartnerStores.length === 0}>
-                {saving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Salvando...
-                  </>
-                ) : (
-                  `Confirmar (${selectedPartnerStores.length} loja${selectedPartnerStores.length !== 1 ? 's' : ''})`
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

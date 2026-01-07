@@ -18,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Loader2, Store, DollarSign, TrendingUp, TrendingDown, Search, Trash2 } from 'lucide-react';
+import { Plus, Users, Loader2, Store, DollarSign, TrendingUp, TrendingDown, Search, Trash2, Pencil, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -76,6 +76,8 @@ export default function Partners() {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [storeFilter, setStoreFilter] = useState<string>('all');
+  const [editingCapitalId, setEditingCapitalId] = useState<string | null>(null);
+  const [editingCapitalValue, setEditingCapitalValue] = useState<string>('');
 
   const [formData, setFormData] = useState({
     user_id: '',
@@ -330,6 +332,42 @@ export default function Partners() {
     }
   };
 
+  const startEditingCapital = (partner: Partner) => {
+    setEditingCapitalId(partner.id);
+    setEditingCapitalValue(String(partner.capital_amount || 0));
+  };
+
+  const cancelEditingCapital = () => {
+    setEditingCapitalId(null);
+    setEditingCapitalValue('');
+  };
+
+  const saveCapital = async (partnerId: string) => {
+    const newCapital = parseFloat(editingCapitalValue) || 0;
+    
+    const { error } = await supabase
+      .from('partners')
+      .update({ capital_amount: newCapital })
+      .eq('id', partnerId);
+    
+    if (error) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Sucesso',
+        description: 'Capital atualizado',
+      });
+      fetchPartners();
+    }
+    
+    setEditingCapitalId(null);
+    setEditingCapitalValue('');
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -558,18 +596,49 @@ export default function Partners() {
                         </div>
                       </TableCell>
                       <TableCell>{partner.store?.name || 'N/A'}</TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(partner.capital_amount || 0)}
+                      <TableCell className="text-right">
+                        {editingCapitalId === partner.id ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={editingCapitalValue}
+                              onChange={(e) => setEditingCapitalValue(e.target.value)}
+                              className="w-28 h-8 text-right"
+                              autoFocus
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => saveCapital(partner.id)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Check className="w-4 h-4 text-green-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={cancelEditingCapital}
+                              className="h-8 w-8 p-0"
+                            >
+                              <X className="w-4 h-4 text-red-600" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="font-medium">{formatCurrency(partner.capital_amount || 0)}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => startEditingCapital(partner)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={partner.status === 'active' ? 'default' : 'secondary'}>
-                          {partner.status === 'active' ? 'Ativo' : 'Inativo'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={partner.status === 'active' ? 'default' : 'secondary'}>
-                          {partner.status === 'active' ? 'Ativo' : 'Inativo'}
-                        </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
