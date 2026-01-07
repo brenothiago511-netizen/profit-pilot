@@ -77,6 +77,8 @@ export default function Partners() {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingCapitalId, setEditingCapitalId] = useState<string | null>(null);
   const [editingCapitalValue, setEditingCapitalValue] = useState<string>('');
+  const [editingPercentageId, setEditingPercentageId] = useState<string | null>(null);
+  const [editingPercentageValue, setEditingPercentageValue] = useState<string>('');
 
   const [formData, setFormData] = useState({
     user_id: '',
@@ -380,6 +382,51 @@ export default function Partners() {
     setEditingCapitalValue('');
   };
 
+  const startEditingPercentage = (partner: Partner) => {
+    setEditingPercentageId(partner.id);
+    setEditingPercentageValue(String(partner.capital_percentage || 0));
+  };
+
+  const cancelEditingPercentage = () => {
+    setEditingPercentageId(null);
+    setEditingPercentageValue('');
+  };
+
+  const savePercentage = async (partnerId: string) => {
+    const newPercentage = parseFloat(editingPercentageValue) || 0;
+    
+    if (newPercentage < 0 || newPercentage > 100) {
+      toast({
+        title: 'Erro',
+        description: 'A porcentagem deve estar entre 0 e 100',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    const { error } = await supabase
+      .from('partners')
+      .update({ capital_percentage: newPercentage })
+      .eq('id', partnerId);
+    
+    if (error) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Sucesso',
+        description: 'Porcentagem de lucro atualizada',
+      });
+      fetchPartners();
+    }
+    
+    setEditingPercentageId(null);
+    setEditingPercentageValue('');
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -560,6 +607,7 @@ export default function Partners() {
                   <TableRow>
                     <TableHead>Sócio</TableHead>
                     <TableHead className="text-right">Capital (USD)</TableHead>
+                    <TableHead className="text-center">% Lucro</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -615,7 +663,52 @@ export default function Partners() {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-center">
+                        {editingPercentageId === partner.id ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <Input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              max="100"
+                              value={editingPercentageValue}
+                              onChange={(e) => setEditingPercentageValue(e.target.value)}
+                              className="w-20 h-8 text-center"
+                              autoFocus
+                            />
+                            <span className="text-muted-foreground">%</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => savePercentage(partner.id)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Check className="w-4 h-4 text-green-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={cancelEditingPercentage}
+                              className="h-8 w-8 p-0"
+                            >
+                              <X className="w-4 h-4 text-red-600" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center gap-2">
+                            <Badge variant="secondary" className="font-medium">
+                              {partner.capital_percentage || 0}%
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => startEditingPercentage(partner)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
