@@ -381,6 +381,7 @@ export default function Goals() {
                         <SelectItem value="BRL">BRL (R$)</SelectItem>
                         <SelectItem value="USD">USD ($)</SelectItem>
                         <SelectItem value="EUR">EUR (€)</SelectItem>
+                        <SelectItem value="GBP">GBP (£)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
