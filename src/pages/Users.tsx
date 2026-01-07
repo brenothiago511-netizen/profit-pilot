@@ -17,7 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users as UsersIcon, Loader2, Store, Shield, UserCheck, UserX, Search, X, Key } from 'lucide-react';
+import { Plus, Users as UsersIcon, Loader2, Store, Shield, UserCheck, UserX, Search, X, Key, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { CsvImportDialog } from '@/components/users/CsvImportDialog';
 import { PermissionsDialog } from '@/components/users/PermissionsDialog';
@@ -216,6 +216,37 @@ export default function Users() {
       toast({
         title: 'Atualizado',
         description: `Usuário ${newStatus === 'active' ? 'ativado' : 'desativado'}`,
+      });
+      fetchUsers();
+    }
+  };
+
+  const deleteUser = async (user: UserProfile) => {
+    if (!confirm(`Tem certeza que deseja excluir o usuário "${user.name}"? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    // Delete related data first
+    await supabase.from('user_stores').delete().eq('user_id', user.id);
+    await supabase.from('user_permissions').delete().eq('user_id', user.id);
+    await supabase.from('user_roles').delete().eq('user_id', user.id);
+    
+    // Delete profile
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', user.id);
+    
+    if (error) {
+      toast({
+        title: 'Erro ao excluir',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Usuário excluído',
+        description: 'O usuário foi removido com sucesso',
       });
       fetchUsers();
     }
@@ -619,6 +650,14 @@ export default function Users() {
                             ) : (
                               <UserCheck className="w-4 h-4" />
                             )}
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => deleteUser(user)}
+                            title="Excluir usuário"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </TableCell>
