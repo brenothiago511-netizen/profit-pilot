@@ -50,7 +50,7 @@ interface DateRange {
 }
 
 export default function Dashboard() {
-  const { profile, isGestor, isSocio } = useAuth();
+  const { profile, isSocio } = useAuth();
   const { formatCurrency, config } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreOption[]>([]);
@@ -79,12 +79,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchTrendData();
-    if (!isGestor) {
-      fetchDashboardData();
-    } else {
-      fetchGestorData();
-    }
-  }, [selectedStore, isGestor, dateRange]);
+    fetchDashboardData();
+  }, [selectedStore, dateRange]);
 
   const fetchStores = async () => {
     const { data } = await supabase
@@ -201,31 +197,6 @@ export default function Dashboard() {
     setLoading(false);
   };
 
-  const fetchGestorData = async () => {
-    setLoading(true);
-    try {
-      // For gestor, only show their paid commissions from daily_records
-      const { data: paidRecords } = await supabase
-        .from('daily_records')
-        .select('commission_amount')
-        .eq('status', 'paid')
-        .gte('date', dateStart)
-        .lte('date', dateEnd);
-      
-      const totalCommissions = paidRecords?.reduce((sum, r) => sum + Number(r.commission_amount || 0), 0) || 0;
-
-      setData({
-        totalRevenue: 0,
-        totalExpenses: 0,
-        netProfit: 0,
-        totalCommissions,
-      });
-    } catch (error) {
-      console.error('Error fetching gestor data:', error);
-    }
-    setLoading(false);
-  };
-
   const formatValue = (value: number) => {
     return formatCurrency(value, config.baseCurrency);
   };
@@ -237,7 +208,7 @@ export default function Dashboard() {
       icon: TrendingUp,
       className: 'metric-card-success',
       iconColor: 'text-success',
-      show: !isGestor,
+      show: true,
     },
     {
       title: 'Despesas Totais',
@@ -245,7 +216,7 @@ export default function Dashboard() {
       icon: TrendingDown,
       className: 'metric-card-danger',
       iconColor: 'text-danger',
-      show: !isGestor,
+      show: true,
     },
     {
       title: 'Lucro Líquido',
@@ -253,7 +224,7 @@ export default function Dashboard() {
       icon: DollarSign,
       className: data.netProfit >= 0 ? 'metric-card-success' : 'metric-card-danger',
       iconColor: data.netProfit >= 0 ? 'text-success' : 'text-danger',
-      show: !isGestor,
+      show: true,
     },
     {
       title: 'Comissões',
@@ -291,10 +262,9 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {!isGestor && (
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Date Range Picker */}
-              <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Date Range Picker */}
+            <div className="flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -363,8 +333,7 @@ export default function Dashboard() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -395,7 +364,7 @@ export default function Dashboard() {
       )}
 
       {/* Charts Section */}
-      {!isGestor && !loading && (
+      {!loading && (
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Revenue vs Expenses Area Chart */}
           <Card>
@@ -495,19 +464,6 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
-      )}
-
-      {isGestor && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Suas Comissões</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Visualize suas comissões na página de Comissões para mais detalhes.
-            </p>
-          </CardContent>
-        </Card>
       )}
     </div>
   );

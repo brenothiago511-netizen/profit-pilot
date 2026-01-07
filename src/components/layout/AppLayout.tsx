@@ -57,7 +57,6 @@ const navigationSections = [
     items: [
       { name: 'Lojas', href: '/stores', icon: Store, permissions: ['manage_stores'] },
       { name: 'Usuários', href: '/users', icon: UserCog, permissions: ['manage_users'] },
-      { name: 'Gestores', href: '/managers', icon: Users, permissions: ['manage_commissions'] },
       { name: 'Sócios', href: '/partners', icon: Handshake, permissions: ['manage_partners'] },
     ],
   },
@@ -117,7 +116,6 @@ export default function AppLayout() {
     const roles: Record<string, string> = {
       admin: 'Administrador',
       financeiro: 'Financeiro',
-      gestor: 'Gestor',
       socio: 'Sócio',
     };
     return roles[role] || role;

@@ -25,7 +25,6 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'edit_expense',
     'view_expenses',
   ],
-  gestor: ['view_dashboard', 'view_commissions', 'register_profits', 'view_profits'],
   socio: [
     'view_dashboard',
     'view_dashboard_socios',

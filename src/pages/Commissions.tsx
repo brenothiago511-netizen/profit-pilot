@@ -63,7 +63,7 @@ interface ManagerOption {
 }
 
 export default function Commissions() {
-  const { user, isAdmin, isGestor, profile } = useAuth();
+  const { user, isAdmin, profile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
@@ -129,19 +129,6 @@ export default function Commissions() {
     fetchAll();
   }, []);
 
-  // Auto-select manager for gestor users
-  useEffect(() => {
-    if (isGestor && user?.id && managers.length > 0) {
-      const myManager = managers.find(m => m.user_id === user.id);
-      if (myManager) {
-        setRecordForm(prev => ({
-          ...prev,
-          manager_id: myManager.id,
-          store_id: myManager.store_id || prev.store_id,
-        }));
-      }
-    }
-  }, [isGestor, user?.id, managers]);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -499,7 +486,7 @@ export default function Commissions() {
         <div>
           <h1 className="page-title">Comissões</h1>
           <p className="page-description">
-            {isGestor ? 'Registre seus lucros e visualize suas comissões' : 'Gerencie lucros e comissões dos gestores'}
+            Gerencie lucros e comissões
           </p>
         </div>
 
