@@ -21,7 +21,7 @@ import {
   BarChart,
   Bar,
 } from 'recharts';
-import PartnerDashboard from '@/components/dashboard/PartnerDashboard';
+// PartnerDashboard removed - partners now see standard dashboard
 import { CurrencyToggle } from '@/components/currency/CurrencyToggle';
 import { useCurrency } from '@/hooks/useCurrency';
 
@@ -50,7 +50,7 @@ interface DateRange {
 }
 
 export default function Dashboard() {
-  const { profile, isSocio } = useAuth();
+  const { profile } = useAuth();
   const { formatCurrency, config } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreOption[]>([]);
@@ -236,20 +236,7 @@ export default function Dashboard() {
     },
   ];
 
-  // If user is a partner, show the partner dashboard
-  if (isSocio) {
-    return (
-      <div className="space-y-6 animate-fade-in">
-        <div className="page-header">
-          <h1 className="page-title">Dashboard do Sócio</h1>
-          <p className="page-description">
-            Acompanhe seus investimentos, participações e distribuições
-          </p>
-        </div>
-        <PartnerDashboard />
-      </div>
-    );
-  }
+  // Partners see the same dashboard as everyone else now
 
   return (
     <div className="space-y-6 animate-fade-in">
