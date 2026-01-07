@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users, Loader2, Percent, User, Store, Pencil } from 'lucide-react';
+import { Plus, Users, Loader2, Percent, User, Store, Pencil, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Manager {
@@ -183,6 +183,42 @@ export default function Managers() {
         description: `Gestor ${newStatus === 'active' ? 'ativado' : 'desativado'}`,
       });
       fetchManagers();
+    }
+  };
+
+  const deleteManager = async (manager: Manager) => {
+    if (!confirm(`Tem certeza que deseja excluir o gestor "${manager.profile_name}"? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    // Delete related commissions first
+    await supabase.from('commissions').delete().eq('manager_id', manager.id);
+    
+    // Delete related daily_records
+    await supabase.from('daily_records').delete().eq('manager_id', manager.id);
+    
+    // Delete related profits
+    await supabase.from('profits').delete().eq('manager_id', manager.id);
+    
+    // Delete manager
+    const { error } = await supabase
+      .from('managers')
+      .delete()
+      .eq('id', manager.id);
+    
+    if (error) {
+      toast({
+        title: 'Erro ao excluir',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Gestor excluído',
+        description: 'O gestor foi removido com sucesso',
+      });
+      fetchManagers();
+      fetchAvailableUsers();
     }
   };
 
@@ -416,7 +452,7 @@ export default function Managers() {
                   <span className="text-sm text-muted-foreground">
                     Desde {format(new Date(manager.created_at), 'dd/MM/yyyy')}
                   </span>
-                  <PermissionGate permission="manage_managers">
+                <PermissionGate permission="manage_managers">
                     <div className="flex gap-2">
                       <Button
                         variant="outline"
@@ -432,6 +468,14 @@ export default function Managers() {
                         onClick={() => toggleStatus(manager.id, manager.status)}
                       >
                         {manager.status === 'active' ? 'Desativar' : 'Ativar'}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => deleteManager(manager)}
+                        title="Excluir gestor"
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </PermissionGate>
