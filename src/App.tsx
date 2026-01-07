@@ -11,7 +11,6 @@ import Dashboard from "./pages/Dashboard";
 import Revenues from "./pages/Revenues";
 import Expenses from "./pages/Expenses";
 import Stores from "./pages/Stores";
-import Managers from "./pages/Managers";
 import Commissions from "./pages/Commissions";
 import Profits from "./pages/Profits";
 import Reports from "./pages/Reports";
@@ -44,7 +43,7 @@ const App = () => (
               }
             >
               <Route path="/dashboard" element={
-                <ProtectedRoute allowedRoles={['admin', 'gestor', 'socio']}>
+                <ProtectedRoute allowedRoles={['admin', 'socio']}>
                   <Dashboard />
                 </ProtectedRoute>
               } />
@@ -73,14 +72,6 @@ const App = () => (
                 }
               />
               <Route
-                path="/managers"
-                element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <Managers />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
                 path="/users"
                 element={
                   <ProtectedRoute allowedRoles={['admin']}>
@@ -99,7 +90,7 @@ const App = () => (
               <Route
                 path="/profits"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'financeiro', 'gestor', 'socio']}>
+                  <ProtectedRoute allowedRoles={['admin', 'financeiro', 'socio']}>
                     <Profits />
                   </ProtectedRoute>
                 }
@@ -107,7 +98,7 @@ const App = () => (
               <Route
                 path="/commissions"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'financeiro', 'gestor', 'socio']}>
+                  <ProtectedRoute allowedRoles={['admin', 'financeiro', 'socio']}>
                     <Commissions />
                   </ProtectedRoute>
                 }

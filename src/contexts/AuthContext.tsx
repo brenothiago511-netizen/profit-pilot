@@ -22,7 +22,6 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   isAdmin: boolean;
   isFinanceiro: boolean;
-  isGestor: boolean;
   isSocio: boolean;
 }
 
@@ -125,7 +124,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isAdmin = profile?.role === 'admin';
   const isFinanceiro = profile?.role === 'financeiro';
-  const isGestor = profile?.role === 'gestor';
   const isSocio = profile?.role === 'socio';
 
   return (
@@ -140,7 +138,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signOut,
         isAdmin,
         isFinanceiro,
-        isGestor,
         isSocio,
       }}
     >

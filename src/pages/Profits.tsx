@@ -89,25 +89,7 @@ export default function Profits() {
 
   const isAdmin = profile?.role === 'admin';
   const isFinanceiro = profile?.role === 'financeiro';
-  const isGestor = profile?.role === 'gestor';
   const canApprove = isAdmin || isFinanceiro;
-
-  // Get current user's manager record if gestor
-  const { data: currentManager } = useQuery({
-    queryKey: ['current-manager', user?.id],
-    queryFn: async () => {
-      if (!user?.id || !isGestor) return null;
-      const { data, error } = await supabase
-        .from('managers')
-        .select('id, store_id')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id && isGestor,
-  });
 
   // Fetch stores
   const { data: stores = [] } = useQuery({
@@ -193,7 +175,7 @@ export default function Profits() {
     return profits.filter((p) => p.status === filterStatus);
   }, [profits, filterStatus]);
 
-  // Form state - initialize with gestor data when available
+  // Form state
   const [formData, setFormData] = useState({
     store_id: '',
     manager_id: '',
@@ -203,21 +185,10 @@ export default function Profits() {
     notes: '',
   });
 
-  // Update form with gestor data when currentManager loads
-  useEffect(() => {
-    if (isGestor && currentManager && !formData.manager_id) {
-      setFormData(prev => ({
-        ...prev,
-        store_id: currentManager.store_id || '',
-        manager_id: currentManager.id,
-      }));
-    }
-  }, [isGestor, currentManager]);
-
   const resetForm = () => {
     setFormData({
-      store_id: isGestor && currentManager?.store_id ? currentManager.store_id : '',
-      manager_id: isGestor && currentManager?.id ? currentManager.id : '',
+      store_id: '',
+      manager_id: '',
       period_start: '',
       period_end: '',
       profit_amount: '',
@@ -228,9 +199,8 @@ export default function Profits() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      // For gestor, ensure we use their manager data
-      const storeId = isGestor && currentManager?.store_id ? currentManager.store_id : data.store_id;
-      const managerId = isGestor && currentManager?.id ? currentManager.id : data.manager_id;
+      const storeId = data.store_id;
+      const managerId = data.manager_id;
 
       if (!storeId || !managerId) {
         throw new Error('Loja e gestor são obrigatórios');
@@ -362,102 +332,69 @@ export default function Profits() {
     return { pending, approved: approved.length, totalApproved };
   }, [profits]);
 
-  // For gestor, auto-select their store/manager
-  const availableManagers = isGestor && currentManager
-    ? managers.filter((m) => m.id === currentManager.id)
-    : managers;
-
-  // Check if gestor has a store assigned
-  const gestorWithoutStore = isGestor && currentManager && !currentManager.store_id;
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Registro de Lucros</h1>
           <p className="text-muted-foreground">
-            {isGestor ? 'Registre os lucros da sua loja para cálculo de comissões' : 'Gerencie os lucros para cálculo de comissões'}
+            Gerencie os lucros para cálculo de comissões
           </p>
         </div>
 
-        {gestorWithoutStore ? (
-          <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm">
-            Você não possui uma loja associada. Entre em contato com o administrador.
-          </div>
-        ) : (
-          <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button className="gap-2" disabled={isGestor && !currentManager}>
-                <Plus className="w-4 h-4" />
-                Registrar Lucro
-              </Button>
-            </DialogTrigger>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
+              Registrar Lucro
+            </Button>
+          </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingProfit ? 'Editar Lucro' : 'Registrar Novo Lucro'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {!isGestor && (
-                <>
-                  <div className="space-y-2">
-                    <Label>Loja</Label>
-                    <Select
-                      value={formData.store_id}
-                      onValueChange={(v) => setFormData({ ...formData, store_id: v, manager_id: '' })}
-                      disabled={!!editingProfit}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione a loja" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {stores.map((store) => (
-                          <SelectItem key={store.id} value={store.id}>
-                            {store.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <div className="space-y-2">
+                <Label>Loja</Label>
+                <Select
+                  value={formData.store_id}
+                  onValueChange={(v) => setFormData({ ...formData, store_id: v, manager_id: '' })}
+                  disabled={!!editingProfit}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a loja" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stores.map((store) => (
+                      <SelectItem key={store.id} value={store.id}>
+                        {store.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                  <div className="space-y-2">
-                    <Label>Gestor</Label>
-                    <Select
-                      value={formData.manager_id}
-                      onValueChange={(v) => setFormData({ ...formData, manager_id: v })}
-                      disabled={!!editingProfit}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o gestor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {managers
-                          .filter((m) => !formData.store_id || !m.store_id || m.store_id === formData.store_id)
-                          .map((manager) => (
-                            <SelectItem key={manager.id} value={manager.id}>
-                              {manager.profiles?.name || 'Gestor sem nome'}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              )}
-
-              {isGestor && currentManager && (
-                <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/20">
-                      <Store className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Registrando lucro para:</p>
-                      <p className="font-semibold text-foreground">
-                        {stores.find(s => s.id === currentManager.store_id)?.name || 'Sua Loja'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label>Gestor</Label>
+                <Select
+                  value={formData.manager_id}
+                  onValueChange={(v) => setFormData({ ...formData, manager_id: v })}
+                  disabled={!!editingProfit}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o gestor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {managers
+                      .filter((m) => !formData.store_id || !m.store_id || m.store_id === formData.store_id)
+                      .map((manager) => (
+                        <SelectItem key={manager.id} value={manager.id}>
+                          {manager.profiles?.name || 'Gestor sem nome'}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -515,7 +452,6 @@ export default function Profits() {
             </form>
           </DialogContent>
         </Dialog>
-        )}
       </div>
 
       {/* Stats Cards */}
