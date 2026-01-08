@@ -266,6 +266,9 @@ export default function PartnerDashboardPage() {
       if (useCustomDates) {
         periodStart = format(dateRange.from, 'yyyy-MM-dd');
         periodEnd = format(dateRange.to, 'yyyy-MM-dd');
+      } else if (selectedPeriod === 'current') {
+        periodStart = format(startOfMonth(today), 'yyyy-MM-dd');
+        periodEnd = format(today, 'yyyy-MM-dd');
       } else {
         const monthsBack = parseInt(selectedPeriod);
         periodStart = format(subMonths(today, monthsBack), 'yyyy-MM-dd');
@@ -586,6 +589,7 @@ export default function PartnerDashboardPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="current">Mês atual</SelectItem>
                 <SelectItem value="1">Último mês</SelectItem>
                 <SelectItem value="3">Últimos 3 meses</SelectItem>
                 <SelectItem value="6">Últimos 6 meses</SelectItem>
