@@ -102,16 +102,19 @@ export default function PartnerDashboard() {
     .filter(t => t.type === 'retirada')
     .reduce((sum, t) => sum + t.amount, 0);
   
-  // Calculate partner's share from daily_records commissions (30% of profit) - only when Shopify confirmed received
+  // Calculate partner's share from daily_records (capital_percentage of profit) - only when Shopify confirmed received
+  const avgPercentage = partnerships.length > 0 
+    ? partnerships.reduce((sum, p) => sum + (p.capital_percentage || 0), 0) / partnerships.length 
+    : 0;
   const totalPartnerShare = dailyRecords
     .filter(r => r.shopify_status === 'received')
-    .reduce((sum, r) => sum + (r.commission_amount || 0), 0);
+    .reduce((sum, r) => sum + ((r.daily_profit || 0) * (avgPercentage / 100)), 0);
 
   // Count pending Shopify confirmations
   const pendingShopifyCount = dailyRecords.filter(r => r.shopify_status !== 'received' && r.status === 'approved').length;
   const pendingShopifyAmount = dailyRecords
     .filter(r => r.shopify_status !== 'received' && r.status === 'approved')
-    .reduce((sum, r) => sum + (r.commission_amount || 0), 0);
+    .reduce((sum, r) => sum + ((r.daily_profit || 0) * (avgPercentage / 100)), 0);
 
   useEffect(() => {
     if (user?.id) {
