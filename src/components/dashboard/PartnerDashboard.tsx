@@ -107,6 +107,12 @@ export default function PartnerDashboard() {
     .filter(r => r.shopify_status === 'received')
     .reduce((sum, r) => sum + (r.commission_amount || 0), 0);
 
+  // Count pending Shopify confirmations
+  const pendingShopifyCount = dailyRecords.filter(r => r.shopify_status !== 'received' && r.status === 'approved').length;
+  const pendingShopifyAmount = dailyRecords
+    .filter(r => r.shopify_status !== 'received' && r.status === 'approved')
+    .reduce((sum, r) => sum + (r.commission_amount || 0), 0);
+
   useEffect(() => {
     if (user?.id) {
       fetchPartnerData();
@@ -353,6 +359,16 @@ export default function PartnerDashboard() {
             <p className="text-xs text-muted-foreground mt-1">
               recebido da Shopify
             </p>
+            {pendingShopifyCount > 0 && (
+              <div className="mt-2 flex items-center gap-2 text-xs">
+                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
+                  {pendingShopifyCount} pendente{pendingShopifyCount > 1 ? 's' : ''}
+                </Badge>
+                <span className="text-muted-foreground">
+                  ({formatCurrencyBRL(pendingShopifyAmount)})
+                </span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
