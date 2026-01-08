@@ -134,7 +134,7 @@ export default function PartnerDashboardPage() {
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [goals, setGoals] = useState<GoalData[]>([]);
   const [allPartners, setAllPartners] = useState<PartnerProfile[]>([]);
-  const [selectedPartner, setSelectedPartner] = useState<string>('all');
+  const [selectedPartner, setSelectedPartner] = useState<string>(user?.id || 'all');
   const [selectedStore, setSelectedStore] = useState<string>('all');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('12');
 
@@ -432,7 +432,14 @@ export default function PartnerDashboardPage() {
     setLoading(false);
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrencyUSD = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(value);
+  };
+
+  const formatCurrencyBRL = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
@@ -564,7 +571,7 @@ export default function PartnerDashboardPage() {
             <Wallet className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalCapital)}</div>
+            <div className="text-2xl font-bold">{formatCurrencyUSD(totalCapital)}</div>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant="outline" className="text-xs">
                 {partnerships.length} {partnerships.length === 1 ? 'loja' : 'lojas'}
@@ -585,7 +592,7 @@ export default function PartnerDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${totalPartnerShare >= 0 ? 'text-success' : 'text-destructive'}`}>
-              {formatCurrency(totalPartnerShare)}
+              {formatCurrencyBRL(totalPartnerShare)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               nos últimos {selectedPeriod} meses
@@ -601,7 +608,7 @@ export default function PartnerDashboardPage() {
             <PiggyBank className="h-5 w-5 text-info" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalDistributions)}</div>
+            <div className="text-2xl font-bold">{formatCurrencyUSD(totalDistributions)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               total histórico
             </p>
@@ -616,7 +623,7 @@ export default function PartnerDashboardPage() {
             <ArrowUpRight className="h-5 w-5 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalAportes)}</div>
+            <div className="text-2xl font-bold">{formatCurrencyUSD(totalAportes)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               total investido
             </p>
@@ -634,7 +641,7 @@ export default function PartnerDashboardPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold text-success">{formatCurrency(totalRevenue * (avgPercentage / 100))}</div>
+            <div className="text-xl font-bold text-success">{formatCurrencyBRL(totalRevenue * (avgPercentage / 100))}</div>
           </CardContent>
         </Card>
         <Card>
@@ -645,7 +652,7 @@ export default function PartnerDashboardPage() {
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold text-destructive">{formatCurrency(totalExpenses * (avgPercentage / 100))}</div>
+            <div className="text-xl font-bold text-destructive">{formatCurrencyBRL(totalExpenses * (avgPercentage / 100))}</div>
           </CardContent>
         </Card>
         <Card>
@@ -656,7 +663,7 @@ export default function PartnerDashboardPage() {
             <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold">{formatCurrency(totalRetiradas)}</div>
+            <div className="text-xl font-bold">{formatCurrencyUSD(totalRetiradas)}</div>
           </CardContent>
         </Card>
       </div>
@@ -738,7 +745,7 @@ export default function PartnerDashboardPage() {
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '8px',
                         }}
-                        formatter={(value: number, name: string) => [formatCurrency(value), name]}
+                        formatter={(value: number, name: string) => [formatCurrencyBRL(value), name]}
                       />
                       <Legend />
                       <Area
@@ -795,7 +802,7 @@ export default function PartnerDashboardPage() {
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '8px',
                         }}
-                        formatter={(value: number) => [formatCurrency(value), 'Capital']}
+                        formatter={(value: number) => [formatCurrencyUSD(value), 'Capital']}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -826,7 +833,7 @@ export default function PartnerDashboardPage() {
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '8px',
                       }}
-                      formatter={(value: number) => [formatCurrency(value), '']}
+                      formatter={(value: number) => [formatCurrencyUSD(value), '']}
                     />
                     <Legend />
                     <Bar dataKey="aportes" name="Aportes" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
@@ -870,7 +877,7 @@ export default function PartnerDashboardPage() {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-success">{formatCurrency(bestStore.partnerShare)}</p>
+                          <p className="text-2xl font-bold text-success">{formatCurrencyBRL(bestStore.partnerShare)}</p>
                           <p className="text-xs text-muted-foreground">sua parte do lucro</p>
                         </div>
                       </div>
@@ -895,7 +902,7 @@ export default function PartnerDashboardPage() {
                         </div>
                         <div className="text-right">
                           <p className={`text-2xl font-bold ${worstStore.partnerShare >= 0 ? 'text-foreground' : 'text-destructive'}`}>
-                            {formatCurrency(worstStore.partnerShare)}
+                            {formatCurrencyBRL(worstStore.partnerShare)}
                           </p>
                           <p className="text-xs text-muted-foreground">sua parte do lucro</p>
                         </div>
@@ -999,7 +1006,7 @@ export default function PartnerDashboardPage() {
                               border: '1px solid hsl(var(--border))',
                               borderRadius: '8px',
                             }}
-                            formatter={(value: number) => [formatCurrency(value), '']}
+                            formatter={(value: number) => [formatCurrencyBRL(value), '']}
                           />
                           <Legend />
                           <Bar dataKey="revenue" name="Receita" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
@@ -1075,7 +1082,7 @@ export default function PartnerDashboardPage() {
                         <div className="flex-1">
                           <p className="font-semibold">{store.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            Participação: {store.percentage}% | Capital: {formatCurrency(store.capitalInvested)}
+                            Participação: {store.percentage}% | Capital: {formatCurrencyUSD(store.capitalInvested)}
                           </p>
                         </div>
                         <div className="grid grid-cols-3 gap-6 text-center">
@@ -1094,7 +1101,7 @@ export default function PartnerDashboardPage() {
                           <div>
                             <p className="text-xs text-muted-foreground">Lucro (sua parte)</p>
                             <p className={`font-bold ${store.partnerShare >= 0 ? 'text-success' : 'text-destructive'}`}>
-                              {formatCurrency(store.partnerShare)}
+                              {formatCurrencyBRL(store.partnerShare)}
                             </p>
                           </div>
                         </div>
@@ -1135,7 +1142,7 @@ export default function PartnerDashboardPage() {
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Sua parte do lucro</p>
                     <p className={`text-2xl font-bold ${store.partnerShare >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrency(store.partnerShare)}
+                      {formatCurrencyBRL(store.partnerShare)}
                     </p>
                   </div>
                 </div>
@@ -1144,22 +1151,22 @@ export default function PartnerDashboardPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
                   <div className="text-center p-3 rounded-lg bg-muted/50">
                     <p className="text-xs text-muted-foreground mb-1">Receita Total</p>
-                    <p className="font-semibold text-success">{formatCurrency(store.revenue)}</p>
+                    <p className="font-semibold text-success">{formatCurrencyBRL(store.revenue)}</p>
                   </div>
                   <div className="text-center p-3 rounded-lg bg-muted/50">
                     <p className="text-xs text-muted-foreground mb-1">Despesas Total</p>
-                    <p className="font-semibold text-destructive">{formatCurrency(store.expenses)}</p>
+                    <p className="font-semibold text-destructive">{formatCurrencyBRL(store.expenses)}</p>
                   </div>
                   <div className="text-center p-3 rounded-lg bg-muted/50">
                     <p className="text-xs text-muted-foreground mb-1">Lucro Total</p>
                     <p className={`font-semibold ${store.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrency(store.profit)}
+                      {formatCurrencyBRL(store.profit)}
                     </p>
                   </div>
                   <div className="text-center p-3 rounded-lg bg-primary/10">
                     <p className="text-xs text-muted-foreground mb-1">Sua Receita</p>
                     <p className="font-semibold text-primary">
-                      {formatCurrency(store.revenue * (store.percentage / 100))}
+                      {formatCurrencyBRL(store.revenue * (store.percentage / 100))}
                     </p>
                   </div>
                 </div>
@@ -1202,8 +1209,8 @@ export default function PartnerDashboardPage() {
                   <CardContent>
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span>Alcançado: {formatCurrency(goal.achieved)}</span>
-                        <span>Meta: {formatCurrency(goal.goal)}</span>
+                        <span>Alcançado: {formatCurrencyBRL(goal.achieved)}</span>
+                        <span>Meta: {formatCurrencyBRL(goal.goal)}</span>
                       </div>
                       <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
                         <div 
@@ -1263,7 +1270,7 @@ export default function PartnerDashboardPage() {
                         <div className={`text-lg font-bold ${
                           tx.type === 'aporte' ? 'text-success' : 'text-foreground'
                         }`}>
-                          {tx.type === 'aporte' ? '+' : '-'}{formatCurrency(tx.amount)}
+                          {tx.type === 'aporte' ? '+' : '-'}{formatCurrencyUSD(tx.amount)}
                         </div>
                       </div>
                     );
