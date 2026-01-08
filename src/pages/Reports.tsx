@@ -119,19 +119,88 @@ export default function Reports() {
       
       const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
 
-      // Fetch commissions
-      let commissionQuery = supabase
-        .from('commissions')
-        .select('commission_amount')
-        .gte('period_start', periodStart)
-        .lte('period_end', periodEnd);
+      // Calculate commissions from managers (commissions table was removed)
+      let totalCommissions = 0;
       
-      if (selectedStore !== 'all') {
-        commissionQuery = commissionQuery.eq('store_id', selectedStore);
+      // Fetch active managers with their store assignments
+      let managersQuery = supabase
+        .from('managers')
+        .select('id, store_id, commission_percent, commission_type')
+        .eq('status', 'active');
+
+      const { data: managers } = await managersQuery;
+
+      if (managers && managers.length > 0) {
+        for (const manager of managers) {
+          if (manager.store_id) {
+            // Only calculate if we're viewing all stores or the manager's store matches
+            if (selectedStore !== 'all' && manager.store_id !== selectedStore) {
+              continue;
+            }
+            
+            // Get store-specific revenue and expenses
+            const { data: storeRevenues } = await supabase
+              .from('revenues')
+              .select('amount')
+              .eq('store_id', manager.store_id)
+              .gte('date', periodStart)
+              .lte('date', periodEnd);
+            
+            const { data: storeExpenses } = await supabase
+              .from('expenses')
+              .select('amount')
+              .eq('store_id', manager.store_id)
+              .gte('date', periodStart)
+              .lte('date', periodEnd);
+            
+            const storeRevenue = storeRevenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
+            const storeExpense = storeExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+            const storeProfit = storeRevenue - storeExpense;
+            
+            if (manager.commission_type === 'lucro') {
+              totalCommissions += (storeProfit * manager.commission_percent) / 100;
+            } else {
+              totalCommissions += (storeRevenue * manager.commission_percent) / 100;
+            }
+          } else {
+            // Manager gets commission on all stores
+            if (selectedStore !== 'all') {
+              const { data: storeRevenues } = await supabase
+                .from('revenues')
+                .select('amount')
+                .eq('store_id', selectedStore)
+                .gte('date', periodStart)
+                .lte('date', periodEnd);
+              
+              const { data: storeExpenses } = await supabase
+                .from('expenses')
+                .select('amount')
+                .eq('store_id', selectedStore)
+                .gte('date', periodStart)
+                .lte('date', periodEnd);
+              
+              const storeRevenue = storeRevenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
+              const storeExpense = storeExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+              const storeProfit = storeRevenue - storeExpense;
+              
+              if (manager.commission_type === 'lucro') {
+                totalCommissions += (storeProfit * manager.commission_percent) / 100;
+              } else {
+                totalCommissions += (storeRevenue * manager.commission_percent) / 100;
+              }
+            } else {
+              // Use totals for all stores
+              if (manager.commission_type === 'lucro') {
+                totalCommissions += ((totalRevenue - totalExpenses) * manager.commission_percent) / 100;
+              } else {
+                totalCommissions += (totalRevenue * manager.commission_percent) / 100;
+              }
+            }
+          }
+        }
+        
+        totalCommissions = Math.max(0, totalCommissions);
       }
-      
-      const { data: commissions } = await commissionQuery;
-      const totalCommissions = commissions?.reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0;
 
       const grossProfit = totalRevenue - totalExpenses;
       const netProfit = grossProfit - totalCommissions;

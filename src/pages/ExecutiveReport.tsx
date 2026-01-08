@@ -356,16 +356,26 @@ export default function ExecutiveReport() {
           .gte('date', periodStart)
           .lte('date', periodEnd);
         
-        const { data: storeCommissions } = await supabase
-          .from('commissions')
-          .select('commission_amount')
-          .eq('store_id', p.store_id)
-          .gte('period_start', periodStart)
-          .lte('period_end', periodEnd);
-        
         const storeRevenue = storeRevenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
         const storeExpense = storeExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
-        const storeCommission = storeCommissions?.reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0;
+        
+        // Calculate store commission from managers (commissions table was removed)
+        let storeCommission = 0;
+        const { data: storeManagers } = await supabase
+          .from('managers')
+          .select('commission_percent, commission_type')
+          .eq('store_id', p.store_id)
+          .eq('status', 'active');
+        
+        if (storeManagers) {
+          for (const manager of storeManagers) {
+            if (manager.commission_type === 'lucro') {
+              storeCommission += ((storeRevenue - storeExpense) * manager.commission_percent) / 100;
+            } else {
+              storeCommission += (storeRevenue * manager.commission_percent) / 100;
+            }
+          }
+        }
         
         const storeProfit = storeRevenue - storeExpense - storeCommission;
         const profitShare = (storeProfit * p.capital_percentage) / 100;
@@ -404,15 +414,23 @@ export default function ExecutiveReport() {
           
           const storeExpense = storeExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
 
-          // Get store commissions
-          const { data: storeCommissions } = await supabase
-            .from('commissions')
-            .select('commission_amount')
+          // Calculate store commission from managers (commissions table was removed)
+          let storeCommission = 0;
+          const { data: storeManagers } = await supabase
+            .from('managers')
+            .select('commission_percent, commission_type')
             .eq('store_id', store.id)
-            .gte('period_start', periodStart)
-            .lte('period_end', periodEnd);
+            .eq('status', 'active');
           
-          const storeCommission = storeCommissions?.reduce((sum, c) => sum + Number(c.commission_amount), 0) || 0;
+          if (storeManagers) {
+            for (const manager of storeManagers) {
+              if (manager.commission_type === 'lucro') {
+                storeCommission += ((storeRevenue - storeExpense) * manager.commission_percent) / 100;
+              } else {
+                storeCommission += (storeRevenue * manager.commission_percent) / 100;
+              }
+            }
+          }
 
           // Get store goal
           const { data: storeGoal } = await supabase
