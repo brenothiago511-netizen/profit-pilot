@@ -75,7 +75,6 @@ interface MonthlyData {
 interface DailyRecord {
   id: string;
   daily_profit: number;
-  commission_amount: number;
   status: string;
   shopify_status: string | null;
   date: string;
@@ -168,7 +167,7 @@ export default function PartnerDashboard() {
       if (storeIds.length > 0) {
         const { data: recordsData } = await supabase
           .from('daily_records')
-          .select('id, daily_profit, commission_amount, status, shopify_status, date, store_id')
+          .select('id, daily_profit, status, shopify_status, date, store_id')
           .in('store_id', storeIds)
           .order('date', { ascending: false });
 

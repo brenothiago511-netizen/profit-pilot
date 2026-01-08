@@ -203,7 +203,6 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
-          commission_amount: number | null
           created_at: string | null
           created_by: string | null
           daily_profit: number
@@ -219,7 +218,6 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
-          commission_amount?: number | null
           created_at?: string | null
           created_by?: string | null
           daily_profit: number
@@ -235,7 +233,6 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
-          commission_amount?: number | null
           created_at?: string | null
           created_by?: string | null
           daily_profit?: number

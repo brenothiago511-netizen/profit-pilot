@@ -37,29 +37,21 @@ interface CommissionTier {
 
 interface DailyRecord {
   id: string;
-  manager_id: string;
+  user_id: string | null;
   store_id: string;
   date: string;
   daily_profit: number;
-  commission_amount: number;
   status: string;
   shopify_status: string;
   notes: string | null;
   created_at: string;
-  manager_name?: string;
+  user_name?: string;
   store_name?: string;
 }
 
 interface StoreOption {
   id: string;
   name: string;
-}
-
-interface ManagerOption {
-  id: string;
-  user_id: string;
-  store_id: string | null;
-  profile_name?: string;
 }
 
 export default function Commissions() {
@@ -69,7 +61,7 @@ export default function Commissions() {
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
   const [commissionTiers, setCommissionTiers] = useState<CommissionTier[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
-  const [managers, setManagers] = useState<ManagerOption[]>([]);
+  
   
   // Dialog states
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
@@ -147,9 +139,7 @@ export default function Commissions() {
     setLoading(true);
     await Promise.all([
       fetchDailyRecords(),
-      fetchCommissionTiers(),
       fetchStores(),
-      fetchManagers(),
     ]);
     setLoading(false);
   };
@@ -171,55 +161,34 @@ export default function Commissions() {
       return;
     }
 
-    // Fetch manager names
-    const managerIds = [...new Set(data.map(r => r.manager_id))];
-    const { data: managersData } = await supabase
-      .from('managers')
-      .select('id, user_id')
-      .in('id', managerIds);
+    // Fetch user names for records that have created_by
+    const userIds = [...new Set(data.map(r => r.created_by).filter(Boolean))];
+    let profilesMap = new Map<string, string>();
     
-    const userIds = managersData?.map(m => m.user_id) || [];
-    const { data: profilesData } = await supabase
-      .from('profiles')
-      .select('id, name')
-      .in('id', userIds);
-    
-    const managerProfileMap = new Map<string, string>();
-    managersData?.forEach(m => {
-      const profile = profilesData?.find(p => p.id === m.user_id);
-      if (profile) managerProfileMap.set(m.id, profile.name);
-    });
+    if (userIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', userIds);
+      
+      profilesData?.forEach(p => profilesMap.set(p.id, p.name));
+    }
 
     const enrichedRecords: DailyRecord[] = data.map(r => ({
       id: r.id,
-      manager_id: r.manager_id,
+      user_id: r.created_by,
       store_id: r.store_id,
       date: r.date,
       daily_profit: r.daily_profit,
-      commission_amount: r.commission_amount || 0,
       status: r.status || 'pending',
       shopify_status: r.shopify_status || 'pending',
       notes: r.notes,
-      created_at: r.created_at,
+      created_at: r.created_at || '',
       store_name: (r.stores as any)?.name || '-',
-      manager_name: managerProfileMap.get(r.manager_id) || '-',
+      user_name: r.created_by ? profilesMap.get(r.created_by) || '-' : '-',
     }));
 
     setDailyRecords(enrichedRecords);
-  };
-
-  const fetchCommissionTiers = async () => {
-    const { data, error } = await supabase
-      .from('commission_tiers')
-      .select('*')
-      .order('min_profit', { ascending: true });
-    
-    if (error) {
-      console.error('Error fetching commission tiers:', error);
-      return;
-    }
-
-    setCommissionTiers(data || []);
   };
 
   const fetchStores = async () => {
@@ -229,35 +198,6 @@ export default function Commissions() {
       .eq('status', 'active')
       .order('name');
     if (data) setStores(data);
-  };
-
-  const fetchManagers = async () => {
-    const { data: managersData } = await supabase
-      .from('managers')
-      .select('id, user_id, store_id')
-      .eq('status', 'active');
-    
-    if (!managersData) {
-      setManagers([]);
-      return;
-    }
-
-    const userIds = managersData.map(m => m.user_id);
-    const { data: profilesData } = await supabase
-      .from('profiles')
-      .select('id, name')
-      .in('id', userIds);
-
-    const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
-
-    const enrichedManagers: ManagerOption[] = managersData.map(m => ({
-      id: m.id,
-      user_id: m.user_id,
-      store_id: m.store_id,
-      profile_name: profilesMap.get(m.user_id)?.name || 'N/A',
-    }));
-
-    setManagers(enrichedManagers);
   };
 
   const handleRecordSubmit = async (e: React.FormEvent) => {
@@ -313,59 +253,16 @@ export default function Commissions() {
       return;
     }
 
-    // Find manager for current user or create one if needed
-    let currentUserManager = managers.find(m => m.user_id === user?.id);
-    let managerId = currentUserManager?.id || managers[0]?.id;
-
-    // If no manager exists, create one for the current user (for socios registering profits)
-    if (!managerId && user?.id) {
-      const { data: newManager, error: createError } = await supabase
-        .from('managers')
-        .insert({
-          user_id: user.id,
-          store_id: recordForm.store_id,
-          status: 'active',
-          commission_percent: 30,
-          commission_type: 'lucro',
-        })
-        .select('id')
-        .single();
-      
-      if (createError) {
-        toast({
-          title: 'Erro',
-          description: 'Erro ao criar registro de gestor: ' + createError.message,
-          variant: 'destructive',
-        });
-        setSavingRecord(false);
-        return;
-      }
-      
-      managerId = newManager.id;
-    }
-
-    if (!managerId) {
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível identificar o gestor para este registro',
-        variant: 'destructive',
-      });
-      setSavingRecord(false);
-      return;
-    }
-    
     const { error } = await supabase.from('daily_records').insert({
       store_id: recordForm.store_id,
-      manager_id: managerId,
       date: recordForm.date,
       daily_profit: profit,
-      commission_amount: commissionAmount,
       notes: recordForm.notes || null,
       created_by: user?.id,
       status: canApprove ? 'approved' : 'pending',
       approved_by: canApprove ? user?.id : null,
       approved_at: canApprove ? new Date().toISOString() : null,
-    });
+    } as any);
 
     setSavingRecord(false);
 
@@ -450,7 +347,6 @@ export default function Commissions() {
       setTierDialogOpen(false);
       setEditingTier(null);
       setTierForm({ min_profit: '', max_profit: '', commission_percentage: '' });
-      fetchCommissionTiers();
     }
   };
 
@@ -474,7 +370,6 @@ export default function Commissions() {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Faixa excluída' });
-      fetchCommissionTiers();
     }
   };
 
@@ -557,11 +452,9 @@ export default function Commissions() {
   const stats = useMemo(() => {
     const approved = dailyRecords.filter(r => r.status === 'approved' || r.status === 'paid');
     const totalProfit = approved.reduce((sum, r) => sum + r.daily_profit, 0);
-    const totalCommission = approved.reduce((sum, r) => sum + r.commission_amount, 0);
     const pending = dailyRecords.filter(r => r.status === 'pending').length;
-    const paid = dailyRecords.filter(r => r.status === 'paid').reduce((sum, r) => sum + r.commission_amount, 0);
     
-    return { totalProfit, totalCommission, pending, paid };
+    return { totalProfit, totalCommission: 0, pending, paid: 0 };
   }, [dailyRecords]);
 
   // Chart data
@@ -574,7 +467,6 @@ export default function Commissions() {
     return last30Days.map(r => ({
       date: format(new Date(r.date), 'dd/MM'),
       lucro: r.daily_profit,
-      comissao: r.commission_amount,
     }));
   }, [dailyRecords]);
 
@@ -799,7 +691,7 @@ export default function Commissions() {
                       {dailyRecords.map((record) => (
                         <tr key={record.id}>
                           <td>{format(new Date(record.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
-                          <td>{record.manager_name}</td>
+                          <td>{record.user_name}</td>
                           <td>{record.store_name}</td>
                           <td className="text-right font-medium">{formatCurrency(record.daily_profit)}</td>
                           <td>

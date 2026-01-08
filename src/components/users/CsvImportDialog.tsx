@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 
-type AppRole = 'admin' | 'financeiro' | 'gestor' | 'socio';
+type AppRole = 'admin' | 'financeiro' | 'socio';
 
 interface ParsedUser {
   email: string;
@@ -57,7 +57,7 @@ export function CsvImportDialog({ onImportComplete }: CsvImportDialogProps) {
 
     // Skip header row
     const dataLines = lines.slice(1);
-    const validRoles: AppRole[] = ['admin', 'financeiro', 'gestor', 'socio'];
+    const validRoles: AppRole[] = ['admin', 'financeiro', 'socio'];
 
     return dataLines.map(line => {
       // Handle CSV with possible quoted values

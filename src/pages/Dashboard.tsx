@@ -308,32 +308,17 @@ export default function Dashboard() {
       const { data: expenses } = await expenseQuery;
       const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
 
-      // Fetch paid commissions from daily_records
-      let commissionQuery = supabase
-        .from('daily_records')
-        .select('commission_amount')
-        .eq('status', 'paid')
-        .gte('date', dateStart)
-        .lte('date', dateEnd);
-      
-      if (storeIdsToFilter && storeIdsToFilter.length > 0) {
-        commissionQuery = commissionQuery.in('store_id', storeIdsToFilter);
-      }
-      
-      const { data: paidRecords } = await commissionQuery;
-      const totalCommissions = paidRecords?.reduce((sum, r) => sum + Number(r.commission_amount || 0), 0) || 0;
-
-      // Calculate net profit: revenue - expenses - paid commissions
-      const netProfit = totalRevenue - totalExpenses - totalCommissions;
+      // Calculate net profit: revenue - expenses (no more manager commissions)
+      const netProfit = totalRevenue - totalExpenses;
       
       // Calculate partner share
       const partnerShare = isSocio ? netProfit * (partnerPercentage / 100) : 0;
 
       setData({
         totalRevenue,
-        totalExpenses: totalExpenses + totalCommissions,
+        totalExpenses,
         netProfit,
-        totalCommissions,
+        totalCommissions: 0,
         partnerShare,
         partnerPercentage,
       });
