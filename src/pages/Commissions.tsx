@@ -542,20 +542,18 @@ export default function Commissions() {
                               <Check className="w-4 h-4 mr-1" />
                               {record.shopify_status === 'received' ? 'Recebido ✓' : 'Confirmar Shopify'}
                             </Button>
-                            {isAdmin && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-destructive border-destructive/50 hover:bg-destructive/10"
-                                onClick={() => {
-                                  setDeletingRecord(record);
-                                  setDeleteDialogOpen(true);
-                                }}
-                                title="Excluir lucro"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                              onClick={() => {
+                                setDeletingRecord(record);
+                                setDeleteDialogOpen(true);
+                              }}
+                              title="Excluir lucro"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </td>
                       )}
