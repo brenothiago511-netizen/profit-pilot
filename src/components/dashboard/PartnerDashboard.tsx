@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { 
   DollarSign, 
   TrendingUp, 
-  TrendingDown, 
   Percent, 
   Store, 
   Loader2,
@@ -14,7 +13,10 @@ import {
   PiggyBank,
   ArrowUpRight,
   ArrowDownRight,
-  Building2
+  Building2,
+  Clock,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -29,7 +31,8 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
+  BarChart,
+  Bar,
 } from 'recharts';
 
 interface PartnerData {
@@ -63,6 +66,7 @@ interface StorePerformance {
   profit: number;
   partnerShare: number;
   percentage: number;
+  confirmedProfit: number;
 }
 
 interface MonthlyData {
@@ -81,6 +85,9 @@ interface DailyRecord {
   store_id: string;
 }
 
+// Fixed partner share percentage
+const PARTNER_PERCENTAGE = 30;
+
 export default function PartnerDashboard() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -90,33 +97,41 @@ export default function PartnerDashboard() {
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
 
-  const totalCapital = partnerships.reduce((sum, p) => sum + (p.capital_amount || 0), 0);
+  // Calculate capital from transactions (aportes - retiradas)
+  const calculatedCapital = transactions.reduce((total, t) => {
+    if (t.type === 'aporte') return total + t.amount;
+    if (t.type === 'retirada') return total - t.amount;
+    return total;
+  }, 0);
+
   const totalDistributions = transactions
     .filter(t => t.type === 'distribuicao')
     .reduce((sum, t) => sum + t.amount, 0);
+
   const totalAportes = transactions
     .filter(t => t.type === 'aporte')
     .reduce((sum, t) => sum + t.amount, 0);
+
   const totalRetiradas = transactions
     .filter(t => t.type === 'retirada')
     .reduce((sum, t) => sum + t.amount, 0);
-  
+
   // Calculate partner's share from daily_records (30% fixed) - only when Shopify confirmed received
-  const PARTNER_PERCENTAGE = 30;
   const totalPartnerShare = dailyRecords
     .filter(r => r.shopify_status === 'received')
     .reduce((sum, r) => sum + ((r.daily_profit || 0) * (PARTNER_PERCENTAGE / 100)), 0);
 
-  // Count pending Shopify confirmations
-  const pendingShopifyCount = dailyRecords.filter(r => r.shopify_status !== 'received' && r.status === 'approved').length;
-  const pendingShopifyAmount = dailyRecords
-    .filter(r => r.shopify_status !== 'received' && r.status === 'approved')
+  // Pending confirmations
+  const pendingRecords = dailyRecords.filter(r => 
+    r.status === 'approved' && r.shopify_status !== 'received'
+  );
+  const pendingCount = pendingRecords.length;
+  const pendingAmount = pendingRecords
     .reduce((sum, r) => sum + ((r.daily_profit || 0) * (PARTNER_PERCENTAGE / 100)), 0);
-  
-  // Average percentage for display purposes
-  const avgPercentage = partnerships.length > 0 
-    ? partnerships.reduce((sum, p) => sum + (p.capital_percentage || 0), 0) / partnerships.length 
-    : 0;
+
+  // Total profit from store performance
+  const totalStoreProfit = storePerformance.reduce((sum, s) => sum + s.profit, 0);
+  const totalStorePartnerShare = totalStoreProfit * (PARTNER_PERCENTAGE / 100);
 
   useEffect(() => {
     if (user?.id) {
@@ -146,7 +161,7 @@ export default function PartnerDashboard() {
       const { data: storesData } = await supabase
         .from('stores')
         .select('id, name')
-        .in('id', storeIds);
+        .in('id', storeIds.length > 0 ? storeIds : ['no-store']);
 
       const storesMap = new Map((storesData || []).map(s => [s.id, s]));
       const partnershipsWithStores = partnerData.map(p => ({
@@ -166,7 +181,7 @@ export default function PartnerDashboard() {
 
       setTransactions(txData || []);
 
-      // Fetch daily records for partner's stores to calculate commission share
+      // Fetch daily records for partner's stores to calculate profit share
       if (storeIds.length > 0) {
         const { data: recordsData } = await supabase
           .from('daily_records')
@@ -177,10 +192,10 @@ export default function PartnerDashboard() {
         setDailyRecords(recordsData || []);
       }
 
-      // Calculate store performance (last 12 months)
+      // Calculate store performance (last 3 months)
       const today = new Date();
-      const yearStart = format(subMonths(today, 12), 'yyyy-MM-dd');
-      const yearEnd = format(today, 'yyyy-MM-dd');
+      const periodStart = format(subMonths(today, 3), 'yyyy-MM-dd');
+      const periodEnd = format(today, 'yyyy-MM-dd');
 
       const performanceData: StorePerformance[] = [];
 
@@ -192,8 +207,8 @@ export default function PartnerDashboard() {
           .from('revenues')
           .select('amount')
           .eq('store_id', partnership.store_id)
-          .gte('date', yearStart)
-          .lte('date', yearEnd);
+          .gte('date', periodStart)
+          .lte('date', periodEnd);
 
         const totalRevenue = revenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
 
@@ -202,12 +217,23 @@ export default function PartnerDashboard() {
           .from('expenses')
           .select('amount')
           .eq('store_id', partnership.store_id)
-          .gte('date', yearStart)
-          .lte('date', yearEnd);
+          .gte('date', periodStart)
+          .lte('date', periodEnd);
 
         const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
         const profit = totalRevenue - totalExpenses;
-        const partnerShare = profit * ((partnership.capital_percentage || 0) / 100);
+
+        // Fetch confirmed daily profits for this store
+        const { data: storeRecords } = await supabase
+          .from('daily_records')
+          .select('daily_profit')
+          .eq('store_id', partnership.store_id)
+          .eq('shopify_status', 'received')
+          .gte('date', periodStart)
+          .lte('date', periodEnd);
+
+        const confirmedProfit = storeRecords?.reduce((sum, r) => sum + Number(r.daily_profit), 0) || 0;
+        const partnerShare = confirmedProfit * (PARTNER_PERCENTAGE / 100);
 
         performanceData.push({
           storeId: partnership.store_id,
@@ -216,7 +242,8 @@ export default function PartnerDashboard() {
           expenses: totalExpenses,
           profit,
           partnerShare,
-          percentage: partnership.capital_percentage || 0,
+          percentage: PARTNER_PERCENTAGE,
+          confirmedProfit,
         });
       }
 
@@ -233,8 +260,7 @@ export default function PartnerDashboard() {
         const monthLabel = format(monthDate, 'MMM', { locale: ptBR });
 
         const monthTransactions = (txData || []).filter(t => {
-          const txDate = t.date;
-          return txDate >= monthStart && txDate <= monthEnd;
+          return t.date >= monthStart && t.date <= monthEnd;
         });
 
         const aportes = monthTransactions
@@ -251,18 +277,9 @@ export default function PartnerDashboard() {
           month: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
           aportes,
           distribuicoes,
-          capital: Math.max(0, runningCapital + totalCapital - (totalAportes - totalRetiradas - totalDistributions)),
+          capital: Math.max(0, runningCapital),
         });
       }
-
-      // Adjust to show actual capital evolution
-      const currentCapital = totalCapital;
-      const lastMonthCapital = monthlyCapital[monthlyCapital.length - 1]?.capital || 0;
-      const adjustment = currentCapital - lastMonthCapital;
-      
-      monthlyCapital.forEach((m, i) => {
-        m.capital = Math.max(0, m.capital + adjustment);
-      });
 
       setMonthlyData(monthlyCapital);
 
@@ -288,13 +305,25 @@ export default function PartnerDashboard() {
 
   const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--info))'];
 
-  const pieData = partnerships.map((p, i) => ({
-    name: p.store?.name || 'Loja',
-    value: p.capital_amount || 0,
-    percentage: p.capital_percentage || 0,
+  const pieData = partnerships
+    .filter(p => p.store)
+    .map((p, i) => ({
+      name: p.store?.name || 'Loja',
+      value: transactions
+        .filter(t => t.partner_id === p.id && t.type === 'aporte')
+        .reduce((sum, t) => sum + t.amount, 0) - 
+        transactions
+        .filter(t => t.partner_id === p.id && t.type === 'retirada')
+        .reduce((sum, t) => sum + t.amount, 0),
+    }));
+
+  const aportesDistribuicoesData = monthlyData.map(m => ({
+    month: m.month,
+    Aportes: m.aportes,
+    'Distribuições/Retiradas': m.distribuicoes,
   }));
 
-  const recentTransactions = transactions.slice(0, 5);
+  const recentTransactions = transactions.slice(0, 8);
 
   if (loading) {
     return (
@@ -322,62 +351,75 @@ export default function PartnerDashboard() {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="metric-card-primary">
+        {/* Capital Investido */}
+        <Card className="border-l-4 border-l-primary">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Capital Total
+              Capital Investido (USD)
             </CardTitle>
             <Wallet className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrencyUSD(totalCapital)}</div>
+            <div className="text-2xl font-bold">{formatCurrencyUSD(calculatedCapital)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              em {partnerships.length} {partnerships.length === 1 ? 'loja' : 'lojas'}
+              Aportes ({formatCurrencyUSD(totalAportes)}) - Retiradas ({formatCurrencyUSD(totalRetiradas)})
             </p>
           </CardContent>
         </Card>
 
-        <Card className="metric-card-success">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Distribuições Recebidas
-            </CardTitle>
-            <PiggyBank className="h-5 w-5 text-success" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrencyUSD(totalDistributions)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              total histórico
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="metric-card-info">
+        {/* Sua Parte do Lucro */}
+        <Card className="border-l-4 border-l-success">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Sua Parte do Lucro (30%)
             </CardTitle>
-            <Percent className="h-5 w-5 text-info" />
+            <Percent className="h-5 w-5 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrencyBRL(totalPartnerShare)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              recebido da Shopify
-            </p>
-            {pendingShopifyCount > 0 && (
-              <div className="mt-2 flex items-center gap-2 text-xs">
-                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
-                  {pendingShopifyCount} pendente{pendingShopifyCount > 1 ? 's' : ''}
+            <div className="text-2xl font-bold text-success">
+              {formatCurrencyUSD(totalPartnerShare)}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <CheckCircle className="w-3 h-3 text-success" />
+              <span className="text-xs text-muted-foreground">Confirmado pela Shopify</span>
+            </div>
+            {pendingCount > 0 && (
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30 text-xs">
+                  <Clock className="w-3 h-3 mr-1" />
+                  {pendingCount} pendente{pendingCount > 1 ? 's' : ''}: {formatCurrencyUSD(pendingAmount)}
                 </Badge>
-                <span className="text-muted-foreground">
-                  ({formatCurrencyBRL(pendingShopifyAmount)})
+              </div>
+            )}
+            {totalPartnerShare === 0 && pendingCount === 0 && (
+              <div className="flex items-center gap-2 mt-2">
+                <AlertCircle className="w-3 h-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">
+                  Aguardando registros confirmados
                 </span>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="metric-card-warning">
+        {/* Distribuições Recebidas */}
+        <Card className="border-l-4 border-l-info">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Distribuições Recebidas
+            </CardTitle>
+            <PiggyBank className="h-5 w-5 text-info" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrencyUSD(totalDistributions)}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Total histórico distribuído
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Total de Aportes */}
+        <Card className="border-l-4 border-l-warning">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total de Aportes
@@ -387,7 +429,7 @@ export default function PartnerDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrencyUSD(totalAportes)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              total investido
+              em {partnerships.filter(p => p.store).length} {partnerships.filter(p => p.store).length === 1 ? 'loja' : 'lojas'}
             </p>
           </CardContent>
         </Card>
@@ -415,7 +457,7 @@ export default function PartnerDashboard() {
                   <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
                   <YAxis 
                     tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                    tickFormatter={(value) => value >= 1000 ? `$${(value / 1000).toFixed(0)}k` : `$${value}`}
                   />
                   <Tooltip
                     contentStyle={{
@@ -423,7 +465,7 @@ export default function PartnerDashboard() {
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
                     }}
-                    formatter={(value: number) => [formatCurrencyUSD(value), '']}
+                    formatter={(value: number) => [formatCurrencyUSD(value), 'Capital']}
                   />
                   <Area
                     type="monotone"
@@ -440,11 +482,45 @@ export default function PartnerDashboard() {
           </CardContent>
         </Card>
 
-        {/* Distribution by Store */}
+        {/* Aportes vs Distribuições */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Aportes vs Distribuições</CardTitle>
+            <CardDescription>Movimentações por mês</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={aportesDistribuicoesData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                  <YAxis 
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    tickFormatter={(value) => value >= 1000 ? `$${(value / 1000).toFixed(0)}k` : `$${value}`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                    formatter={(value: number) => [formatCurrencyUSD(value), '']}
+                  />
+                  <Bar dataKey="Aportes" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Distribuições/Retiradas" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Distribution by Store (only if multiple stores) */}
+      {pieData.length > 1 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Distribuição por Loja</CardTitle>
-            <CardDescription>Capital investido</CardDescription>
+            <CardDescription>Capital investido por loja</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
@@ -458,7 +534,7 @@ export default function PartnerDashboard() {
                     outerRadius={100}
                     paddingAngle={5}
                     dataKey="value"
-                    label={({ name, percentage }) => `${name} (${percentage}%)`}
+                    label={({ name, value }) => `${name}: ${formatCurrencyUSD(value)}`}
                   >
                     {pieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -477,7 +553,7 @@ export default function PartnerDashboard() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      )}
 
       {/* Store Performance */}
       <Card>
@@ -486,51 +562,62 @@ export default function PartnerDashboard() {
             <Store className="w-5 h-5" />
             Desempenho das Lojas
           </CardTitle>
-          <CardDescription>Últimos 12 meses</CardDescription>
+          <CardDescription>Últimos 3 meses</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {storePerformance.map((store) => (
-              <div key={store.storeId} className="p-4 rounded-lg border bg-card">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Building2 className="w-5 h-5 text-primary" />
+          {storePerformance.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              Nenhuma loja vinculada encontrada
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {storePerformance.map((store) => (
+                <div key={store.storeId} className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Building2 className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold">{store.storeName}</h4>
+                        <Badge variant="outline">
+                          <Percent className="w-3 h-3 mr-1" />
+                          {store.percentage}% participação
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">Sua parte do lucro</p>
+                      <p className={`text-lg font-bold ${store.partnerShare >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        {formatCurrencyUSD(store.partnerShare)}
+                      </p>
+                      {store.confirmedProfit === 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          (Aguardando confirmação Shopify)
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 pt-3 border-t">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Receita</p>
+                      <p className="font-medium text-success">{formatCurrencyUSD(store.revenue)}</p>
                     </div>
                     <div>
-                      <h4 className="font-semibold">{store.storeName}</h4>
-                      <Badge variant="outline">
-                        <Percent className="w-3 h-3 mr-1" />
-                        {store.percentage}% participação
-                      </Badge>
+                      <p className="text-xs text-muted-foreground">Despesas</p>
+                      <p className="font-medium text-destructive">{formatCurrencyUSD(store.expenses)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Lucro Total</p>
+                      <p className={`font-medium ${store.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        {formatCurrencyUSD(store.profit)}
+                      </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Sua parte do lucro</p>
-                    <p className={`text-lg font-bold ${store.partnerShare >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrencyBRL(store.partnerShare)}
-                    </p>
-                  </div>
                 </div>
-                <div className="grid grid-cols-3 gap-4 pt-3 border-t">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Receita</p>
-                    <p className="font-medium text-success">{formatCurrencyBRL(store.revenue)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Despesas</p>
-                    <p className="font-medium text-destructive">{formatCurrencyBRL(store.expenses)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Lucro Total</p>
-                    <p className={`font-medium ${store.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrencyBRL(store.profit)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -544,9 +631,15 @@ export default function PartnerDashboard() {
         </CardHeader>
         <CardContent>
           {recentTransactions.length === 0 ? (
-            <p className="text-center text-muted-foreground py-4">
-              Nenhuma movimentação registrada
-            </p>
+            <div className="text-center py-8">
+              <DollarSign className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+              <p className="text-muted-foreground">
+                Nenhuma movimentação registrada ainda
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Aportes, retiradas e distribuições aparecerão aqui
+              </p>
+            </div>
           ) : (
             <div className="space-y-3">
               {recentTransactions.map((tx) => {
@@ -554,7 +647,7 @@ export default function PartnerDashboard() {
                 const isPositive = tx.type === 'aporte';
                 
                 return (
-                  <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                         isPositive ? 'bg-success/10' : 'bg-destructive/10'
@@ -570,14 +663,14 @@ export default function PartnerDashboard() {
                           {tx.type === 'aporte' ? 'Aporte' : tx.type === 'retirada' ? 'Retirada' : 'Distribuição'}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {partnership?.store?.name} • {format(new Date(tx.date), "dd 'de' MMM", { locale: ptBR })}
+                          {partnership?.store?.name || 'N/A'} • {format(new Date(tx.date), "dd 'de' MMM, yyyy", { locale: ptBR })}
                         </p>
                         {tx.description && (
-                          <p className="text-xs text-muted-foreground mt-1">{tx.description}</p>
+                          <p className="text-xs text-muted-foreground mt-1 italic">{tx.description}</p>
                         )}
                       </div>
                     </div>
-                    <span className={`font-bold ${isPositive ? 'text-success' : 'text-destructive'}`}>
+                    <span className={`font-bold text-lg ${isPositive ? 'text-success' : 'text-destructive'}`}>
                       {isPositive ? '+' : '-'}{formatCurrencyUSD(tx.amount)}
                     </span>
                   </div>
