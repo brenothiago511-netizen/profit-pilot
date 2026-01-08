@@ -788,11 +788,9 @@ export default function Commissions() {
                     <thead>
                       <tr>
                         <th>Data</th>
-                        <th>Gestor</th>
+                        <th>Sócio</th>
                         <th>Loja</th>
                         <th className="text-right">Lucro</th>
-                        <th className="text-right">Comissão</th>
-                        <th>Pago Gestor</th>
                         <th>Shopify Pagou</th>
                         {canApprove && <th>Ações</th>}
                       </tr>
@@ -804,22 +802,6 @@ export default function Commissions() {
                           <td>{record.manager_name}</td>
                           <td>{record.store_name}</td>
                           <td className="text-right font-medium">{formatCurrency(record.daily_profit)}</td>
-                          <td className="text-right font-medium text-primary">{formatCurrency(record.commission_amount)}</td>
-                          <td>
-                            {record.status === 'paid' ? (
-                              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                                <Check className="w-3 h-3 mr-1" />Pago
-                              </Badge>
-                            ) : record.status === 'approved' ? (
-                              <Badge variant="secondary">
-                                <Clock className="w-3 h-3 mr-1" />Aprovado
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline">
-                                <Clock className="w-3 h-3 mr-1" />Pendente
-                              </Badge>
-                            )}
-                          </td>
                           <td>
                             {record.shopify_status === 'received' ? (
                               <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
@@ -833,7 +815,7 @@ export default function Commissions() {
                           </td>
                           {canApprove && (
                             <td>
-                              <div className="flex items-center gap-1 flex-wrap">
+                              <div className="flex items-center gap-2">
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -842,18 +824,20 @@ export default function Commissions() {
                                 >
                                   <Pencil className="w-4 h-4" />
                                 </Button>
-                                {record.status === 'pending' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-success hover:text-success"
-                                    onClick={() => approveRecord(record.id, true)}
-                                    title="Aprovar lucro"
-                                  >
-                                    <Check className="w-4 h-4" />
-                                  </Button>
-                                )}
-                                {record.status !== 'pending' && isAdmin && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={record.shopify_status === 'received'
+                                    ? "text-emerald-500 border-emerald-500/50 hover:bg-emerald-500/10"
+                                    : "text-amber-500 border-amber-500/50 hover:bg-amber-500/10"
+                                  }
+                                  onClick={() => toggleShopifyPaid(record.id, record.shopify_status)}
+                                  title={record.shopify_status === 'received' ? "Desmarcar recebimento Shopify" : "Confirmar recebimento Shopify"}
+                                >
+                                  <Check className="w-4 h-4 mr-1" />
+                                  {record.shopify_status === 'received' ? 'Recebido ✓' : 'Shopify Pagou'}
+                                </Button>
+                                {isAdmin && (
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -866,21 +850,6 @@ export default function Commissions() {
                                   >
                                     <Trash2 className="w-4 h-4 mr-1" />
                                     Excluir
-                                  </Button>
-                                )}
-                                {record.status !== 'pending' && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className={record.shopify_status === 'received'
-                                      ? "text-emerald-500 border-emerald-500/50 hover:bg-emerald-500/10"
-                                      : "text-amber-500 border-amber-500/50 hover:bg-amber-500/10"
-                                    }
-                                    onClick={() => toggleShopifyPaid(record.id, record.shopify_status)}
-                                    title={record.shopify_status === 'received' ? "Desmarcar recebimento Shopify" : "Confirmar recebimento Shopify"}
-                                  >
-                                    <Check className="w-4 h-4 mr-1" />
-                                    {record.shopify_status === 'received' ? 'Recebido ✓' : 'Shopify Pagou'}
                                   </Button>
                                 )}
                               </div>
