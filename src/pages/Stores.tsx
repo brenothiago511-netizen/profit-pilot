@@ -189,16 +189,44 @@ export default function Stores() {
         fetchData();
       }
     } else {
-      const { error } = await supabase.from('stores').insert({
+      const { data: storeData, error } = await supabase.from('stores').insert({
         name: formData.name,
         country: formData.country,
         currency: formData.currency,
-      });
+      }).select('id').single();
 
       setSaving(false);
       if (error) {
         toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
       } else {
+        // If user is a sócio, link the store to their partner record
+        if (isSocio && user?.id && storeData?.id) {
+          // Check if user has a partner record without a store
+          const { data: partnerRecord } = await supabase
+            .from('partners')
+            .select('id, store_id')
+            .eq('user_id', user.id)
+            .eq('status', 'active')
+            .is('store_id', null)
+            .single();
+          
+          if (partnerRecord) {
+            // Update existing partner record with the new store
+            await supabase
+              .from('partners')
+              .update({ store_id: storeData.id })
+              .eq('id', partnerRecord.id);
+          } else {
+            // Create a new partner record linked to this store
+            await supabase.from('partners').insert({
+              user_id: user.id,
+              store_id: storeData.id,
+              capital_percentage: 100,
+              capital_amount: 0,
+              status: 'active',
+            });
+          }
+        }
         toast({ title: 'Sucesso', description: 'Loja cadastrada' });
         closeDialog();
         fetchData();
