@@ -352,7 +352,18 @@ export default function PartnerDashboardPage() {
 
         const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
         const profit = totalRevenue - totalExpenses;
-        const partnerShare = profit * ((partnership.capital_percentage || 0) / 100);
+
+        // Fetch confirmed daily profits (shopify_status = 'received') for partner share
+        const { data: dailyRecords } = await supabase
+          .from('daily_records')
+          .select('daily_profit')
+          .eq('store_id', partnership.store_id)
+          .eq('shopify_status', 'received')
+          .gte('date', periodStart)
+          .lte('date', periodEnd);
+
+        const confirmedProfit = dailyRecords?.reduce((sum, r) => sum + Number(r.daily_profit), 0) || 0;
+        const partnerShare = confirmedProfit * ((partnership.capital_percentage || 0) / 100);
 
         // Get goal for this store
         const storeGoals = goalsData?.filter(g => g.store_id === partnership.store_id) || [];
