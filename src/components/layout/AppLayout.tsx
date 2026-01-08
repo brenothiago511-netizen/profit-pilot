@@ -57,7 +57,7 @@ const navigationSections = [
     items: [
       { name: 'Lojas', href: '/stores', icon: Store, permissions: ['manage_stores'] },
       { name: 'Usuários', href: '/users', icon: UserCog, permissions: ['manage_users'] },
-      { name: 'Sócios', href: '/partners', icon: Handshake, permissions: ['manage_partners'] },
+      { name: 'Sócios', href: '/partners', icon: Handshake, permissions: ['manage_partners'], adminOnly: true },
     ],
   },
   {
@@ -83,7 +83,7 @@ const navigationSections = [
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, isAdmin } = useAuth();
   const { hasPermission } = usePermissions();
   const navigate = useNavigate();
 
@@ -101,12 +101,16 @@ export default function AppLayout() {
     return navigationSections
       .map((section) => ({
         ...section,
-        items: section.items.filter((item) =>
-          item.permissions.some((perm) => hasPermission(perm))
-        ),
+        items: section.items.filter((item) => {
+          // Check if item is admin-only
+          if ((item as any).adminOnly && !isAdmin) {
+            return false;
+          }
+          return item.permissions.some((perm) => hasPermission(perm));
+        }),
       }))
       .filter((section) => section.items.length > 0);
-  }, [hasPermission]);
+  }, [hasPermission, isAdmin]);
   const getInitials = (name: string) => {
     return name
       .split(' ')
