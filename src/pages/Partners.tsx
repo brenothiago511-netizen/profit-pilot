@@ -781,11 +781,11 @@ export default function Partners() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Valor (R$) *</Label>
+                  <Label>Valor (US$) *</Label>
                   <Input
                     type="number"
                     step="0.01"
-                    placeholder="0,00"
+                    placeholder="0.00"
                     value={transactionForm.amount}
                     onChange={(e) => setTransactionForm({ ...transactionForm, amount: e.target.value })}
                   />
