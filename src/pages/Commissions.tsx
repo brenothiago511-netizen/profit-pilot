@@ -529,19 +529,28 @@ export default function Commissions() {
                             >
                               <Pencil className="w-4 h-4" />
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className={record.shopify_status === 'received'
-                                ? "text-emerald-500 border-emerald-500/50 hover:bg-emerald-500/10"
-                                : "text-amber-500 border-amber-500/50 hover:bg-amber-500/10"
-                              }
-                              onClick={() => toggleShopifyPaid(record.id, record.shopify_status)}
-                              title={record.shopify_status === 'received' ? "Desmarcar recebimento Shopify" : "Confirmar recebimento Shopify"}
-                            >
-                              <Check className="w-4 h-4 mr-1" />
-                              {record.shopify_status === 'received' ? 'Recebido ✓' : 'Confirmar Shopify'}
-                            </Button>
+                            {record.shopify_status === 'received' ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-muted-foreground hover:text-amber-500"
+                                onClick={() => toggleShopifyPaid(record.id, record.shopify_status)}
+                                title="Desmarcar recebimento Shopify"
+                              >
+                                Desmarcar
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                onClick={() => toggleShopifyPaid(record.id, record.shopify_status)}
+                                title="Confirmar que o valor foi recebido na Shopify"
+                              >
+                                <Check className="w-4 h-4 mr-1" />
+                                Confirmar Recebido
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
