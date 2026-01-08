@@ -380,13 +380,47 @@ export default function Stores() {
     }
 
     setSaving(true);
-    const { error } = await supabase.from('partners').insert({
-      user_id: partnerFormData.user_id,
-      store_id: selectedStore.id,
-      capital_percentage: parseFloat(partnerFormData.capital_percentage) || 0,
-      capital_amount: 0,
-      status: 'active',
-    });
+    
+    // Check if user already has a partner record (possibly without store)
+    const { data: existingPartner } = await supabase
+      .from('partners')
+      .select('id, store_id')
+      .eq('user_id', partnerFormData.user_id)
+      .eq('status', 'active')
+      .maybeSingle();
+    
+    let error;
+    
+    if (existingPartner && !existingPartner.store_id) {
+      // Update existing record that has no store
+      const result = await supabase
+        .from('partners')
+        .update({
+          store_id: selectedStore.id,
+          capital_percentage: parseFloat(partnerFormData.capital_percentage) || 0,
+        })
+        .eq('id', existingPartner.id);
+      error = result.error;
+    } else if (existingPartner && existingPartner.store_id === selectedStore.id) {
+      // Already linked to this store - update percentage
+      const result = await supabase
+        .from('partners')
+        .update({
+          capital_percentage: parseFloat(partnerFormData.capital_percentage) || 0,
+        })
+        .eq('id', existingPartner.id);
+      error = result.error;
+    } else {
+      // Create new partner record
+      const result = await supabase.from('partners').insert({
+        user_id: partnerFormData.user_id,
+        store_id: selectedStore.id,
+        capital_percentage: parseFloat(partnerFormData.capital_percentage) || 0,
+        capital_amount: 0,
+        status: 'active',
+      });
+      error = result.error;
+    }
 
     setSaving(false);
     if (error) {
