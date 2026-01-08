@@ -43,8 +43,7 @@ const ROLE_DEFAULTS: Record<string, string[]> = {
     'manage_goals',
     'manage_bank_accounts',
   ],
-  gestor: ['view_dashboard', 'view_commissions'],
-  socio: ['view_dashboard_socios', 'view_partner_results', 'view_reports'],
+  socio: ['view_dashboard_socios', 'view_partner_results', 'view_reports', 'view_commissions', 'register_profits'],
 };
 
 export function PermissionsDialog({
