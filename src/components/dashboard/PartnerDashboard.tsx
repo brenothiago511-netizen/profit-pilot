@@ -72,6 +72,15 @@ interface MonthlyData {
   capital: number;
 }
 
+interface DailyRecord {
+  id: string;
+  daily_profit: number;
+  commission_amount: number;
+  status: string;
+  date: string;
+  store_id: string;
+}
+
 export default function PartnerDashboard() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -79,6 +88,7 @@ export default function PartnerDashboard() {
   const [transactions, setTransactions] = useState<PartnerTransaction[]>([]);
   const [storePerformance, setStorePerformance] = useState<StorePerformance[]>([]);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
+  const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
 
   const totalCapital = partnerships.reduce((sum, p) => sum + (p.capital_amount || 0), 0);
   const totalDistributions = transactions
@@ -90,7 +100,11 @@ export default function PartnerDashboard() {
   const totalRetiradas = transactions
     .filter(t => t.type === 'retirada')
     .reduce((sum, t) => sum + t.amount, 0);
-  const totalPartnerShare = storePerformance.reduce((sum, s) => sum + s.partnerShare, 0);
+  
+  // Calculate partner's share from daily_records commissions (30% of profit)
+  const totalPartnerShare = dailyRecords
+    .filter(r => r.status === 'approved' || r.status === 'paid')
+    .reduce((sum, r) => sum + (r.commission_amount || 0), 0);
 
   useEffect(() => {
     if (user?.id) {
@@ -116,7 +130,7 @@ export default function PartnerDashboard() {
       }
 
       // Fetch store names
-      const storeIds = partnerData.map(p => p.store_id);
+      const storeIds = partnerData.map(p => p.store_id).filter(Boolean);
       const { data: storesData } = await supabase
         .from('stores')
         .select('id, name')
@@ -140,6 +154,17 @@ export default function PartnerDashboard() {
 
       setTransactions(txData || []);
 
+      // Fetch daily records for partner's stores to calculate commission share
+      if (storeIds.length > 0) {
+        const { data: recordsData } = await supabase
+          .from('daily_records')
+          .select('id, daily_profit, commission_amount, status, date, store_id')
+          .in('store_id', storeIds)
+          .order('date', { ascending: false });
+
+        setDailyRecords(recordsData || []);
+      }
+
       // Calculate store performance (last 12 months)
       const today = new Date();
       const yearStart = format(subMonths(today, 12), 'yyyy-MM-dd');
@@ -148,6 +173,8 @@ export default function PartnerDashboard() {
       const performanceData: StorePerformance[] = [];
 
       for (const partnership of partnershipsWithStores) {
+        if (!partnership.store_id) continue;
+        
         // Fetch revenues
         const { data: revenues } = await supabase
           .from('revenues')
@@ -233,7 +260,14 @@ export default function PartnerDashboard() {
     setLoading(false);
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrencyUSD = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(value);
+  };
+
+  const formatCurrencyBRL = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
@@ -284,7 +318,7 @@ export default function PartnerDashboard() {
             <Wallet className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalCapital)}</div>
+            <div className="text-2xl font-bold">{formatCurrencyUSD(totalCapital)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               em {partnerships.length} {partnerships.length === 1 ? 'loja' : 'lojas'}
             </p>
@@ -299,7 +333,7 @@ export default function PartnerDashboard() {
             <PiggyBank className="h-5 w-5 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalDistributions)}</div>
+            <div className="text-2xl font-bold">{formatCurrencyUSD(totalDistributions)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               total histórico
             </p>
@@ -309,14 +343,14 @@ export default function PartnerDashboard() {
         <Card className="metric-card-info">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Sua Parte do Lucro
+              Sua Parte do Lucro (30%)
             </CardTitle>
             <Percent className="h-5 w-5 text-info" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalPartnerShare)}</div>
+            <div className="text-2xl font-bold">{formatCurrencyBRL(totalPartnerShare)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              últimos 12 meses
+              comissões aprovadas
             </p>
           </CardContent>
         </Card>
@@ -329,7 +363,7 @@ export default function PartnerDashboard() {
             <TrendingUp className="h-5 w-5 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalAportes)}</div>
+            <div className="text-2xl font-bold">{formatCurrencyUSD(totalAportes)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               total investido
             </p>
@@ -367,7 +401,7 @@ export default function PartnerDashboard() {
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
                     }}
-                    formatter={(value: number) => [formatCurrency(value), '']}
+                    formatter={(value: number) => [formatCurrencyUSD(value), '']}
                   />
                   <Area
                     type="monotone"
@@ -414,7 +448,7 @@ export default function PartnerDashboard() {
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
                     }}
-                    formatter={(value: number) => [formatCurrency(value), 'Capital']}
+                    formatter={(value: number) => [formatCurrencyUSD(value), 'Capital']}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -452,23 +486,23 @@ export default function PartnerDashboard() {
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Sua parte do lucro</p>
                     <p className={`text-lg font-bold ${store.partnerShare >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrency(store.partnerShare)}
+                      {formatCurrencyBRL(store.partnerShare)}
                     </p>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4 pt-3 border-t">
                   <div>
                     <p className="text-xs text-muted-foreground">Receita</p>
-                    <p className="font-medium text-success">{formatCurrency(store.revenue)}</p>
+                    <p className="font-medium text-success">{formatCurrencyBRL(store.revenue)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Despesas</p>
-                    <p className="font-medium text-destructive">{formatCurrency(store.expenses)}</p>
+                    <p className="font-medium text-destructive">{formatCurrencyBRL(store.expenses)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Lucro Total</p>
                     <p className={`font-medium ${store.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrency(store.profit)}
+                      {formatCurrencyBRL(store.profit)}
                     </p>
                   </div>
                 </div>
@@ -522,7 +556,7 @@ export default function PartnerDashboard() {
                       </div>
                     </div>
                     <span className={`font-bold ${isPositive ? 'text-success' : 'text-destructive'}`}>
-                      {isPositive ? '+' : '-'}{formatCurrency(tx.amount)}
+                      {isPositive ? '+' : '-'}{formatCurrencyUSD(tx.amount)}
                     </span>
                   </div>
                 );
