@@ -127,7 +127,7 @@ export default function Expenses() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.store_id || !formData.amount || !formData.description) {
+    if (!formData.amount || !formData.description) {
       toast({
         title: 'Erro',
         description: 'Preencha todos os campos obrigatórios',
@@ -138,7 +138,7 @@ export default function Expenses() {
 
     setSaving(true);
     const { error } = await supabase.from('expenses').insert({
-      store_id: formData.store_id,
+      store_id: formData.store_id || null,
       user_id: user?.id,
       date: formData.date,
       amount: parseFloat(formData.amount),
@@ -170,7 +170,7 @@ export default function Expenses() {
 
   const handleAiSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!aiFormData.store_id || !aiFormData.amount || !aiFormData.description) {
+    if (!aiFormData.amount || !aiFormData.description) {
       toast({
         title: 'Erro',
         description: 'Preencha todos os campos obrigatórios',
@@ -181,7 +181,7 @@ export default function Expenses() {
 
     setSaving(true);
     const { error } = await supabase.from('expenses').insert({
-      store_id: aiFormData.store_id,
+      store_id: aiFormData.store_id || null,
       user_id: user?.id,
       date: aiFormData.date,
       amount: parseFloat(aiFormData.amount),
@@ -395,15 +395,16 @@ export default function Expenses() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Loja *</Label>
+                  <Label>Loja (opcional)</Label>
                   <Select
                     value={aiFormData.store_id}
                     onValueChange={(v) => setAiFormData({ ...aiFormData, store_id: v })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione a loja" />
+                      <SelectValue placeholder="Despesa geral (sem loja)" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="">Despesa geral (sem loja)</SelectItem>
                       {stores.map((store) => (
                         <SelectItem key={store.id} value={store.id}>
                           {store.name}
@@ -514,15 +515,16 @@ export default function Expenses() {
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Loja *</Label>
+                  <Label>Loja (opcional)</Label>
                   <Select
                     value={formData.store_id}
                     onValueChange={(v) => setFormData({ ...formData, store_id: v })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione a loja" />
+                      <SelectValue placeholder="Despesa geral (sem loja)" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="">Despesa geral (sem loja)</SelectItem>
                       {stores.map((store) => (
                         <SelectItem key={store.id} value={store.id}>
                           {store.name}

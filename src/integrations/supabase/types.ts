@@ -328,7 +328,7 @@ export type Database = {
           original_amount: number | null
           original_currency: string | null
           payment_method: string | null
-          store_id: string
+          store_id: string | null
           type: string
           updated_at: string
           user_id: string
@@ -347,7 +347,7 @@ export type Database = {
           original_amount?: number | null
           original_currency?: string | null
           payment_method?: string | null
-          store_id: string
+          store_id?: string | null
           type?: string
           updated_at?: string
           user_id: string
@@ -366,7 +366,7 @@ export type Database = {
           original_amount?: number | null
           original_currency?: string | null
           payment_method?: string | null
-          store_id?: string
+          store_id?: string | null
           type?: string
           updated_at?: string
           user_id?: string
