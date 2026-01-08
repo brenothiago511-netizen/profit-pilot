@@ -853,19 +853,19 @@ export default function Commissions() {
                                     <Check className="w-4 h-4" />
                                   </Button>
                                 )}
-                                {record.status !== 'pending' && (
+                                {record.status !== 'pending' && isAdmin && (
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className={record.status === 'paid' 
-                                      ? "text-emerald-500 border-emerald-500/50 hover:bg-emerald-500/10" 
-                                      : "text-primary border-primary/50 hover:bg-primary/10"
-                                    }
-                                    onClick={() => toggleManagerPaid(record.id, record.status)}
-                                    title={record.status === 'paid' ? "Desmarcar pagamento ao gestor" : "Confirmar pagamento ao gestor"}
+                                    className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                                    onClick={() => {
+                                      setDeletingRecord(record);
+                                      setDeleteDialogOpen(true);
+                                    }}
+                                    title="Excluir lucro"
                                   >
-                                    <DollarSign className="w-4 h-4 mr-1" />
-                                    {record.status === 'paid' ? 'Pago ✓' : 'Pagar Gestor'}
+                                    <Trash2 className="w-4 h-4 mr-1" />
+                                    Excluir
                                   </Button>
                                 )}
                                 {record.status !== 'pending' && (
@@ -881,20 +881,6 @@ export default function Commissions() {
                                   >
                                     <Check className="w-4 h-4 mr-1" />
                                     {record.shopify_status === 'received' ? 'Recebido ✓' : 'Shopify Pagou'}
-                                  </Button>
-                                )}
-                                {isAdmin && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-destructive hover:text-destructive"
-                                    onClick={() => {
-                                      setDeletingRecord(record);
-                                      setDeleteDialogOpen(true);
-                                    }}
-                                    title="Excluir"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
                                   </Button>
                                 )}
                               </div>
