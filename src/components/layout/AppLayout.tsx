@@ -61,9 +61,9 @@ const navigationSections = [
     ],
   },
   {
-    title: 'Comissões',
+    title: 'Lucros',
     items: [
-      { name: 'Comissões e Lucros', href: '/commissions', icon: Percent, permissions: ['view_commissions', 'manage_commissions', 'register_profits'] },
+      { name: 'Lucros', href: '/commissions', icon: DollarSign, permissions: ['view_profits', 'register_profits'] },
     ],
   },
   {

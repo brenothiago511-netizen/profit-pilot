@@ -12,7 +12,6 @@ import Revenues from "./pages/Revenues";
 import Expenses from "./pages/Expenses";
 import Stores from "./pages/Stores";
 import Commissions from "./pages/Commissions";
-import Profits from "./pages/Profits";
 import Reports from "./pages/Reports";
 import Users from "./pages/Users";
 import Partners from "./pages/Partners";
@@ -84,14 +83,6 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={['admin', 'socio']}>
                     <Partners />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/profits"
-                element={
-                  <ProtectedRoute allowedRoles={['admin', 'financeiro', 'socio']}>
-                    <Profits />
                   </ProtectedRoute>
                 }
               />
