@@ -68,6 +68,7 @@ export default function Partners() {
   const [loading, setLoading] = useState(true);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [transactions, setTransactions] = useState<PartnerTransaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<PartnerTransaction[]>([]);
   const [stores, setStores] = useState<StoreData[]>([]);
   const [users, setUsers] = useState<UserData[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -75,8 +76,6 @@ export default function Partners() {
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingCapitalId, setEditingCapitalId] = useState<string | null>(null);
-  const [editingCapitalValue, setEditingCapitalValue] = useState<string>('');
   const [editingPercentageId, setEditingPercentageId] = useState<string | null>(null);
   const [editingPercentageValue, setEditingPercentageValue] = useState<string>('');
 
@@ -107,8 +106,20 @@ export default function Partners() {
 
   const fetchData = async () => {
     setLoading(true);
-    await Promise.all([fetchPartners(), fetchStores(), fetchUsers()]);
+    await Promise.all([fetchPartners(), fetchStores(), fetchUsers(), fetchAllTransactions()]);
     setLoading(false);
+  };
+
+  // Calculate capital for a partner based on transactions (aportes - retiradas)
+  const getCalculatedCapital = (partnerId: string): number => {
+    const partnerTxs = allTransactions.filter(tx => tx.partner_id === partnerId);
+    const aportes = partnerTxs
+      .filter(tx => tx.type === 'aporte')
+      .reduce((sum, tx) => sum + Number(tx.amount), 0);
+    const retiradas = partnerTxs
+      .filter(tx => tx.type === 'retirada')
+      .reduce((sum, tx) => sum + Number(tx.amount), 0);
+    return aportes - retiradas;
   };
 
   const fetchPartners = async () => {
@@ -159,6 +170,20 @@ export default function Partners() {
       .eq('status', 'active')
       .order('name');
     setUsers(data || []);
+  };
+
+  const fetchAllTransactions = async () => {
+    const { data, error } = await supabase
+      .from('partner_transactions')
+      .select('*')
+      .order('date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching all transactions:', error);
+      return;
+    }
+
+    setAllTransactions(data || []);
   };
 
   const fetchTransactions = async (partnerId: string) => {
@@ -263,21 +288,6 @@ export default function Partners() {
       return;
     }
 
-    // Update capital amount based on transaction type
-    let newCapital = selectedPartner.capital_amount;
-    const amount = parseFloat(transactionForm.amount);
-    
-    if (transactionForm.type === 'aporte') {
-      newCapital += amount;
-    } else if (transactionForm.type === 'retirada' || transactionForm.type === 'distribuicao') {
-      newCapital -= amount;
-    }
-
-    await supabase
-      .from('partners')
-      .update({ capital_amount: newCapital })
-      .eq('id', selectedPartner.id);
-
     setSaving(false);
     toast({
       title: 'Sucesso',
@@ -285,7 +295,9 @@ export default function Partners() {
     });
     setTransactionDialogOpen(false);
     setTransactionForm({ type: 'aporte', amount: '', description: '', date: format(new Date(), 'yyyy-MM-dd') });
-    fetchPartners();
+    
+    // Refresh all transactions to update calculated capital
+    await fetchAllTransactions();
     fetchTransactions(selectedPartner.id);
   };
 
@@ -346,41 +358,6 @@ export default function Partners() {
     }
   };
 
-  const startEditingCapital = (partner: Partner) => {
-    setEditingCapitalId(partner.id);
-    setEditingCapitalValue(String(partner.capital_amount || 0));
-  };
-
-  const cancelEditingCapital = () => {
-    setEditingCapitalId(null);
-    setEditingCapitalValue('');
-  };
-
-  const saveCapital = async (partnerId: string) => {
-    const newCapital = parseFloat(editingCapitalValue) || 0;
-    
-    const { error } = await supabase
-      .from('partners')
-      .update({ capital_amount: newCapital })
-      .eq('id', partnerId);
-    
-    if (error) {
-      toast({
-        title: 'Erro',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Sucesso',
-        description: 'Capital atualizado',
-      });
-      fetchPartners();
-    }
-    
-    setEditingCapitalId(null);
-    setEditingCapitalValue('');
-  };
 
   const startEditingPercentage = (partner: Partner) => {
     setEditingPercentageId(partner.id);
@@ -455,7 +432,7 @@ export default function Partners() {
     return labels[type] || type;
   };
 
-  const totalCapital = partners.reduce((sum, p) => sum + (p.capital_amount || 0), 0);
+  const totalCapital = partners.reduce((sum, p) => sum + getCalculatedCapital(p.id), 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -622,46 +599,7 @@ export default function Partners() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        {editingCapitalId === partner.id ? (
-                          <div className="flex items-center justify-end gap-2">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={editingCapitalValue}
-                              onChange={(e) => setEditingCapitalValue(e.target.value)}
-                              className="w-28 h-8 text-right"
-                              autoFocus
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => saveCapital(partner.id)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Check className="w-4 h-4 text-green-600" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={cancelEditingCapital}
-                              className="h-8 w-8 p-0"
-                            >
-                              <X className="w-4 h-4 text-red-600" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="font-medium">{formatCurrency(partner.capital_amount || 0)}</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => startEditingCapital(partner)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Pencil className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        )}
+                        <span className="font-medium">{formatCurrency(getCalculatedCapital(partner.id))}</span>
                       </TableCell>
                       <TableCell className="text-center">
                         {editingPercentageId === partner.id ? (
