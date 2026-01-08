@@ -77,6 +77,7 @@ interface DailyRecord {
   daily_profit: number;
   commission_amount: number;
   status: string;
+  shopify_status: string | null;
   date: string;
   store_id: string;
 }
@@ -101,9 +102,9 @@ export default function PartnerDashboard() {
     .filter(t => t.type === 'retirada')
     .reduce((sum, t) => sum + t.amount, 0);
   
-  // Calculate partner's share from daily_records commissions (30% of profit)
+  // Calculate partner's share from daily_records commissions (30% of profit) - only when Shopify confirmed received
   const totalPartnerShare = dailyRecords
-    .filter(r => r.status === 'approved' || r.status === 'paid')
+    .filter(r => r.shopify_status === 'received')
     .reduce((sum, r) => sum + (r.commission_amount || 0), 0);
 
   useEffect(() => {
@@ -158,7 +159,7 @@ export default function PartnerDashboard() {
       if (storeIds.length > 0) {
         const { data: recordsData } = await supabase
           .from('daily_records')
-          .select('id, daily_profit, commission_amount, status, date, store_id')
+          .select('id, daily_profit, commission_amount, status, shopify_status, date, store_id')
           .in('store_id', storeIds)
           .order('date', { ascending: false });
 
@@ -350,7 +351,7 @@ export default function PartnerDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrencyBRL(totalPartnerShare)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              comissões aprovadas
+              recebido da Shopify
             </p>
           </CardContent>
         </Card>
