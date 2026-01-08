@@ -193,7 +193,7 @@ export default function Goals() {
         setGoals([]);
       }
 
-      // Fetch current month revenues by user (sum of all their stores)
+      // Fetch current month profits by user (sum of all their stores)
       const currentMonthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
       const currentMonthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
       
@@ -201,26 +201,26 @@ export default function Goals() {
       const storeIds = partnersData?.map(p => p.store_id).filter(Boolean) || [];
       
       if (storeIds.length > 0) {
-        const { data: revenuesData } = await supabase
-          .from('revenues')
-          .select('store_id, converted_amount, amount')
+        const { data: profitsData } = await supabase
+          .from('profits')
+          .select('store_id, profit_amount')
           .in('store_id', storeIds as string[])
-          .gte('date', currentMonthStart)
-          .lte('date', currentMonthEnd);
+          .gte('period_start', currentMonthStart)
+          .lte('period_end', currentMonthEnd);
 
-        // Map revenues to users (sum of all their partner stores)
-        const revenueMap: Record<string, number> = {};
+        // Map profits to users (sum of all their partner stores)
+        const profitMap: Record<string, number> = {};
         partnersData?.forEach(partner => {
           if (partner.store_id) {
-            const storeRevenue = (revenuesData || [])
-              .filter(rev => rev.store_id === partner.store_id)
-              .reduce((sum, rev) => sum + (rev.converted_amount || rev.amount), 0);
-            // Add partner's share of revenue to their user total
-            const currentTotal = revenueMap[partner.user_id] || 0;
-            revenueMap[partner.user_id] = currentTotal + (storeRevenue * (partner.capital_percentage / 100));
+            const storeProfit = (profitsData || [])
+              .filter(p => p.store_id === partner.store_id)
+              .reduce((sum, p) => sum + p.profit_amount, 0);
+            // Add partner's share of profit to their user total
+            const currentTotal = profitMap[partner.user_id] || 0;
+            profitMap[partner.user_id] = currentTotal + (storeProfit * (partner.capital_percentage / 100));
           }
         });
-        setRevenuesByUser(revenueMap);
+        setRevenuesByUser(profitMap);
       }
 
     } catch (error) {
