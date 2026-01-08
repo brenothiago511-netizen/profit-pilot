@@ -260,26 +260,6 @@ export default function Dashboard() {
         storeIdsToFilter = [selectedStore];
       }
 
-      // Fetch partner percentage for sócio
-      let partnerPercentage = 0;
-      if (isSocio && user?.id) {
-        const { data: partnerData } = await supabase
-          .from('partners')
-          .select('capital_percentage, store_id')
-          .eq('user_id', user.id)
-          .eq('status', 'active');
-        
-        if (partnerData && partnerData.length > 0) {
-          // Calculate weighted average if filtering by store
-          if (selectedStore !== 'all') {
-            const partner = partnerData.find(p => p.store_id === selectedStore);
-            partnerPercentage = partner?.capital_percentage || 0;
-          } else {
-            partnerPercentage = partnerData.reduce((sum, p) => sum + (p.capital_percentage || 0), 0) / partnerData.length;
-          }
-        }
-      }
-
       // Fetch revenues
       let revenueQuery = supabase
         .from('revenues')
@@ -308,11 +288,32 @@ export default function Dashboard() {
       const { data: expenses } = await expenseQuery;
       const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
 
-      // Calculate net profit: revenue - expenses (no more manager commissions)
+      // Calculate net profit: revenue - expenses
       const netProfit = totalRevenue - totalExpenses;
       
-      // Calculate partner share
-      const partnerShare = isSocio ? netProfit * (partnerPercentage / 100) : 0;
+      // Calculate partner share: 30% of confirmed profits from daily_records
+      let partnerShare = 0;
+      const PARTNER_PERCENTAGE = 30;
+      
+      if (isSocio && user?.id) {
+        // Fetch confirmed profits (shopify_status = 'received') created by this user
+        let profitsQuery = supabase
+          .from('daily_records')
+          .select('daily_profit')
+          .eq('shopify_status', 'received')
+          .eq('created_by', user.id)
+          .gte('date', dateStart)
+          .lte('date', dateEnd);
+        
+        if (storeIdsToFilter && storeIdsToFilter.length > 0) {
+          profitsQuery = profitsQuery.in('store_id', storeIdsToFilter);
+        }
+        
+        const { data: profitsData } = await profitsQuery;
+        const totalConfirmedProfits = profitsData?.reduce((sum, p) => sum + Number(p.daily_profit), 0) || 0;
+        
+        partnerShare = totalConfirmedProfits * (PARTNER_PERCENTAGE / 100);
+      }
 
       setData({
         totalRevenue,
@@ -320,7 +321,7 @@ export default function Dashboard() {
         netProfit,
         totalCommissions: 0,
         partnerShare,
-        partnerPercentage,
+        partnerPercentage: PARTNER_PERCENTAGE,
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
