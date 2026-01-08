@@ -6,8 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import ROIAlerts from '@/components/alerts/ROIAlerts';
 import EarningsProjection from '@/components/projections/EarningsProjection';
+import { cn } from '@/lib/utils';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -21,6 +24,7 @@ import {
   ArrowDownRight,
   Building2,
   Calendar,
+  CalendarIcon,
   FileText,
   Target,
   BarChart3,
@@ -136,7 +140,12 @@ export default function PartnerDashboardPage() {
   const [allPartners, setAllPartners] = useState<PartnerProfile[]>([]);
   const [selectedPartner, setSelectedPartner] = useState<string>(user?.id || 'all');
   const [selectedStore, setSelectedStore] = useState<string>('all');
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('12');
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('3');
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: subMonths(new Date(), 3),
+    to: new Date(),
+  });
+  const [useCustomDates, setUseCustomDates] = useState(false);
 
   const filteredPerformance = selectedStore === 'all' 
     ? storePerformance 
@@ -212,7 +221,7 @@ export default function PartnerDashboardPage() {
 
   useEffect(() => {
     fetchPartnerData();
-  }, [selectedPartner, selectedPeriod]);
+  }, [selectedPartner, selectedPeriod, dateRange, useCustomDates]);
 
   const fetchAllPartners = async () => {
     try {
@@ -250,10 +259,18 @@ export default function PartnerDashboardPage() {
   const fetchPartnerData = async () => {
     setLoading(true);
     try {
-      const monthsBack = parseInt(selectedPeriod);
       const today = new Date();
-      const periodStart = format(subMonths(today, monthsBack), 'yyyy-MM-dd');
-      const periodEnd = format(today, 'yyyy-MM-dd');
+      let periodStart: string;
+      let periodEnd: string;
+
+      if (useCustomDates) {
+        periodStart = format(dateRange.from, 'yyyy-MM-dd');
+        periodEnd = format(dateRange.to, 'yyyy-MM-dd');
+      } else {
+        const monthsBack = parseInt(selectedPeriod);
+        periodStart = format(subMonths(today, monthsBack), 'yyyy-MM-dd');
+        periodEnd = format(today, 'yyyy-MM-dd');
+      }
 
       // Fetch partnerships - filter by selected partner or show all
       let partnerQuery = supabase
@@ -546,18 +563,77 @@ export default function PartnerDashboardPage() {
                 ))}
             </SelectContent>
           </Select>
-          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-40">
-              <Calendar className="w-4 h-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="3">Últimos 3 meses</SelectItem>
-              <SelectItem value="6">Últimos 6 meses</SelectItem>
-              <SelectItem value="12">Últimos 12 meses</SelectItem>
-              <SelectItem value="24">Últimos 24 meses</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={useCustomDates ? "outline" : "default"}
+              size="sm"
+              onClick={() => setUseCustomDates(false)}
+            >
+              Período
+            </Button>
+            <Button
+              variant={useCustomDates ? "default" : "outline"}
+              size="sm"
+              onClick={() => setUseCustomDates(true)}
+            >
+              Datas
+            </Button>
+          </div>
+          {!useCustomDates ? (
+            <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+              <SelectTrigger className="w-44">
+                <Calendar className="w-4 h-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Último mês</SelectItem>
+                <SelectItem value="3">Últimos 3 meses</SelectItem>
+                <SelectItem value="6">Últimos 6 meses</SelectItem>
+                <SelectItem value="12">Últimos 12 meses</SelectItem>
+                <SelectItem value="24">Últimos 24 meses</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-32 justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(dateRange.from, "dd/MM/yy", { locale: ptBR })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateRange.from}
+                    onSelect={(date) => date && setDateRange(prev => ({ ...prev, from: date }))}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-muted-foreground">até</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-32 justify-start text-left font-normal">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(dateRange.to, "dd/MM/yy", { locale: ptBR })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateRange.to}
+                    onSelect={(date) => date && setDateRange(prev => ({ ...prev, to: date }))}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
         </div>
       </div>
 
@@ -595,7 +671,10 @@ export default function PartnerDashboardPage() {
               {formatCurrencyBRL(totalPartnerShare)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              nos últimos {selectedPeriod} meses
+              {useCustomDates 
+                ? `${format(dateRange.from, "dd/MM/yy")} - ${format(dateRange.to, "dd/MM/yy")}`
+                : `nos últimos ${selectedPeriod} ${selectedPeriod === '1' ? 'mês' : 'meses'}`
+              }
             </p>
           </CardContent>
         </Card>
