@@ -512,7 +512,7 @@ export default function Commissions() {
   };
 
   const toggleShopifyPaid = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'paid' ? 'pending' : 'paid';
+    const newStatus = currentStatus === 'received' ? 'pending' : 'received';
     const { error } = await supabase
       .from('daily_records')
       .update({ shopify_status: newStatus })
@@ -521,7 +521,7 @@ export default function Commissions() {
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: newStatus === 'paid' ? 'Recebimento Shopify confirmado' : 'Recebimento Shopify desmarcado' });
+      toast({ title: newStatus === 'received' ? 'Recebimento Shopify confirmado' : 'Recebimento Shopify desmarcado' });
       fetchDailyRecords();
     }
   };
@@ -821,7 +821,7 @@ export default function Commissions() {
                             )}
                           </td>
                           <td>
-                            {record.shopify_status === 'paid' ? (
+                            {record.shopify_status === 'received' ? (
                               <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                                 <Check className="w-3 h-3 mr-1" />Recebido
                               </Badge>
@@ -872,15 +872,15 @@ export default function Commissions() {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className={record.shopify_status === 'paid'
+                                    className={record.shopify_status === 'received'
                                       ? "text-emerald-500 border-emerald-500/50 hover:bg-emerald-500/10"
                                       : "text-amber-500 border-amber-500/50 hover:bg-amber-500/10"
                                     }
                                     onClick={() => toggleShopifyPaid(record.id, record.shopify_status)}
-                                    title={record.shopify_status === 'paid' ? "Desmarcar recebimento Shopify" : "Confirmar recebimento Shopify"}
+                                    title={record.shopify_status === 'received' ? "Desmarcar recebimento Shopify" : "Confirmar recebimento Shopify"}
                                   >
                                     <Check className="w-4 h-4 mr-1" />
-                                    {record.shopify_status === 'paid' ? 'Recebido ✓' : 'Shopify Pagou'}
+                                    {record.shopify_status === 'received' ? 'Recebido ✓' : 'Shopify Pagou'}
                                   </Button>
                                 )}
                                 {isAdmin && (
