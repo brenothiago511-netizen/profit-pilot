@@ -79,6 +79,7 @@ export default function Commissions() {
   
   // Forms
   const [recordForm, setRecordForm] = useState({
+    id: '',
     store_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     daily_profit: '',
@@ -92,6 +93,7 @@ export default function Commissions() {
   });
   
   // Edit/Delete states
+  const [editingRecord, setEditingRecord] = useState<DailyRecord | null>(null);
   const [editingTier, setEditingTier] = useState<CommissionTier | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState<DailyRecord | null>(null);
@@ -270,6 +272,47 @@ export default function Commissions() {
       return;
     }
 
+    setSavingRecord(true);
+    
+    const profit = parseFloat(recordForm.daily_profit);
+    
+    // Calculate commission: fixed 30% for partners
+    const commissionAmount = profit * PARTNER_COMMISSION_RATE;
+
+    // If editing existing record
+    if (editingRecord) {
+      const { error } = await supabase
+        .from('daily_records')
+        .update({
+          store_id: recordForm.store_id,
+          date: recordForm.date,
+          daily_profit: profit,
+          commission_amount: commissionAmount,
+          notes: recordForm.notes || null,
+        })
+        .eq('id', editingRecord.id);
+
+      setSavingRecord(false);
+
+      if (error) {
+        toast({
+          title: 'Erro ao atualizar',
+          description: error.message,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Sucesso',
+          description: 'Registro atualizado!',
+        });
+        setRecordDialogOpen(false);
+        setRecordForm({ id: '', store_id: '', date: format(new Date(), 'yyyy-MM-dd'), daily_profit: '', notes: '' });
+        setEditingRecord(null);
+        fetchDailyRecords();
+      }
+      return;
+    }
+
     // Find manager for current user or create one if needed
     let currentUserManager = managers.find(m => m.user_id === user?.id);
     let managerId = currentUserManager?.id || managers[0]?.id;
@@ -294,6 +337,7 @@ export default function Commissions() {
           description: 'Erro ao criar registro de gestor: ' + createError.message,
           variant: 'destructive',
         });
+        setSavingRecord(false);
         return;
       }
       
@@ -306,15 +350,9 @@ export default function Commissions() {
         description: 'Não foi possível identificar o gestor para este registro',
         variant: 'destructive',
       });
+      setSavingRecord(false);
       return;
     }
-
-    setSavingRecord(true);
-    
-    const profit = parseFloat(recordForm.daily_profit);
-    
-    // Calculate commission: fixed 30% for partners, database trigger for others
-    const commissionAmount = isSocio ? profit * PARTNER_COMMISSION_RATE : undefined;
     
     const { error } = await supabase.from('daily_records').insert({
       store_id: recordForm.store_id,
@@ -343,9 +381,22 @@ export default function Commissions() {
         description: `Registro salvo! Comissão calculada: ${formatCurrency(estimatedCommission)}`,
       });
       setRecordDialogOpen(false);
-      setRecordForm({ store_id: '', date: format(new Date(), 'yyyy-MM-dd'), daily_profit: '', notes: '' });
+      setRecordForm({ id: '', store_id: '', date: format(new Date(), 'yyyy-MM-dd'), daily_profit: '', notes: '' });
+      setEditingRecord(null);
       fetchDailyRecords();
     }
+  };
+
+  const openEditRecord = (record: DailyRecord) => {
+    setEditingRecord(record);
+    setRecordForm({
+      id: record.id,
+      store_id: record.store_id,
+      date: record.date,
+      daily_profit: record.daily_profit.toString(),
+      notes: record.notes || '',
+    });
+    setRecordDialogOpen(true);
   };
 
   const handleTierSubmit = async (e: React.FormEvent) => {
@@ -555,9 +606,9 @@ export default function Commissions() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Registrar Lucro Diário</DialogTitle>
+                <DialogTitle>{editingRecord ? 'Editar Registro' : 'Registrar Lucro Diário'}</DialogTitle>
                 <DialogDescription>
-                  A comissão será calculada automaticamente com base nas faixas configuradas.
+                  A comissão será calculada automaticamente (30% do lucro).
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleRecordSubmit} className="space-y-4">
@@ -783,6 +834,14 @@ export default function Commissions() {
                           {canApprove && (
                             <td>
                               <div className="flex items-center gap-1 flex-wrap">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openEditRecord(record)}
+                                  title="Editar registro"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
                                 {record.status === 'pending' && (
                                   <Button
                                     variant="ghost"

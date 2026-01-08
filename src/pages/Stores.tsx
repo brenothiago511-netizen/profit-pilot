@@ -391,69 +391,67 @@ export default function Stores() {
           </p>
         </div>
 
-        {!isSocio && (
-          <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); else setDialogOpen(true); }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Loja
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>{editingStore ? 'Editar Loja' : 'Cadastrar Loja'}</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
+        <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); else setDialogOpen(true); }}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Nova Loja
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{editingStore ? 'Editar Loja' : 'Cadastrar Loja'}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Nome da Loja *</Label>
+                <Input
+                  placeholder="Ex: Loja Centro"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Nome da Loja *</Label>
+                  <Label>País</Label>
                   <Input
-                    placeholder="Ex: Loja Centro"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Brasil"
+                    value={formData.country}
+                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                   />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>País</Label>
-                    <Input
-                      placeholder="Brasil"
-                      value={formData.country}
-                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Moeda</Label>
-                    <Select
-                      value={formData.currency}
-                      onValueChange={(v) => setFormData({ ...formData, currency: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="BRL">BRL (R$)</SelectItem>
-                        <SelectItem value="USD">USD ($)</SelectItem>
-                        <SelectItem value="EUR">EUR (€)</SelectItem>
-                        <SelectItem value="GBP">GBP (£)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label>Moeda</Label>
+                  <Select
+                    value={formData.currency}
+                    onValueChange={(v) => setFormData({ ...formData, currency: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BRL">BRL (R$)</SelectItem>
+                      <SelectItem value="USD">USD ($)</SelectItem>
+                      <SelectItem value="EUR">EUR (€)</SelectItem>
+                      <SelectItem value="GBP">GBP (£)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+              </div>
 
-                <div className="flex justify-end gap-3 pt-4">
-                  <Button type="button" variant="outline" onClick={closeDialog}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={saving}>
-                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                    {editingStore ? 'Atualizar' : 'Salvar'}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-        )}
+              <div className="flex justify-end gap-3 pt-4">
+                <Button type="button" variant="outline" onClick={closeDialog}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={saving}>
+                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  {editingStore ? 'Atualizar' : 'Salvar'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
