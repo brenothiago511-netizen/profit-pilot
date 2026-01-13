@@ -12,8 +12,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Check, Pencil, Trash2, Plus, DollarSign, Clock, TrendingUp } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+// Função para parsear data ISO (YYYY-MM-DD) sem conversão de timezone
+const parseLocalDate = (dateString: string) => {
+  // Adiciona T12:00:00 para evitar problemas de timezone ao meio-dia
+  return parseISO(dateString + 'T12:00:00');
+};
 import {
   AlertDialog,
   AlertDialogAction,
@@ -346,7 +352,7 @@ export default function Commissions() {
       .reverse();
     
     return last30Days.map(r => ({
-      date: format(new Date(r.date), 'dd/MM'),
+      date: format(parseLocalDate(r.date), 'dd/MM'),
       lucro: r.daily_profit,
     }));
   }, [dailyRecords]);
@@ -540,7 +546,7 @@ export default function Commissions() {
                 <tbody>
                   {filteredRecords.map((record) => (
                     <tr key={record.id}>
-                      <td>{format(new Date(record.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
+                      <td>{format(parseLocalDate(record.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
                       <td>{record.user_name}</td>
                       <td>{record.store_name}</td>
                       <td className="text-right font-medium">{formatCurrency(record.daily_profit)}</td>
