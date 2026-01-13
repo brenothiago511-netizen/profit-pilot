@@ -194,15 +194,52 @@ export default function Commissions() {
       return;
     }
 
+    // Buscar o manager_id do usuário atual
+    let managerId: string | null = null;
+    const { data: managerData } = await supabase
+      .from('managers')
+      .select('id')
+      .eq('user_id', user?.id || '')
+      .maybeSingle();
+    
+    if (managerData) {
+      managerId = managerData.id;
+    } else {
+      // Se não tem manager, criar um automaticamente para o usuário
+      const { data: newManager, error: managerError } = await supabase
+        .from('managers')
+        .insert({
+          user_id: user?.id,
+          store_id: recordForm.store_id,
+          commission_percent: 0,
+          commission_type: 'lucro',
+          status: 'active',
+        })
+        .select('id')
+        .single();
+      
+      if (managerError || !newManager) {
+        toast({
+          title: 'Erro ao configurar gestor',
+          description: 'Não foi possível configurar o gestor. Entre em contato com o administrador.',
+          variant: 'destructive',
+        });
+        setSavingRecord(false);
+        return;
+      }
+      managerId = newManager.id;
+    }
+
     const { error } = await supabase.from('daily_records').insert({
       store_id: recordForm.store_id,
       date: recordForm.date,
       daily_profit: profit,
       notes: recordForm.notes || null,
       created_by: user?.id,
+      manager_id: managerId,
       status: 'pending',
       shopify_status: 'pending',
-    } as any);
+    });
 
     setSavingRecord(false);
 
