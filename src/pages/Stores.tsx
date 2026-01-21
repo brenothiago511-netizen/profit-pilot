@@ -189,6 +189,31 @@ export default function Stores() {
         fetchData();
       }
     } else {
+      // For sócio users, ensure they have a partner record first (needed for RLS)
+      if (isSocio && user?.id) {
+        const { data: existingPartner } = await supabase
+          .from('partners')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (!existingPartner) {
+          // Create partner record first (without store_id)
+          const { error: partnerError } = await supabase.from('partners').insert({
+            user_id: user.id,
+            capital_percentage: 100,
+            capital_amount: 0,
+            status: 'active',
+          });
+          
+          if (partnerError) {
+            setSaving(false);
+            toast({ title: 'Erro ao criar registro de sócio', description: partnerError.message, variant: 'destructive' });
+            return;
+          }
+        }
+      }
+
       const { data: storeData, error } = await supabase.from('stores').insert({
         name: formData.name,
         country: formData.country,
@@ -199,32 +224,20 @@ export default function Stores() {
       if (error) {
         toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
       } else {
-        // If user is a sócio, link the store to their partner record
+        // Link the store to the partner record
         if (isSocio && user?.id && storeData?.id) {
-          // Check if user has a partner record without a store
           const { data: partnerRecord } = await supabase
             .from('partners')
-            .select('id, store_id')
+            .select('id')
             .eq('user_id', user.id)
             .eq('status', 'active')
-            .is('store_id', null)
-            .single();
+            .maybeSingle();
           
           if (partnerRecord) {
-            // Update existing partner record with the new store
             await supabase
               .from('partners')
               .update({ store_id: storeData.id })
               .eq('id', partnerRecord.id);
-          } else {
-            // Create a new partner record linked to this store
-            await supabase.from('partners').insert({
-              user_id: user.id,
-              store_id: storeData.id,
-              capital_percentage: 100,
-              capital_amount: 0,
-              status: 'active',
-            });
           }
         }
         toast({ title: 'Sucesso', description: 'Loja cadastrada' });
