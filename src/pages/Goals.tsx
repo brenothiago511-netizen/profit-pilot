@@ -210,16 +210,16 @@ export default function Goals() {
           .lte('date', currentMonthEnd)
           .eq('shopify_status', 'received');
 
-        // Map profits to users (sum of all their partner stores)
+        // Map gross profits to users (sum of all their partner stores - without percentage)
         const profitMap: Record<string, number> = {};
         partnersData?.forEach(partner => {
           if (partner.store_id) {
             const storeProfit = (dailyRecordsData || [])
               .filter(r => r.store_id === partner.store_id)
               .reduce((sum, r) => sum + r.daily_profit, 0);
-            // Add partner's share of profit to their user total
+            // Add full store profit to their user total (gross profit, not partner share)
             const currentTotal = profitMap[partner.user_id] || 0;
-            profitMap[partner.user_id] = currentTotal + (storeProfit * (partner.capital_percentage / 100));
+            profitMap[partner.user_id] = currentTotal + storeProfit;
           }
         });
         setRevenuesByUser(profitMap);
