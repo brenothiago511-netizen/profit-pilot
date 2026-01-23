@@ -191,7 +191,8 @@ export default function Dashboard() {
       return partnerStoreIds;
     }
     
-    // For admin/financeiro with no partner filter - all stores
+    // For admin/financeiro with no partner filter - ALL stores (no restriction)
+    // This ensures admin sees all revenues and expenses from all users
     return null;
   };
 
