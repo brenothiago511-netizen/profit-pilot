@@ -32,6 +32,7 @@ import {
   Target,
   ClipboardList,
   DollarSign,
+  Wallet,
 } from 'lucide-react';
 import logoAglomerado from '@/assets/logo-aglomerado.png';
 
@@ -71,6 +72,12 @@ const navigationSections = [
     items: [
       { name: 'Relatórios', href: '/reports', icon: FileText, permissions: ['view_reports'] },
       { name: 'Relatório Executivo', href: '/executive-report', icon: ClipboardList, permissions: ['view_reports', 'export_reports'] },
+    ],
+  },
+  {
+    title: 'Administração',
+    items: [
+      { name: 'Folha de Pagamento', href: '/payroll', icon: Wallet, permissions: ['manage_users'], adminOnly: true },
     ],
   },
   {
