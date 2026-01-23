@@ -193,7 +193,7 @@ export default function Goals() {
         setGoals([]);
       }
 
-      // Fetch current month profits by user (sum of all their stores)
+      // Fetch current month profits by user from daily_records (only received ones)
       const currentMonthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
       const currentMonthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
       
@@ -201,20 +201,22 @@ export default function Goals() {
       const storeIds = partnersData?.map(p => p.store_id).filter(Boolean) || [];
       
       if (storeIds.length > 0) {
-        const { data: profitsData } = await supabase
-          .from('profits')
-          .select('store_id, profit_amount')
+        // Use daily_records table with shopify_status = 'received' for accurate profit tracking
+        const { data: dailyRecordsData } = await supabase
+          .from('daily_records')
+          .select('store_id, daily_profit')
           .in('store_id', storeIds as string[])
-          .gte('period_start', currentMonthStart)
-          .lte('period_end', currentMonthEnd);
+          .gte('date', currentMonthStart)
+          .lte('date', currentMonthEnd)
+          .eq('shopify_status', 'received');
 
         // Map profits to users (sum of all their partner stores)
         const profitMap: Record<string, number> = {};
         partnersData?.forEach(partner => {
           if (partner.store_id) {
-            const storeProfit = (profitsData || [])
-              .filter(p => p.store_id === partner.store_id)
-              .reduce((sum, p) => sum + p.profit_amount, 0);
+            const storeProfit = (dailyRecordsData || [])
+              .filter(r => r.store_id === partner.store_id)
+              .reduce((sum, r) => sum + r.daily_profit, 0);
             // Add partner's share of profit to their user total
             const currentTotal = profitMap[partner.user_id] || 0;
             profitMap[partner.user_id] = currentTotal + (storeProfit * (partner.capital_percentage / 100));
