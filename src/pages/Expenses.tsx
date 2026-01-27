@@ -809,14 +809,16 @@ export default function Expenses() {
                       <tr key={expense.id}>
                         <td>{format(parseDate(expense.date), 'dd/MM/yyyy')}</td>
                         <td>{expense.store_name || '-'}</td>
-                        <td className="flex items-center gap-2">
-                          {expense.description}
-                          {expense.ai_extracted && (
-                            <Badge variant="outline" className="text-xs">
-                              <Sparkles className="w-3 h-3 mr-1" />
-                              IA
-                            </Badge>
-                          )}
+                        <td>
+                          <div className="flex items-center gap-2">
+                            {expense.description}
+                            {expense.ai_extracted && (
+                              <Badge variant="outline" className="text-xs">
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                IA
+                              </Badge>
+                            )}
+                          </div>
                         </td>
                         <td>{expense.category_name || '-'}</td>
                         <td>
