@@ -11,10 +11,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, TrendingUp, Loader2, Trash2, Upload, X, Image } from 'lucide-react';
+import { Plus, TrendingUp, Loader2, Trash2, Upload, X, Image, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { parseDate } from '@/lib/dateUtils';
+import { DialogDescription } from '@/components/ui/dialog';
 
 interface Revenue {
   id: string;
@@ -54,6 +55,7 @@ export default function Revenues() {
   const [saving, setSaving] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [editingRevenue, setEditingRevenue] = useState<Revenue | null>(null);
   const [formData, setFormData] = useState({
     store_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -63,6 +65,36 @@ export default function Revenues() {
     payment_method: '',
     notes: '',
   });
+
+  const resetForm = () => {
+    setFormData({
+      store_id: '',
+      date: format(new Date(), 'yyyy-MM-dd'),
+      amount: '',
+      currency: 'BRL',
+      source: '',
+      payment_method: '',
+      notes: '',
+    });
+    setImageFile(null);
+    setImagePreview(null);
+    setEditingRevenue(null);
+  };
+
+  const openEditDialog = (revenue: Revenue) => {
+    setEditingRevenue(revenue);
+    setFormData({
+      store_id: revenue.store_id || '',
+      date: revenue.date,
+      amount: revenue.original_amount?.toString() || revenue.amount.toString(),
+      currency: revenue.original_currency || 'BRL',
+      source: revenue.source || '',
+      payment_method: revenue.payment_method || '',
+      notes: revenue.notes || '',
+    });
+    setImagePreview(revenue.image_url);
+    setDialogOpen(true);
+  };
 
   useEffect(() => {
     fetchStores();
@@ -186,15 +218,14 @@ export default function Revenues() {
       convertedAmount = originalAmount * exchangeRate;
     }
     
-    // Upload image if present
-    let imageUrl: string | null = null;
+    // Upload image if present (new file)
+    let imageUrl: string | null = editingRevenue?.image_url || null;
     if (imageFile) {
       imageUrl = await uploadImage(imageFile);
     }
-    
-    const { error } = await supabase.from('revenues').insert({
+
+    const revenueData = {
       store_id: formData.store_id || null,
-      user_id: user?.id,
       date: formData.date,
       amount: convertedAmount,
       original_amount: originalAmount,
@@ -205,7 +236,25 @@ export default function Revenues() {
       payment_method: formData.payment_method || null,
       notes: formData.notes || null,
       image_url: imageUrl,
-    });
+    };
+
+    let error;
+    
+    if (editingRevenue) {
+      // Update existing revenue
+      const { error: updateError } = await supabase
+        .from('revenues')
+        .update(revenueData)
+        .eq('id', editingRevenue.id);
+      error = updateError;
+    } else {
+      // Insert new revenue
+      const { error: insertError } = await supabase.from('revenues').insert({
+        ...revenueData,
+        user_id: user?.id,
+      });
+      error = insertError;
+    }
 
     setSaving(false);
 
@@ -217,26 +266,17 @@ export default function Revenues() {
       });
     } else {
       const currencyInfo = CURRENCIES.find(c => c.code === formData.currency);
+      const actionText = editingRevenue ? 'atualizada' : 'cadastrada';
       const message = formData.currency !== 'BRL' 
-        ? `Receita cadastrada: ${currencyInfo?.symbol}${originalAmount.toFixed(2)} → R$${convertedAmount.toFixed(2)}`
-        : 'Receita cadastrada com sucesso';
+        ? `Receita ${actionText}: ${currencyInfo?.symbol}${originalAmount.toFixed(2)} → R$${convertedAmount.toFixed(2)}`
+        : `Receita ${actionText} com sucesso`;
       
       toast({
         title: 'Sucesso',
         description: message,
       });
       setDialogOpen(false);
-      setFormData({
-        store_id: '',
-        date: format(new Date(), 'yyyy-MM-dd'),
-        amount: '',
-        currency: 'BRL',
-        source: '',
-        payment_method: '',
-        notes: '',
-      });
-      setImageFile(null);
-      setImagePreview(null);
+      resetForm();
       fetchRevenues();
     }
   };
@@ -277,16 +317,22 @@ export default function Revenues() {
         </div>
 
         <PermissionGate permission="create_revenue">
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) resetForm();
+          }}>
             <DialogTrigger asChild>
-              <Button>
+              <Button onClick={() => resetForm()}>
                 <Plus className="w-4 h-4 mr-2" />
                 Nova Receita
               </Button>
             </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Cadastrar Receita</DialogTitle>
+              <DialogTitle>{editingRevenue ? 'Editar Receita' : 'Cadastrar Receita'}</DialogTitle>
+              <DialogDescription>
+                {editingRevenue ? 'Atualize os dados da receita' : 'Preencha os dados da nova receita'}
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -472,7 +518,7 @@ export default function Revenues() {
                     <th>Pagamento</th>
                     <th className="text-right">Valor Original</th>
                     <th className="text-right">Valor (BRL)</th>
-                    {can('delete_revenue') && <th></th>}
+                    {(can('edit_revenue') || can('delete_revenue')) && <th>Ações</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -510,16 +556,27 @@ export default function Revenues() {
                         <td className="text-right font-medium text-success">
                           {formatCurrency(revenue.amount)}
                         </td>
-                        {can('delete_revenue') && (
-                          <td>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => handleDelete(revenue.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                        {(can('edit_revenue') || can('delete_revenue')) && (
+                          <td className="flex gap-1">
+                            {can('edit_revenue') && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditDialog(revenue)}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {can('delete_revenue') && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => handleDelete(revenue.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                           </td>
                         )}
                       </tr>
