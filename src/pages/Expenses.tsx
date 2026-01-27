@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, TrendingDown, Loader2, Trash2, Camera, Sparkles, Upload } from 'lucide-react';
+import { Plus, TrendingDown, Loader2, Trash2, Camera, Sparkles, Upload, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { parseDate } from '@/lib/dateUtils';
 
@@ -63,6 +63,7 @@ export default function Expenses() {
   const [extracting, setExtracting] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   
   const [formData, setFormData] = useState({
     store_id: '',
@@ -193,10 +194,9 @@ export default function Expenses() {
       exchangeRate = await getExchangeRate(formData.currency, 'BRL');
       convertedAmount = originalAmount * exchangeRate;
     }
-    
-    const { error } = await supabase.from('expenses').insert({
+
+    const expenseData = {
       store_id: formData.store_id || null,
-      user_id: user?.id,
       date: formData.date,
       amount: convertedAmount,
       original_amount: originalAmount,
@@ -207,8 +207,24 @@ export default function Expenses() {
       category_id: formData.category_id || null,
       type: formData.type,
       payment_method: formData.payment_method || null,
-      ai_extracted: false,
-    });
+    };
+
+    let error;
+    
+    if (editingExpense) {
+      const result = await supabase
+        .from('expenses')
+        .update(expenseData)
+        .eq('id', editingExpense.id);
+      error = result.error;
+    } else {
+      const result = await supabase.from('expenses').insert({
+        ...expenseData,
+        user_id: user?.id,
+        ai_extracted: false,
+      });
+      error = result.error;
+    }
 
     setSaving(false);
 
@@ -220,9 +236,10 @@ export default function Expenses() {
       });
     } else {
       const currencyInfo = CURRENCIES.find(c => c.code === formData.currency);
+      const actionText = editingExpense ? 'atualizada' : 'cadastrada';
       const message = formData.currency !== 'BRL' 
-        ? `Despesa cadastrada: ${currencyInfo?.symbol}${originalAmount.toFixed(2)} → R$${convertedAmount.toFixed(2)}`
-        : 'Despesa cadastrada com sucesso';
+        ? `Despesa ${actionText}: ${currencyInfo?.symbol}${originalAmount.toFixed(2)} → R$${convertedAmount.toFixed(2)}`
+        : `Despesa ${actionText} com sucesso`;
       
       toast({
         title: 'Sucesso',
@@ -232,6 +249,21 @@ export default function Expenses() {
       resetForm();
       fetchExpenses();
     }
+  };
+
+  const openEditDialog = (expense: Expense) => {
+    setEditingExpense(expense);
+    setFormData({
+      store_id: expense.store_id || '',
+      date: expense.date,
+      amount: expense.original_amount?.toString() || expense.amount.toString(),
+      currency: expense.original_currency || 'BRL',
+      description: expense.description,
+      category_id: expense.category_id || '',
+      type: expense.type,
+      payment_method: expense.payment_method || '',
+    });
+    setDialogOpen(true);
   };
 
   const handleAiSubmit = async (e: React.FormEvent) => {
@@ -298,6 +330,7 @@ export default function Expenses() {
   };
 
   const resetForm = () => {
+    setEditingExpense(null);
     setFormData({
       store_id: '',
       date: format(new Date(), 'yyyy-MM-dd'),
@@ -609,7 +642,10 @@ export default function Expenses() {
           </PermissionGate>
 
           <PermissionGate permission="create_expense">
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) resetForm();
+            }}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="w-4 h-4 mr-2" />
@@ -618,7 +654,7 @@ export default function Expenses() {
               </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Cadastrar Despesa</DialogTitle>
+                <DialogTitle>{editingExpense ? 'Editar Despesa' : 'Cadastrar Despesa'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -797,7 +833,7 @@ export default function Expenses() {
                     <th>Tipo</th>
                     <th className="text-right">Valor Original</th>
                     <th className="text-right">Valor (BRL)</th>
-                    {can('delete_expense') && <th></th>}
+                    {(can('edit_expense') || can('delete_expense')) && <th>Ações</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -835,16 +871,29 @@ export default function Expenses() {
                         <td className="text-right font-medium text-danger">
                           {formatCurrency(expense.amount)}
                         </td>
-                        {can('delete_expense') && (
+                        {(can('edit_expense') || can('delete_expense')) && (
                           <td>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => handleDelete(expense.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              {can('edit_expense') && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openEditDialog(expense)}
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {can('delete_expense') && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => handleDelete(expense.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
                           </td>
                         )}
                       </tr>
