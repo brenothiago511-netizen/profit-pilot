@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Users, Loader2, Store, DollarSign, TrendingUp, TrendingDown, Search, Trash2, Pencil, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { parseDate } from '@/lib/dateUtils';
 
 interface Partner {
   id: string;
@@ -776,7 +777,7 @@ export default function Partners() {
                         <div>
                           <p className="text-sm font-medium">{getTransactionLabel(tx.type)}</p>
                           <p className="text-xs text-muted-foreground">
-                            {format(new Date(tx.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                            {format(parseDate(tx.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                           </p>
                           {tx.description && (
                             <p className="text-xs text-muted-foreground">{tx.description}</p>

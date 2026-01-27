@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, TrendingDown, Loader2, Trash2, Camera, Sparkles, Upload } from 'lucide-react';
 import { format } from 'date-fns';
+import { parseDate } from '@/lib/dateUtils';
 
 interface Expense {
   id: string;
@@ -676,7 +677,7 @@ export default function Expenses() {
                 <tbody>
                   {expenses.map((expense) => (
                     <tr key={expense.id}>
-                      <td>{format(new Date(expense.date), 'dd/MM/yyyy')}</td>
+                      <td>{format(parseDate(expense.date), 'dd/MM/yyyy')}</td>
                       <td>{expense.store_name || '-'}</td>
                       <td className="flex items-center gap-2">
                         {expense.description}

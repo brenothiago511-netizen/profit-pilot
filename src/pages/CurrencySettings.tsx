@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { parseDate, compareDatesDesc } from '@/lib/dateUtils';
 import {
   Tooltip,
   TooltipContent,
@@ -204,9 +205,7 @@ export default function CurrencySettings() {
 
   // Get latest rate for each pair
   const latestRates = Object.entries(ratesByPair).map(([pair, rates]) => {
-    const sorted = [...rates].sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
+    const sorted = [...rates].sort((a, b) => compareDatesDesc(a.date, b.date));
     return sorted[0];
   });
 
@@ -384,7 +383,7 @@ export default function CurrencySettings() {
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         <Calendar className="w-3 h-3 inline mr-1" />
-                        {format(new Date(rate.date), "dd 'de' MMM, yyyy", { locale: ptBR })}
+                        {format(parseDate(rate.date), "dd 'de' MMM, yyyy", { locale: ptBR })}
                       </div>
                     </div>
                   ))}
@@ -540,7 +539,7 @@ export default function CurrencySettings() {
                             {rate.rate.toFixed(4)}
                           </TableCell>
                           <TableCell>
-                            {format(new Date(rate.date), 'dd/MM/yyyy')}
+                            {format(parseDate(rate.date), 'dd/MM/yyyy')}
                           </TableCell>
                           <TableCell>
                             <Badge variant="secondary">
@@ -594,11 +593,11 @@ export default function CurrencySettings() {
                     </TableHeader>
                     <TableBody>
                       {config.exchangeRates
-                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .sort((a, b) => compareDatesDesc(a.date, b.date))
                         .map((rate) => (
                           <TableRow key={rate.id}>
                             <TableCell>
-                              {format(new Date(rate.date), 'dd/MM/yyyy')}
+                              {format(parseDate(rate.date), 'dd/MM/yyyy')}
                             </TableCell>
                             <TableCell>
                               <span className="font-mono">

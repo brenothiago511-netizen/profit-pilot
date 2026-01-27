@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { parseDate } from '@/lib/dateUtils';
 import {
   AreaChart,
   Area,
@@ -663,7 +664,7 @@ export default function PartnerDashboard() {
                           {tx.type === 'aporte' ? 'Aporte' : tx.type === 'retirada' ? 'Retirada' : 'Distribuição'}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {partnership?.store?.name || 'N/A'} • {format(new Date(tx.date), "dd 'de' MMM, yyyy", { locale: ptBR })}
+                          {partnership?.store?.name || 'N/A'} • {format(parseDate(tx.date), "dd 'de' MMM, yyyy", { locale: ptBR })}
                         </p>
                         {tx.description && (
                           <p className="text-xs text-muted-foreground mt-1 italic">{tx.description}</p>
