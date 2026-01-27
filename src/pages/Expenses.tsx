@@ -25,6 +25,8 @@ interface Expense {
   type: string;
   payment_method: string | null;
   ai_extracted: boolean;
+  original_currency: string | null;
+  original_amount: number | null;
   store_name?: string;
   category_name?: string;
 }
@@ -38,6 +40,14 @@ interface Category {
   id: string;
   name: string;
 }
+
+const CURRENCIES = [
+  { code: 'BRL', label: 'R$ (BRL)', symbol: 'R$' },
+  { code: 'USD', label: 'US$ (USD)', symbol: 'US$' },
+  { code: 'EUR', label: '€ (EUR)', symbol: '€' },
+  { code: 'GBP', label: '£ (GBP)', symbol: '£' },
+  { code: 'MXN', label: 'MX$ (MXN)', symbol: 'MX$' },
+];
 
 export default function Expenses() {
   const { user } = useAuth();
@@ -58,6 +68,7 @@ export default function Expenses() {
     store_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     amount: '',
+    currency: 'BRL',
     description: '',
     category_id: '',
     type: 'variavel',
@@ -68,6 +79,7 @@ export default function Expenses() {
     store_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     amount: '',
+    currency: 'BRL',
     description: '',
     category_id: '',
     type: 'variavel',
@@ -118,12 +130,45 @@ export default function Expenses() {
         type: e.type,
         payment_method: e.payment_method,
         ai_extracted: e.ai_extracted,
+        original_currency: e.original_currency,
+        original_amount: e.original_amount,
         store_name: e.stores?.name,
         category_name: e.expense_categories?.name,
       }));
       setExpenses(enrichedExpenses);
     }
     setLoading(false);
+  };
+
+  const getExchangeRate = async (fromCurrency: string, toCurrency: string): Promise<number> => {
+    if (fromCurrency === toCurrency) return 1;
+    
+    // Try to get direct rate
+    const { data: directRate } = await supabase
+      .from('exchange_rates')
+      .select('rate')
+      .eq('base_currency', fromCurrency)
+      .eq('target_currency', toCurrency)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (directRate) return directRate.rate;
+    
+    // Try reverse rate
+    const { data: reverseRate } = await supabase
+      .from('exchange_rates')
+      .select('rate')
+      .eq('base_currency', toCurrency)
+      .eq('target_currency', fromCurrency)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (reverseRate) return 1 / reverseRate.rate;
+    
+    // Default to 1 if no rate found
+    return 1;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -138,11 +183,26 @@ export default function Expenses() {
     }
 
     setSaving(true);
+    
+    const originalAmount = parseFloat(formData.amount);
+    let convertedAmount = originalAmount;
+    let exchangeRate = 1;
+    
+    // Convert to BRL if different currency
+    if (formData.currency !== 'BRL') {
+      exchangeRate = await getExchangeRate(formData.currency, 'BRL');
+      convertedAmount = originalAmount * exchangeRate;
+    }
+    
     const { error } = await supabase.from('expenses').insert({
       store_id: formData.store_id || null,
       user_id: user?.id,
       date: formData.date,
-      amount: parseFloat(formData.amount),
+      amount: convertedAmount,
+      original_amount: originalAmount,
+      original_currency: formData.currency,
+      converted_amount: convertedAmount,
+      exchange_rate_used: exchangeRate,
       description: formData.description,
       category_id: formData.category_id || null,
       type: formData.type,
@@ -159,9 +219,14 @@ export default function Expenses() {
         variant: 'destructive',
       });
     } else {
+      const currencyInfo = CURRENCIES.find(c => c.code === formData.currency);
+      const message = formData.currency !== 'BRL' 
+        ? `Despesa cadastrada: ${currencyInfo?.symbol}${originalAmount.toFixed(2)} → R$${convertedAmount.toFixed(2)}`
+        : 'Despesa cadastrada com sucesso';
+      
       toast({
         title: 'Sucesso',
-        description: 'Despesa cadastrada com sucesso',
+        description: message,
       });
       setDialogOpen(false);
       resetForm();
@@ -181,11 +246,26 @@ export default function Expenses() {
     }
 
     setSaving(true);
+    
+    const originalAmount = parseFloat(aiFormData.amount);
+    let convertedAmount = originalAmount;
+    let exchangeRate = 1;
+    
+    // Convert to BRL if different currency
+    if (aiFormData.currency !== 'BRL') {
+      exchangeRate = await getExchangeRate(aiFormData.currency, 'BRL');
+      convertedAmount = originalAmount * exchangeRate;
+    }
+    
     const { error } = await supabase.from('expenses').insert({
       store_id: aiFormData.store_id || null,
       user_id: user?.id,
       date: aiFormData.date,
-      amount: parseFloat(aiFormData.amount),
+      amount: convertedAmount,
+      original_amount: originalAmount,
+      original_currency: aiFormData.currency,
+      converted_amount: convertedAmount,
+      exchange_rate_used: exchangeRate,
       description: aiFormData.description,
       category_id: aiFormData.category_id || null,
       type: aiFormData.type,
@@ -202,9 +282,14 @@ export default function Expenses() {
         variant: 'destructive',
       });
     } else {
+      const currencyInfo = CURRENCIES.find(c => c.code === aiFormData.currency);
+      const message = aiFormData.currency !== 'BRL' 
+        ? `Despesa IA cadastrada: ${currencyInfo?.symbol}${originalAmount.toFixed(2)} → R$${convertedAmount.toFixed(2)}`
+        : 'Despesa com IA cadastrada com sucesso';
+      
       toast({
         title: 'Sucesso',
-        description: 'Despesa com IA cadastrada com sucesso',
+        description: message,
       });
       setAiDialogOpen(false);
       resetAiForm();
@@ -217,6 +302,7 @@ export default function Expenses() {
       store_id: '',
       date: format(new Date(), 'yyyy-MM-dd'),
       amount: '',
+      currency: 'BRL',
       description: '',
       category_id: '',
       type: 'variavel',
@@ -229,6 +315,7 @@ export default function Expenses() {
       store_id: '',
       date: format(new Date(), 'yyyy-MM-dd'),
       amount: '',
+      currency: 'BRL',
       description: '',
       category_id: '',
       type: 'variavel',
@@ -415,17 +502,36 @@ export default function Expenses() {
                   </Select>
                 </div>
 
+                <div className="space-y-2">
+                  <Label>Data *</Label>
+                  <Input
+                    type="date"
+                    value={aiFormData.date}
+                    onChange={(e) => setAiFormData({ ...aiFormData, date: e.target.value })}
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Data *</Label>
-                    <Input
-                      type="date"
-                      value={aiFormData.date}
-                      onChange={(e) => setAiFormData({ ...aiFormData, date: e.target.value })}
-                    />
+                    <Label>Moeda *</Label>
+                    <Select
+                      value={aiFormData.currency}
+                      onValueChange={(v) => setAiFormData({ ...aiFormData, currency: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map((curr) => (
+                          <SelectItem key={curr.code} value={curr.code}>
+                            {curr.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Valor (R$) *</Label>
+                    <Label>Valor ({CURRENCIES.find(c => c.code === aiFormData.currency)?.symbol || 'R$'}) *</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -535,17 +641,36 @@ export default function Expenses() {
                   </Select>
                 </div>
 
+                <div className="space-y-2">
+                  <Label>Data *</Label>
+                  <Input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Data *</Label>
-                    <Input
-                      type="date"
-                      value={formData.date}
-                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    />
+                    <Label>Moeda *</Label>
+                    <Select
+                      value={formData.currency}
+                      onValueChange={(v) => setFormData({ ...formData, currency: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map((curr) => (
+                          <SelectItem key={curr.code} value={curr.code}>
+                            {curr.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Valor (R$) *</Label>
+                    <Label>Valor ({CURRENCIES.find(c => c.code === formData.currency)?.symbol || 'R$'}) *</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -670,47 +795,59 @@ export default function Expenses() {
                     <th>Descrição</th>
                     <th>Categoria</th>
                     <th>Tipo</th>
-                    <th className="text-right">Valor</th>
+                    <th className="text-right">Valor Original</th>
+                    <th className="text-right">Valor (BRL)</th>
                     {can('delete_expense') && <th></th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {expenses.map((expense) => (
-                    <tr key={expense.id}>
-                      <td>{format(parseDate(expense.date), 'dd/MM/yyyy')}</td>
-                      <td>{expense.store_name || '-'}</td>
-                      <td className="flex items-center gap-2">
-                        {expense.description}
-                        {expense.ai_extracted && (
-                          <Badge variant="outline" className="text-xs">
-                            <Sparkles className="w-3 h-3 mr-1" />
-                            IA
-                          </Badge>
-                        )}
-                      </td>
-                      <td>{expense.category_name || '-'}</td>
-                      <td>
-                        <Badge variant={expense.type === 'fixa' ? 'default' : 'secondary'}>
-                          {expense.type === 'fixa' ? 'Fixa' : 'Variável'}
-                        </Badge>
-                      </td>
-                      <td className="text-right font-medium text-danger">
-                        {formatCurrency(expense.amount)}
-                      </td>
-                      {can('delete_expense') && (
-                        <td>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleDelete(expense.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                  {expenses.map((expense) => {
+                    const currencyInfo = CURRENCIES.find(c => c.code === expense.original_currency);
+                    const showOriginal = expense.original_currency && expense.original_currency !== 'BRL' && expense.original_amount;
+                    
+                    return (
+                      <tr key={expense.id}>
+                        <td>{format(parseDate(expense.date), 'dd/MM/yyyy')}</td>
+                        <td>{expense.store_name || '-'}</td>
+                        <td className="flex items-center gap-2">
+                          {expense.description}
+                          {expense.ai_extracted && (
+                            <Badge variant="outline" className="text-xs">
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              IA
+                            </Badge>
+                          )}
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td>{expense.category_name || '-'}</td>
+                        <td>
+                          <Badge variant={expense.type === 'fixa' ? 'default' : 'secondary'}>
+                            {expense.type === 'fixa' ? 'Fixa' : 'Variável'}
+                          </Badge>
+                        </td>
+                        <td className="text-right font-medium">
+                          {showOriginal 
+                            ? `${currencyInfo?.symbol || ''}${expense.original_amount?.toFixed(2)}`
+                            : '-'
+                          }
+                        </td>
+                        <td className="text-right font-medium text-danger">
+                          {formatCurrency(expense.amount)}
+                        </td>
+                        {can('delete_expense') && (
+                          <td>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(expense.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
