@@ -82,10 +82,10 @@ export default function Revenues() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.store_id || !formData.amount) {
+    if (!formData.amount) {
       toast({
         title: 'Erro',
-        description: 'Preencha todos os campos obrigatórios',
+        description: 'Preencha o valor da receita',
         variant: 'destructive',
       });
       return;
@@ -93,7 +93,7 @@ export default function Revenues() {
 
     setSaving(true);
     const { error } = await supabase.from('revenues').insert({
-      store_id: formData.store_id,
+      store_id: formData.store_id || null,
       user_id: user?.id,
       date: formData.date,
       amount: parseFloat(formData.amount),
@@ -177,15 +177,16 @@ export default function Revenues() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label>Loja *</Label>
+                <Label>Loja (opcional)</Label>
                 <Select
                   value={formData.store_id}
                   onValueChange={(v) => setFormData({ ...formData, store_id: v })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione a loja" />
+                    <SelectValue placeholder="Selecione a loja (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="">Nenhuma loja</SelectItem>
                     {stores.map((store) => (
                       <SelectItem key={store.id} value={store.id}>
                         {store.name}
