@@ -398,14 +398,14 @@ export default function Expenses() {
                 <div className="space-y-2">
                   <Label>Loja (opcional)</Label>
                   <Select
-                    value={aiFormData.store_id}
-                    onValueChange={(v) => setAiFormData({ ...aiFormData, store_id: v })}
+                    value={aiFormData.store_id || '__none__'}
+                    onValueChange={(v) => setAiFormData({ ...aiFormData, store_id: v === '__none__' ? '' : v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Despesa geral (sem loja)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Despesa geral (sem loja)</SelectItem>
+                      <SelectItem value="__none__">Despesa geral (sem loja)</SelectItem>
                       {stores.map((store) => (
                         <SelectItem key={store.id} value={store.id}>
                           {store.name}
@@ -518,14 +518,14 @@ export default function Expenses() {
                 <div className="space-y-2">
                   <Label>Loja (opcional)</Label>
                   <Select
-                    value={formData.store_id}
-                    onValueChange={(v) => setFormData({ ...formData, store_id: v })}
+                    value={formData.store_id || '__none__'}
+                    onValueChange={(v) => setFormData({ ...formData, store_id: v === '__none__' ? '' : v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Despesa geral (sem loja)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Despesa geral (sem loja)</SelectItem>
+                      <SelectItem value="__none__">Despesa geral (sem loja)</SelectItem>
                       {stores.map((store) => (
                         <SelectItem key={store.id} value={store.id}>
                           {store.name}
