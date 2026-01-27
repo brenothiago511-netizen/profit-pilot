@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, TrendingUp, Loader2, Trash2, Upload, X, Image } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { parseDate } from '@/lib/dateUtils';
 
 interface Revenue {
   id: string;
@@ -496,7 +497,7 @@ export default function Revenues() {
                             </div>
                           )}
                         </td>
-                        <td>{format(new Date(revenue.date + 'T12:00:00'), 'dd/MM/yyyy')}</td>
+                        <td>{format(parseDate(revenue.date), 'dd/MM/yyyy')}</td>
                         <td>{revenue.stores?.name || '-'}</td>
                         <td>{revenue.source || '-'}</td>
                         <td className="capitalize">{revenue.payment_method?.replace('_', ' ') || '-'}</td>
