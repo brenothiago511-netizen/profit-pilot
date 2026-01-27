@@ -23,6 +23,8 @@ interface Revenue {
   source: string | null;
   payment_method: string | null;
   notes: string | null;
+  original_currency: string | null;
+  original_amount: number | null;
   stores: { name: string } | null;
 }
 
@@ -30,6 +32,14 @@ interface StoreOption {
   id: string;
   name: string;
 }
+
+const CURRENCIES = [
+  { code: 'BRL', label: 'R$ (BRL)', symbol: 'R$' },
+  { code: 'USD', label: 'US$ (USD)', symbol: 'US$' },
+  { code: 'EUR', label: '€ (EUR)', symbol: '€' },
+  { code: 'GBP', label: '£ (GBP)', symbol: '£' },
+  { code: 'MXN', label: 'MX$ (MXN)', symbol: 'MX$' },
+];
 
 export default function Revenues() {
   const { user } = useAuth();
@@ -44,6 +54,7 @@ export default function Revenues() {
     store_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     amount: '',
+    currency: 'BRL',
     source: '',
     payment_method: '',
     notes: '',
@@ -80,6 +91,37 @@ export default function Revenues() {
     setLoading(false);
   };
 
+  const getExchangeRate = async (fromCurrency: string, toCurrency: string): Promise<number> => {
+    if (fromCurrency === toCurrency) return 1;
+    
+    // Try to get direct rate
+    const { data: directRate } = await supabase
+      .from('exchange_rates')
+      .select('rate')
+      .eq('base_currency', fromCurrency)
+      .eq('target_currency', toCurrency)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (directRate) return directRate.rate;
+    
+    // Try reverse rate
+    const { data: reverseRate } = await supabase
+      .from('exchange_rates')
+      .select('rate')
+      .eq('base_currency', toCurrency)
+      .eq('target_currency', fromCurrency)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (reverseRate) return 1 / reverseRate.rate;
+    
+    // Default to 1 if no rate found
+    return 1;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.amount) {
@@ -92,11 +134,26 @@ export default function Revenues() {
     }
 
     setSaving(true);
+    
+    const originalAmount = parseFloat(formData.amount);
+    let convertedAmount = originalAmount;
+    let exchangeRate = 1;
+    
+    // Convert to BRL if different currency
+    if (formData.currency !== 'BRL') {
+      exchangeRate = await getExchangeRate(formData.currency, 'BRL');
+      convertedAmount = originalAmount * exchangeRate;
+    }
+    
     const { error } = await supabase.from('revenues').insert({
       store_id: formData.store_id || null,
       user_id: user?.id,
       date: formData.date,
-      amount: parseFloat(formData.amount),
+      amount: convertedAmount, // Store in BRL
+      original_amount: originalAmount,
+      original_currency: formData.currency,
+      converted_amount: convertedAmount,
+      exchange_rate_used: exchangeRate,
       source: formData.source || null,
       payment_method: formData.payment_method || null,
       notes: formData.notes || null,
@@ -111,15 +168,21 @@ export default function Revenues() {
         variant: 'destructive',
       });
     } else {
+      const currencyInfo = CURRENCIES.find(c => c.code === formData.currency);
+      const message = formData.currency !== 'BRL' 
+        ? `Receita cadastrada: ${currencyInfo?.symbol}${originalAmount.toFixed(2)} → R$${convertedAmount.toFixed(2)}`
+        : 'Receita cadastrada com sucesso';
+      
       toast({
         title: 'Sucesso',
-        description: 'Receita cadastrada com sucesso',
+        description: message,
       });
       setDialogOpen(false);
       setFormData({
         store_id: '',
         date: format(new Date(), 'yyyy-MM-dd'),
         amount: '',
+        currency: 'BRL',
         source: '',
         payment_method: '',
         notes: '',
@@ -196,17 +259,36 @@ export default function Revenues() {
                 </Select>
               </div>
 
+              <div className="space-y-2">
+                <Label>Data *</Label>
+                <Input
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Data *</Label>
-                  <Input
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  />
+                  <Label>Moeda *</Label>
+                  <Select
+                    value={formData.currency}
+                    onValueChange={(v) => setFormData({ ...formData, currency: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((curr) => (
+                        <SelectItem key={curr.code} value={curr.code}>
+                          {curr.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Valor (R$) *</Label>
+                  <Label>Valor ({CURRENCIES.find(c => c.code === formData.currency)?.symbol || 'R$'}) *</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -302,34 +384,46 @@ export default function Revenues() {
                     <th>Loja</th>
                     <th>Origem</th>
                     <th>Pagamento</th>
-                    <th className="text-right">Valor</th>
+                    <th className="text-right">Valor Original</th>
+                    <th className="text-right">Valor (BRL)</th>
                     {can('delete_revenue') && <th></th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {revenues.map((revenue) => (
-                    <tr key={revenue.id}>
-                      <td>{format(new Date(revenue.date), 'dd/MM/yyyy')}</td>
-                      <td>{revenue.stores?.name || '-'}</td>
-                      <td>{revenue.source || '-'}</td>
-                      <td className="capitalize">{revenue.payment_method?.replace('_', ' ') || '-'}</td>
-                      <td className="text-right font-medium text-success">
-                        {formatCurrency(revenue.amount)}
-                      </td>
-                      {can('delete_revenue') && (
-                        <td>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => handleDelete(revenue.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                  {revenues.map((revenue) => {
+                    const currencyInfo = CURRENCIES.find(c => c.code === revenue.original_currency);
+                    const showOriginal = revenue.original_currency && revenue.original_currency !== 'BRL' && revenue.original_amount;
+                    
+                    return (
+                      <tr key={revenue.id}>
+                        <td>{format(new Date(revenue.date), 'dd/MM/yyyy')}</td>
+                        <td>{revenue.stores?.name || '-'}</td>
+                        <td>{revenue.source || '-'}</td>
+                        <td className="capitalize">{revenue.payment_method?.replace('_', ' ') || '-'}</td>
+                        <td className="text-right font-medium">
+                          {showOriginal 
+                            ? `${currencyInfo?.symbol || ''}${revenue.original_amount?.toFixed(2)}`
+                            : '-'
+                          }
                         </td>
-                      )}
-                    </tr>
-                  ))}
+                        <td className="text-right font-medium text-success">
+                          {formatCurrency(revenue.amount)}
+                        </td>
+                        {can('delete_revenue') && (
+                          <td>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(revenue.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
