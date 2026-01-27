@@ -745,6 +745,7 @@ export type Database = {
           date: string
           exchange_rate_used: number | null
           id: string
+          image_url: string | null
           manager_id: string | null
           notes: string | null
           original_amount: number | null
@@ -762,6 +763,7 @@ export type Database = {
           date?: string
           exchange_rate_used?: number | null
           id?: string
+          image_url?: string | null
           manager_id?: string | null
           notes?: string | null
           original_amount?: number | null
@@ -779,6 +781,7 @@ export type Database = {
           date?: string
           exchange_rate_used?: number | null
           id?: string
+          image_url?: string | null
           manager_id?: string | null
           notes?: string | null
           original_amount?: number | null

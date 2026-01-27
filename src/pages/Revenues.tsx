@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, TrendingUp, Loader2, Trash2 } from 'lucide-react';
+import { Plus, TrendingUp, Loader2, Trash2, Upload, X, Image } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -25,6 +25,7 @@ interface Revenue {
   notes: string | null;
   original_currency: string | null;
   original_amount: number | null;
+  image_url: string | null;
   stores: { name: string } | null;
 }
 
@@ -50,6 +51,8 @@ export default function Revenues() {
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     store_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -122,6 +125,43 @@ export default function Revenues() {
     return 1;
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('revenue-images')
+      .upload(fileName, file);
+    
+    if (uploadError) {
+      console.error('Error uploading image:', uploadError);
+      return null;
+    }
+    
+    const { data } = supabase.storage
+      .from('revenue-images')
+      .getPublicUrl(fileName);
+    
+    return data.publicUrl;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.amount) {
@@ -145,11 +185,17 @@ export default function Revenues() {
       convertedAmount = originalAmount * exchangeRate;
     }
     
+    // Upload image if present
+    let imageUrl: string | null = null;
+    if (imageFile) {
+      imageUrl = await uploadImage(imageFile);
+    }
+    
     const { error } = await supabase.from('revenues').insert({
       store_id: formData.store_id || null,
       user_id: user?.id,
       date: formData.date,
-      amount: convertedAmount, // Store in BRL
+      amount: convertedAmount,
       original_amount: originalAmount,
       original_currency: formData.currency,
       converted_amount: convertedAmount,
@@ -157,6 +203,7 @@ export default function Revenues() {
       source: formData.source || null,
       payment_method: formData.payment_method || null,
       notes: formData.notes || null,
+      image_url: imageUrl,
     });
 
     setSaving(false);
@@ -187,6 +234,8 @@ export default function Revenues() {
         payment_method: '',
         notes: '',
       });
+      setImageFile(null);
+      setImagePreview(null);
       fetchRevenues();
     }
   };
@@ -330,6 +379,41 @@ export default function Revenues() {
               </div>
 
               <div className="space-y-2">
+                <Label>Comprovante (opcional)</Label>
+                {imagePreview ? (
+                  <div className="relative">
+                    <img 
+                      src={imagePreview} 
+                      alt="Preview" 
+                      className="w-full h-32 object-cover rounded-md border"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-6 w-6"
+                      onClick={removeImage}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                    <div className="flex flex-col items-center justify-center pt-2 pb-3">
+                      <Upload className="w-6 h-6 text-muted-foreground mb-1" />
+                      <p className="text-sm text-muted-foreground">Clique para enviar imagem</p>
+                    </div>
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={handleImageChange}
+                    />
+                  </label>
+                )}
+              </div>
+
+              <div className="space-y-2">
                 <Label>Observações</Label>
                 <Textarea
                   placeholder="Notas adicionais..."
@@ -380,6 +464,7 @@ export default function Revenues() {
               <table className="data-table">
                 <thead>
                   <tr>
+                    <th></th>
                     <th>Data</th>
                     <th>Loja</th>
                     <th>Origem</th>
@@ -396,6 +481,21 @@ export default function Revenues() {
                     
                     return (
                       <tr key={revenue.id}>
+                        <td className="w-10">
+                          {revenue.image_url ? (
+                            <a href={revenue.image_url} target="_blank" rel="noopener noreferrer">
+                              <img 
+                                src={revenue.image_url} 
+                                alt="Comprovante" 
+                                className="w-8 h-8 object-cover rounded border hover:opacity-80 transition-opacity"
+                              />
+                            </a>
+                          ) : (
+                            <div className="w-8 h-8 flex items-center justify-center text-muted-foreground">
+                              <Image className="w-4 h-4" />
+                            </div>
+                          )}
+                        </td>
                         <td>{format(new Date(revenue.date), 'dd/MM/yyyy')}</td>
                         <td>{revenue.stores?.name || '-'}</td>
                         <td>{revenue.source || '-'}</td>
