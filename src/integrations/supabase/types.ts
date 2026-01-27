@@ -751,7 +751,7 @@ export type Database = {
           original_currency: string | null
           payment_method: string | null
           source: string | null
-          store_id: string
+          store_id: string | null
           updated_at: string
           user_id: string
         }
@@ -768,7 +768,7 @@ export type Database = {
           original_currency?: string | null
           payment_method?: string | null
           source?: string | null
-          store_id: string
+          store_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -785,7 +785,7 @@ export type Database = {
           original_currency?: string | null
           payment_method?: string | null
           source?: string | null
-          store_id?: string
+          store_id?: string | null
           updated_at?: string
           user_id?: string
         }
