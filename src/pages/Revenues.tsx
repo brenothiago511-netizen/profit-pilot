@@ -242,14 +242,14 @@ export default function Revenues() {
               <div className="space-y-2">
                 <Label>Loja (opcional)</Label>
                 <Select
-                  value={formData.store_id}
-                  onValueChange={(v) => setFormData({ ...formData, store_id: v })}
+                  value={formData.store_id || '__none__'}
+                  onValueChange={(v) => setFormData({ ...formData, store_id: v === '__none__' ? '' : v })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a loja (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhuma loja</SelectItem>
+                    <SelectItem value="__none__">Nenhuma loja</SelectItem>
                     {stores.map((store) => (
                       <SelectItem key={store.id} value={store.id}>
                         {store.name}
