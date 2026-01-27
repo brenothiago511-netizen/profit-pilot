@@ -496,7 +496,7 @@ export default function Revenues() {
                             </div>
                           )}
                         </td>
-                        <td>{format(new Date(revenue.date), 'dd/MM/yyyy')}</td>
+                        <td>{format(new Date(revenue.date + 'T12:00:00'), 'dd/MM/yyyy')}</td>
                         <td>{revenue.stores?.name || '-'}</td>
                         <td>{revenue.source || '-'}</td>
                         <td className="capitalize">{revenue.payment_method?.replace('_', ' ') || '-'}</td>
