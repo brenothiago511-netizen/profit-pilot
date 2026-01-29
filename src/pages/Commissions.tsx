@@ -88,6 +88,8 @@ export default function Commissions() {
     shopify_deposit_2: '',
     shopify_deposit_1_currency: 'BRL',
     shopify_deposit_2_currency: 'BRL',
+    shopify_deposit_1_number: '',
+    shopify_deposit_2_number: '',
   });
 
   const [recordForm, setRecordForm] = useState(getInitialRecordForm());
@@ -373,6 +375,8 @@ export default function Commissions() {
       shopify_deposit_2: record.shopify_deposit_2?.toString() || '',
       shopify_deposit_1_currency: record.shopify_deposit_1_currency || 'BRL',
       shopify_deposit_2_currency: record.shopify_deposit_2_currency || 'BRL',
+      shopify_deposit_1_number: (record as any).shopify_deposit_1_number || '',
+      shopify_deposit_2_number: (record as any).shopify_deposit_2_number || '',
     });
     setRecordDialogOpen(true);
   };
@@ -544,7 +548,13 @@ export default function Commissions() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Depósito Shopify 1 (opcional)</Label>
+                  <Label>Shopify 1 (opcional)</Label>
+                  <Input
+                    type="text"
+                    value={recordForm.shopify_deposit_1_number}
+                    onChange={(e) => setRecordForm({ ...recordForm, shopify_deposit_1_number: e.target.value })}
+                    placeholder="Número da Shopify (ex: #12345)"
+                  />
                   <div className="flex gap-2">
                     <Select
                       value={recordForm.shopify_deposit_1_currency}
@@ -576,11 +586,16 @@ export default function Commissions() {
                       />
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">Valor do depósito recebido da Shopify (loja 1)</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Depósito Shopify 2 (opcional)</Label>
+                  <Label>Shopify 2 (opcional)</Label>
+                  <Input
+                    type="text"
+                    value={recordForm.shopify_deposit_2_number}
+                    onChange={(e) => setRecordForm({ ...recordForm, shopify_deposit_2_number: e.target.value })}
+                    placeholder="Número da Shopify (ex: #12345)"
+                  />
                   <div className="flex gap-2">
                     <Select
                       value={recordForm.shopify_deposit_2_currency}
@@ -612,7 +627,6 @@ export default function Commissions() {
                       />
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">Valor do depósito recebido da Shopify (loja 2 - conjunto)</p>
                 </div>
 
                 <div className="space-y-2">
