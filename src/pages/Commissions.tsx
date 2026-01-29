@@ -32,6 +32,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+const CURRENCIES = [
+  { code: 'BRL', symbol: 'R$', name: 'Real Brasileiro' },
+  { code: 'USD', symbol: '$', name: 'Dólar Americano' },
+  { code: 'EUR', symbol: '€', name: 'Euro' },
+  { code: 'GBP', symbol: '£', name: 'Libra Esterlina' },
+  { code: 'MXN', symbol: '$', name: 'Peso Mexicano' },
+];
+
 interface DailyRecord {
   id: string;
   user_id: string | null;
@@ -46,6 +54,10 @@ interface DailyRecord {
   store_name?: string;
   shopify_deposit_1?: number | null;
   shopify_deposit_2?: number | null;
+  shopify_deposit_1_currency?: string | null;
+  shopify_deposit_2_currency?: string | null;
+  shopify_deposit_1_converted?: number | null;
+  shopify_deposit_2_converted?: number | null;
 }
 
 interface StoreOption {
@@ -66,7 +78,7 @@ export default function Commissions() {
   const [savingRecord, setSavingRecord] = useState(false);
   
   // Forms
-  const [recordForm, setRecordForm] = useState({
+  const getInitialRecordForm = () => ({
     id: '',
     store_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -74,7 +86,11 @@ export default function Commissions() {
     notes: '',
     shopify_deposit_1: '',
     shopify_deposit_2: '',
+    shopify_deposit_1_currency: 'BRL',
+    shopify_deposit_2_currency: 'BRL',
   });
+
+  const [recordForm, setRecordForm] = useState(getInitialRecordForm());
   
   // Edit/Delete states
   const [editingRecord, setEditingRecord] = useState<DailyRecord | null>(null);
@@ -143,6 +159,10 @@ export default function Commissions() {
       user_name: r.created_by ? profilesMap.get(r.created_by) || '-' : '-',
       shopify_deposit_1: (r as any).shopify_deposit_1,
       shopify_deposit_2: (r as any).shopify_deposit_2,
+      shopify_deposit_1_currency: (r as any).shopify_deposit_1_currency,
+      shopify_deposit_2_currency: (r as any).shopify_deposit_2_currency,
+      shopify_deposit_1_converted: (r as any).shopify_deposit_1_converted,
+      shopify_deposit_2_converted: (r as any).shopify_deposit_2_converted,
     }));
 
     setDailyRecords(enrichedRecords);
@@ -155,6 +175,35 @@ export default function Commissions() {
       .eq('status', 'active')
       .order('name');
     if (data) setStores(data);
+  };
+
+  const getExchangeRate = async (fromCurrency: string, toCurrency: string): Promise<number> => {
+    if (fromCurrency === toCurrency) return 1;
+    
+    const { data } = await supabase
+      .from('exchange_rates')
+      .select('rate')
+      .eq('base_currency', fromCurrency)
+      .eq('target_currency', toCurrency)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (data?.rate) return Number(data.rate);
+    
+    // Try reverse rate
+    const { data: reverseData } = await supabase
+      .from('exchange_rates')
+      .select('rate')
+      .eq('base_currency', toCurrency)
+      .eq('target_currency', fromCurrency)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (reverseData?.rate) return 1 / Number(reverseData.rate);
+    
+    return 1;
   };
 
   const handleRecordSubmit = async (e: React.FormEvent) => {
@@ -176,6 +225,26 @@ export default function Commissions() {
     const deposit1 = recordForm.shopify_deposit_1 ? parseFloat(recordForm.shopify_deposit_1) : null;
     const deposit2 = recordForm.shopify_deposit_2 ? parseFloat(recordForm.shopify_deposit_2) : null;
 
+    // Calculate conversions for deposits
+    let deposit1Converted = null;
+    let deposit1Rate = 1;
+    let deposit2Converted = null;
+    let deposit2Rate = 1;
+
+    if (deposit1 !== null && recordForm.shopify_deposit_1_currency !== 'BRL') {
+      deposit1Rate = await getExchangeRate(recordForm.shopify_deposit_1_currency, 'BRL');
+      deposit1Converted = deposit1 * deposit1Rate;
+    } else if (deposit1 !== null) {
+      deposit1Converted = deposit1;
+    }
+
+    if (deposit2 !== null && recordForm.shopify_deposit_2_currency !== 'BRL') {
+      deposit2Rate = await getExchangeRate(recordForm.shopify_deposit_2_currency, 'BRL');
+      deposit2Converted = deposit2 * deposit2Rate;
+    } else if (deposit2 !== null) {
+      deposit2Converted = deposit2;
+    }
+
     // If editing existing record
     if (editingRecord) {
       const { error } = await supabase
@@ -187,6 +256,12 @@ export default function Commissions() {
           notes: recordForm.notes || null,
           shopify_deposit_1: deposit1,
           shopify_deposit_2: deposit2,
+          shopify_deposit_1_currency: recordForm.shopify_deposit_1_currency,
+          shopify_deposit_2_currency: recordForm.shopify_deposit_2_currency,
+          shopify_deposit_1_converted: deposit1Converted,
+          shopify_deposit_2_converted: deposit2Converted,
+          shopify_deposit_1_rate: deposit1Rate,
+          shopify_deposit_2_rate: deposit2Rate,
         })
         .eq('id', editingRecord.id);
 
@@ -204,7 +279,7 @@ export default function Commissions() {
           description: 'Lucro atualizado!',
         });
         setRecordDialogOpen(false);
-        setRecordForm({ id: '', store_id: '', date: format(new Date(), 'yyyy-MM-dd'), daily_profit: '', notes: '', shopify_deposit_1: '', shopify_deposit_2: '' });
+        setRecordForm(getInitialRecordForm());
         setEditingRecord(null);
         fetchDailyRecords();
       }
@@ -258,6 +333,12 @@ export default function Commissions() {
       shopify_status: 'pending',
       shopify_deposit_1: deposit1,
       shopify_deposit_2: deposit2,
+      shopify_deposit_1_currency: recordForm.shopify_deposit_1_currency,
+      shopify_deposit_2_currency: recordForm.shopify_deposit_2_currency,
+      shopify_deposit_1_converted: deposit1Converted,
+      shopify_deposit_2_converted: deposit2Converted,
+      shopify_deposit_1_rate: deposit1Rate,
+      shopify_deposit_2_rate: deposit2Rate,
     });
 
     setSavingRecord(false);
@@ -274,7 +355,7 @@ export default function Commissions() {
         description: 'Lucro registrado! Aguardando confirmação de recebimento Shopify.',
       });
       setRecordDialogOpen(false);
-      setRecordForm({ id: '', store_id: '', date: format(new Date(), 'yyyy-MM-dd'), daily_profit: '', notes: '', shopify_deposit_1: '', shopify_deposit_2: '' });
+      setRecordForm(getInitialRecordForm());
       setEditingRecord(null);
       fetchDailyRecords();
     }
@@ -290,6 +371,8 @@ export default function Commissions() {
       notes: record.notes || '',
       shopify_deposit_1: record.shopify_deposit_1?.toString() || '',
       shopify_deposit_2: record.shopify_deposit_2?.toString() || '',
+      shopify_deposit_1_currency: record.shopify_deposit_1_currency || 'BRL',
+      shopify_deposit_2_currency: record.shopify_deposit_2_currency || 'BRL',
     });
     setRecordDialogOpen(true);
   };
@@ -395,7 +478,7 @@ export default function Commissions() {
             setRecordDialogOpen(open);
             if (!open) {
               setEditingRecord(null);
-              setRecordForm({ id: '', store_id: '', date: format(new Date(), 'yyyy-MM-dd'), daily_profit: '', notes: '', shopify_deposit_1: '', shopify_deposit_2: '' });
+              setRecordForm(getInitialRecordForm());
             }
           }}>
             <DialogTrigger asChild>
@@ -462,38 +545,72 @@ export default function Commissions() {
 
                 <div className="space-y-2">
                   <Label>Depósito Shopify 1 (opcional)</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
-                      R$
-                    </span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={recordForm.shopify_deposit_1}
-                      onChange={(e) => setRecordForm({ ...recordForm, shopify_deposit_1: e.target.value })}
-                      placeholder="0,00"
-                      className="pl-10"
-                    />
+                  <div className="flex gap-2">
+                    <Select
+                      value={recordForm.shopify_deposit_1_currency}
+                      onValueChange={(v) => setRecordForm({ ...recordForm, shopify_deposit_1_currency: v })}
+                    >
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
+                        {CURRENCIES.find(c => c.code === recordForm.shopify_deposit_1_currency)?.symbol || '$'}
+                      </span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={recordForm.shopify_deposit_1}
+                        onChange={(e) => setRecordForm({ ...recordForm, shopify_deposit_1: e.target.value })}
+                        placeholder="0,00"
+                        className="pl-10"
+                      />
+                    </div>
                   </div>
                   <p className="text-xs text-muted-foreground">Valor do depósito recebido da Shopify (loja 1)</p>
                 </div>
 
                 <div className="space-y-2">
                   <Label>Depósito Shopify 2 (opcional)</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
-                      R$
-                    </span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={recordForm.shopify_deposit_2}
-                      onChange={(e) => setRecordForm({ ...recordForm, shopify_deposit_2: e.target.value })}
-                      placeholder="0,00"
-                      className="pl-10"
-                    />
+                  <div className="flex gap-2">
+                    <Select
+                      value={recordForm.shopify_deposit_2_currency}
+                      onValueChange={(v) => setRecordForm({ ...recordForm, shopify_deposit_2_currency: v })}
+                    >
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
+                        {CURRENCIES.find(c => c.code === recordForm.shopify_deposit_2_currency)?.symbol || '$'}
+                      </span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={recordForm.shopify_deposit_2}
+                        onChange={(e) => setRecordForm({ ...recordForm, shopify_deposit_2: e.target.value })}
+                        placeholder="0,00"
+                        className="pl-10"
+                      />
+                    </div>
                   </div>
                   <p className="text-xs text-muted-foreground">Valor do depósito recebido da Shopify (loja 2 - conjunto)</p>
                 </div>

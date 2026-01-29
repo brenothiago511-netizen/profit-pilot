@@ -211,7 +211,13 @@ export type Database = {
           manager_id: string
           notes: string | null
           shopify_deposit_1: number | null
+          shopify_deposit_1_converted: number | null
+          shopify_deposit_1_currency: string | null
+          shopify_deposit_1_rate: number | null
           shopify_deposit_2: number | null
+          shopify_deposit_2_converted: number | null
+          shopify_deposit_2_currency: string | null
+          shopify_deposit_2_rate: number | null
           shopify_status: string | null
           status: string | null
           store_id: string
@@ -228,7 +234,13 @@ export type Database = {
           manager_id: string
           notes?: string | null
           shopify_deposit_1?: number | null
+          shopify_deposit_1_converted?: number | null
+          shopify_deposit_1_currency?: string | null
+          shopify_deposit_1_rate?: number | null
           shopify_deposit_2?: number | null
+          shopify_deposit_2_converted?: number | null
+          shopify_deposit_2_currency?: string | null
+          shopify_deposit_2_rate?: number | null
           shopify_status?: string | null
           status?: string | null
           store_id: string
@@ -245,7 +257,13 @@ export type Database = {
           manager_id?: string
           notes?: string | null
           shopify_deposit_1?: number | null
+          shopify_deposit_1_converted?: number | null
+          shopify_deposit_1_currency?: string | null
+          shopify_deposit_1_rate?: number | null
           shopify_deposit_2?: number | null
+          shopify_deposit_2_converted?: number | null
+          shopify_deposit_2_currency?: string | null
+          shopify_deposit_2_rate?: number | null
           shopify_status?: string | null
           status?: string | null
           store_id?: string
