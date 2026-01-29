@@ -210,6 +210,8 @@ export type Database = {
           id: string
           manager_id: string
           notes: string | null
+          shopify_deposit_1: number | null
+          shopify_deposit_2: number | null
           shopify_status: string | null
           status: string | null
           store_id: string
@@ -225,6 +227,8 @@ export type Database = {
           id?: string
           manager_id: string
           notes?: string | null
+          shopify_deposit_1?: number | null
+          shopify_deposit_2?: number | null
           shopify_status?: string | null
           status?: string | null
           store_id: string
@@ -240,6 +244,8 @@ export type Database = {
           id?: string
           manager_id?: string
           notes?: string | null
+          shopify_deposit_1?: number | null
+          shopify_deposit_2?: number | null
           shopify_status?: string | null
           status?: string | null
           store_id?: string
