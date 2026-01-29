@@ -58,6 +58,8 @@ interface DailyRecord {
   shopify_deposit_2_currency?: string | null;
   shopify_deposit_1_converted?: number | null;
   shopify_deposit_2_converted?: number | null;
+  shopify_deposit_1_number?: string | null;
+  shopify_deposit_2_number?: string | null;
 }
 
 interface StoreOption {
@@ -165,6 +167,8 @@ export default function Commissions() {
       shopify_deposit_2_currency: (r as any).shopify_deposit_2_currency,
       shopify_deposit_1_converted: (r as any).shopify_deposit_1_converted,
       shopify_deposit_2_converted: (r as any).shopify_deposit_2_converted,
+      shopify_deposit_1_number: (r as any).shopify_deposit_1_number,
+      shopify_deposit_2_number: (r as any).shopify_deposit_2_number,
     }));
 
     setDailyRecords(enrichedRecords);
@@ -264,6 +268,8 @@ export default function Commissions() {
           shopify_deposit_2_converted: deposit2Converted,
           shopify_deposit_1_rate: deposit1Rate,
           shopify_deposit_2_rate: deposit2Rate,
+          shopify_deposit_1_number: recordForm.shopify_deposit_1_number || null,
+          shopify_deposit_2_number: recordForm.shopify_deposit_2_number || null,
         })
         .eq('id', editingRecord.id);
 
@@ -341,6 +347,8 @@ export default function Commissions() {
       shopify_deposit_2_converted: deposit2Converted,
       shopify_deposit_1_rate: deposit1Rate,
       shopify_deposit_2_rate: deposit2Rate,
+      shopify_deposit_1_number: recordForm.shopify_deposit_1_number || null,
+      shopify_deposit_2_number: recordForm.shopify_deposit_2_number || null,
     });
 
     setSavingRecord(false);

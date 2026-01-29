@@ -213,10 +213,12 @@ export type Database = {
           shopify_deposit_1: number | null
           shopify_deposit_1_converted: number | null
           shopify_deposit_1_currency: string | null
+          shopify_deposit_1_number: string | null
           shopify_deposit_1_rate: number | null
           shopify_deposit_2: number | null
           shopify_deposit_2_converted: number | null
           shopify_deposit_2_currency: string | null
+          shopify_deposit_2_number: string | null
           shopify_deposit_2_rate: number | null
           shopify_status: string | null
           status: string | null
@@ -236,10 +238,12 @@ export type Database = {
           shopify_deposit_1?: number | null
           shopify_deposit_1_converted?: number | null
           shopify_deposit_1_currency?: string | null
+          shopify_deposit_1_number?: string | null
           shopify_deposit_1_rate?: number | null
           shopify_deposit_2?: number | null
           shopify_deposit_2_converted?: number | null
           shopify_deposit_2_currency?: string | null
+          shopify_deposit_2_number?: string | null
           shopify_deposit_2_rate?: number | null
           shopify_status?: string | null
           status?: string | null
@@ -259,10 +263,12 @@ export type Database = {
           shopify_deposit_1?: number | null
           shopify_deposit_1_converted?: number | null
           shopify_deposit_1_currency?: string | null
+          shopify_deposit_1_number?: string | null
           shopify_deposit_1_rate?: number | null
           shopify_deposit_2?: number | null
           shopify_deposit_2_converted?: number | null
           shopify_deposit_2_currency?: string | null
+          shopify_deposit_2_number?: string | null
           shopify_deposit_2_rate?: number | null
           shopify_status?: string | null
           status?: string | null
