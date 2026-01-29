@@ -44,6 +44,8 @@ interface DailyRecord {
   created_at: string;
   user_name?: string;
   store_name?: string;
+  shopify_deposit_1?: number | null;
+  shopify_deposit_2?: number | null;
 }
 
 interface StoreOption {
@@ -70,6 +72,8 @@ export default function Commissions() {
     date: format(new Date(), 'yyyy-MM-dd'),
     daily_profit: '',
     notes: '',
+    shopify_deposit_1: '',
+    shopify_deposit_2: '',
   });
   
   // Edit/Delete states
@@ -137,6 +141,8 @@ export default function Commissions() {
       created_at: r.created_at || '',
       store_name: (r.stores as any)?.name || '-',
       user_name: r.created_by ? profilesMap.get(r.created_by) || '-' : '-',
+      shopify_deposit_1: (r as any).shopify_deposit_1,
+      shopify_deposit_2: (r as any).shopify_deposit_2,
     }));
 
     setDailyRecords(enrichedRecords);
@@ -167,6 +173,9 @@ export default function Commissions() {
     
     const profit = parseFloat(recordForm.daily_profit);
 
+    const deposit1 = recordForm.shopify_deposit_1 ? parseFloat(recordForm.shopify_deposit_1) : null;
+    const deposit2 = recordForm.shopify_deposit_2 ? parseFloat(recordForm.shopify_deposit_2) : null;
+
     // If editing existing record
     if (editingRecord) {
       const { error } = await supabase
@@ -176,6 +185,8 @@ export default function Commissions() {
           date: recordForm.date,
           daily_profit: profit,
           notes: recordForm.notes || null,
+          shopify_deposit_1: deposit1,
+          shopify_deposit_2: deposit2,
         })
         .eq('id', editingRecord.id);
 
@@ -193,7 +204,7 @@ export default function Commissions() {
           description: 'Lucro atualizado!',
         });
         setRecordDialogOpen(false);
-        setRecordForm({ id: '', store_id: '', date: format(new Date(), 'yyyy-MM-dd'), daily_profit: '', notes: '' });
+        setRecordForm({ id: '', store_id: '', date: format(new Date(), 'yyyy-MM-dd'), daily_profit: '', notes: '', shopify_deposit_1: '', shopify_deposit_2: '' });
         setEditingRecord(null);
         fetchDailyRecords();
       }
@@ -245,6 +256,8 @@ export default function Commissions() {
       manager_id: managerId,
       status: 'pending',
       shopify_status: 'pending',
+      shopify_deposit_1: deposit1,
+      shopify_deposit_2: deposit2,
     });
 
     setSavingRecord(false);
@@ -261,7 +274,7 @@ export default function Commissions() {
         description: 'Lucro registrado! Aguardando confirmação de recebimento Shopify.',
       });
       setRecordDialogOpen(false);
-      setRecordForm({ id: '', store_id: '', date: format(new Date(), 'yyyy-MM-dd'), daily_profit: '', notes: '' });
+      setRecordForm({ id: '', store_id: '', date: format(new Date(), 'yyyy-MM-dd'), daily_profit: '', notes: '', shopify_deposit_1: '', shopify_deposit_2: '' });
       setEditingRecord(null);
       fetchDailyRecords();
     }
@@ -275,6 +288,8 @@ export default function Commissions() {
       date: record.date,
       daily_profit: record.daily_profit.toString(),
       notes: record.notes || '',
+      shopify_deposit_1: record.shopify_deposit_1?.toString() || '',
+      shopify_deposit_2: record.shopify_deposit_2?.toString() || '',
     });
     setRecordDialogOpen(true);
   };
@@ -380,7 +395,7 @@ export default function Commissions() {
             setRecordDialogOpen(open);
             if (!open) {
               setEditingRecord(null);
-              setRecordForm({ id: '', store_id: '', date: format(new Date(), 'yyyy-MM-dd'), daily_profit: '', notes: '' });
+              setRecordForm({ id: '', store_id: '', date: format(new Date(), 'yyyy-MM-dd'), daily_profit: '', notes: '', shopify_deposit_1: '', shopify_deposit_2: '' });
             }
           }}>
             <DialogTrigger asChild>
@@ -443,6 +458,44 @@ export default function Commissions() {
                       required
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Depósito Shopify 1 (opcional)</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
+                      R$
+                    </span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={recordForm.shopify_deposit_1}
+                      onChange={(e) => setRecordForm({ ...recordForm, shopify_deposit_1: e.target.value })}
+                      placeholder="0,00"
+                      className="pl-10"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Valor do depósito recebido da Shopify (loja 1)</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Depósito Shopify 2 (opcional)</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
+                      R$
+                    </span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={recordForm.shopify_deposit_2}
+                      onChange={(e) => setRecordForm({ ...recordForm, shopify_deposit_2: e.target.value })}
+                      placeholder="0,00"
+                      className="pl-10"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Valor do depósito recebido da Shopify (loja 2 - conjunto)</p>
                 </div>
 
                 <div className="space-y-2">
