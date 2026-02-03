@@ -25,6 +25,7 @@ interface ShopifyWithdrawal {
   converted_amount: number | null;
   exchange_rate_used: number | null;
   date: string;
+  sale_date: string | null;
   notes: string | null;
   status: string;
   received_at: string | null;
@@ -47,6 +48,7 @@ const ShopifyWithdrawals = () => {
     amount: '',
     currency: 'USD',
     date: new Date(),
+    sale_date: null as Date | null,
     notes: '',
   });
 
@@ -78,6 +80,7 @@ const ShopifyWithdrawals = () => {
       amount: '',
       currency: 'USD',
       date: new Date(),
+      sale_date: null,
       notes: '',
     });
     setEditingWithdrawal(null);
@@ -90,6 +93,7 @@ const ShopifyWithdrawals = () => {
       amount: withdrawal.amount.toString(),
       currency: withdrawal.currency,
       date: new Date(withdrawal.date),
+      sale_date: withdrawal.sale_date ? new Date(withdrawal.sale_date) : null,
       notes: withdrawal.notes || '',
     });
     setDialogOpen(true);
@@ -120,6 +124,7 @@ const ShopifyWithdrawals = () => {
       converted_amount: convertedAmount,
       exchange_rate_used: exchangeRate,
       date: format(form.date, 'yyyy-MM-dd'),
+      sale_date: form.sale_date ? format(form.sale_date, 'yyyy-MM-dd') : null,
       notes: form.notes || null,
       created_by: user?.id,
     };
@@ -231,31 +236,60 @@ const ShopifyWithdrawals = () => {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="date">Data *</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !form.date && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {form.date ? format(form.date, "PPP", { locale: ptBR }) : "Selecione a data"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={form.date}
-                        onSelect={(date) => date && setForm({ ...form, date })}
-                        initialFocus
-                        className="p-3 pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="sale_date">Data da Venda</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !form.sale_date && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {form.sale_date ? format(form.sale_date, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={form.sale_date || undefined}
+                          onSelect={(date) => setForm({ ...form, sale_date: date || null })}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="date">Data Recebimento *</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !form.date && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {form.date ? format(form.date, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={form.date}
+                          onSelect={(date) => date && setForm({ ...form, date })}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">
@@ -385,7 +419,8 @@ const ShopifyWithdrawals = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Status</TableHead>
-                    <TableHead>Data</TableHead>
+                    <TableHead>Data Venda</TableHead>
+                    <TableHead>Data Receb.</TableHead>
                     <TableHead>Loja</TableHead>
                     <TableHead className="text-right">Valor Original</TableHead>
                     <TableHead className="text-right">Valor Convertido</TableHead>
@@ -420,6 +455,9 @@ const ShopifyWithdrawals = () => {
                             </>
                           )}
                         </Button>
+                      </TableCell>
+                      <TableCell>
+                        {w.sale_date ? format(new Date(w.sale_date), 'dd/MM/yyyy') : '-'}
                       </TableCell>
                       <TableCell>
                         {format(new Date(w.date), 'dd/MM/yyyy')}
