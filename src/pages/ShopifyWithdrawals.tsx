@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Plus, CalendarIcon, Pencil, Trash2, ArrowDownCircle, Check, Clock } from 'lucide-react';
+import { Plus, CalendarIcon, Pencil, Trash2, ArrowDownCircle, Check, Clock, Filter, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -50,6 +50,10 @@ const ShopifyWithdrawals = () => {
   const [editingWithdrawal, setEditingWithdrawal] = useState<ShopifyWithdrawal | null>(null);
   const [saving, setSaving] = useState(false);
   
+  // Filters
+  const [filterStore, setFilterStore] = useState<string>('all');
+  const [filterDateStart, setFilterDateStart] = useState<Date | undefined>(undefined);
+  const [filterDateEnd, setFilterDateEnd] = useState<Date | undefined>(undefined);
   const [form, setForm] = useState({
     store_name: '',
     amount: '',
@@ -238,10 +242,36 @@ const ShopifyWithdrawals = () => {
     }
   };
 
-  const totalConverted = withdrawals.reduce((sum, w) => sum + (w.converted_amount || 0), 0);
-  const pendingWithdrawals = withdrawals.filter(w => w.status === 'pending');
+  // Apply filters
+  const filteredWithdrawals = withdrawals.filter(w => {
+    // Filter by store
+    if (filterStore !== 'all' && w.store_name !== filterStore) {
+      return false;
+    }
+    // Filter by date range (using receipt date)
+    if (filterDateStart) {
+      const wDate = parseDate(w.date);
+      if (wDate < filterDateStart) return false;
+    }
+    if (filterDateEnd) {
+      const wDate = parseDate(w.date);
+      if (wDate > filterDateEnd) return false;
+    }
+    return true;
+  });
+
+  const clearFilters = () => {
+    setFilterStore('all');
+    setFilterDateStart(undefined);
+    setFilterDateEnd(undefined);
+  };
+
+  const hasActiveFilters = filterStore !== 'all' || filterDateStart || filterDateEnd;
+
+  const totalConverted = filteredWithdrawals.reduce((sum, w) => sum + (w.converted_amount || 0), 0);
+  const pendingWithdrawals = filteredWithdrawals.filter(w => w.status === 'pending');
   const totalPending = pendingWithdrawals.reduce((sum, w) => sum + (w.converted_amount || 0), 0);
-  const receivedWithdrawals = withdrawals.filter(w => w.status === 'received');
+  const receivedWithdrawals = filteredWithdrawals.filter(w => w.status === 'received');
   const totalReceived = receivedWithdrawals.reduce((sum, w) => sum + (w.converted_amount || 0), 0);
 
   return (
@@ -414,6 +444,96 @@ const ShopifyWithdrawals = () => {
           </Dialog>
         </div>
 
+        {/* Filters */}
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filtros:</span>
+              </div>
+              
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Loja</Label>
+                <Select value={filterStore} onValueChange={setFilterStore}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Todas as lojas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as lojas</SelectItem>
+                    {stores.map((store) => (
+                      <SelectItem key={store.id} value={store.name}>
+                        {store.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Data inicial</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[140px] justify-start text-left font-normal",
+                        !filterDateStart && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filterDateStart ? format(filterDateStart, "dd/MM/yyyy") : "Início"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={filterDateStart}
+                      onSelect={setFilterDateStart}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Data final</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[140px] justify-start text-left font-normal",
+                        !filterDateEnd && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filterDateEnd ? format(filterDateEnd, "dd/MM/yyyy") : "Fim"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={filterDateEnd}
+                      onSelect={setFilterDateEnd}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
+                  <X className="h-4 w-4" />
+                  Limpar
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
@@ -426,7 +546,7 @@ const ShopifyWithdrawals = () => {
                 {formatCurrency(totalConverted, config.baseCurrency)}
               </div>
               <p className="text-xs text-muted-foreground">
-                {withdrawals.length} saques registrados
+                {filteredWithdrawals.length} saques {hasActiveFilters ? 'filtrados' : 'registrados'}
               </p>
             </CardContent>
           </Card>
@@ -470,9 +590,9 @@ const ShopifyWithdrawals = () => {
           <CardContent>
             {loading ? (
               <p className="text-center py-8 text-muted-foreground">Carregando...</p>
-            ) : withdrawals.length === 0 ? (
+            ) : filteredWithdrawals.length === 0 ? (
               <p className="text-center py-8 text-muted-foreground">
-                Nenhum saque cadastrado
+                {hasActiveFilters ? 'Nenhum saque encontrado com os filtros aplicados' : 'Nenhum saque cadastrado'}
               </p>
             ) : (
               <Table>
@@ -489,7 +609,7 @@ const ShopifyWithdrawals = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {withdrawals.map((w) => (
+                  {filteredWithdrawals.map((w) => (
                     <TableRow key={w.id}>
                       <TableCell>
                         <Button
