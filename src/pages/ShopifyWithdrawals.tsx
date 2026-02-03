@@ -34,11 +34,17 @@ interface ShopifyWithdrawal {
   created_at: string;
 }
 
+interface Store {
+  id: string;
+  name: string;
+}
+
 const ShopifyWithdrawals = () => {
   const { user, profile } = useAuth();
   const { getExchangeRate, formatCurrency, getCurrencySymbol, config } = useCurrency();
   
   const [withdrawals, setWithdrawals] = useState<ShopifyWithdrawal[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingWithdrawal, setEditingWithdrawal] = useState<ShopifyWithdrawal | null>(null);
@@ -57,7 +63,22 @@ const ShopifyWithdrawals = () => {
 
   useEffect(() => {
     fetchWithdrawals();
+    fetchStores();
   }, []);
+
+  const fetchStores = async () => {
+    const { data, error } = await supabase
+      .from('stores')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching stores:', error);
+    } else {
+      setStores(data || []);
+    }
+  };
 
   const fetchWithdrawals = async () => {
     setLoading(true);
@@ -250,13 +271,22 @@ const ShopifyWithdrawals = () => {
               
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="store_name">Nome da Loja *</Label>
-                  <Input
-                    id="store_name"
-                    placeholder="Ex: Loja Exemplo"
+                  <Label htmlFor="store_name">Loja *</Label>
+                  <Select
                     value={form.store_name}
-                    onChange={(e) => setForm({ ...form, store_name: e.target.value })}
-                  />
+                    onValueChange={(value) => setForm({ ...form, store_name: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a loja" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stores.map((store) => (
+                        <SelectItem key={store.id} value={store.name}>
+                          {store.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
