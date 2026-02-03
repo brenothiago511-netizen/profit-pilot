@@ -12,6 +12,7 @@ import { Plus, CalendarIcon, Pencil, Trash2, ArrowDownCircle, Check, Clock } fro
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { parseDate } from '@/lib/dateUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCurrency, AVAILABLE_CURRENCIES } from '@/hooks/useCurrency';
@@ -88,7 +89,7 @@ const ShopifyWithdrawals = () => {
 
   const parseSaleDates = (saleDateStr: string | null): Date[] => {
     if (!saleDateStr) return [];
-    return saleDateStr.split(',').map(d => new Date(d.trim() + 'T12:00:00'));
+    return saleDateStr.split(',').map(d => parseDate(d.trim()));
   };
 
   const formatSaleDatesForDb = (dates: Date[]): string | null => {
@@ -102,7 +103,7 @@ const ShopifyWithdrawals = () => {
   const formatSaleDatesDisplay = (saleDateStr: string | null): string => {
     if (!saleDateStr) return '-';
     const dates = saleDateStr.split(',').map(d => {
-      const date = new Date(d.trim() + 'T12:00:00');
+      const date = parseDate(d.trim());
       return format(date, 'dd/MM');
     });
     return dates.join(', ');
@@ -114,7 +115,7 @@ const ShopifyWithdrawals = () => {
       store_name: withdrawal.store_name,
       amount: withdrawal.amount.toString(),
       currency: withdrawal.currency,
-      date: new Date(withdrawal.date),
+      date: parseDate(withdrawal.date),
       sale_dates: parseSaleDates(withdrawal.sale_date),
       notes: withdrawal.notes || '',
     });
@@ -491,7 +492,7 @@ const ShopifyWithdrawals = () => {
                         </span>
                       </TableCell>
                       <TableCell>
-                        {format(new Date(w.date), 'dd/MM/yyyy')}
+                        {format(parseDate(w.date), 'dd/MM/yyyy')}
                       </TableCell>
                       <TableCell className="font-medium">{w.store_name}</TableCell>
                       <TableCell className="text-right">
