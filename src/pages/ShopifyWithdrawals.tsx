@@ -48,7 +48,7 @@ const ShopifyWithdrawals = () => {
     amount: '',
     currency: 'USD',
     date: new Date(),
-    sale_date: null as Date | null,
+    sale_dates: [] as Date[],
     notes: '',
   });
 
@@ -80,10 +80,32 @@ const ShopifyWithdrawals = () => {
       amount: '',
       currency: 'USD',
       date: new Date(),
-      sale_date: null,
+      sale_dates: [],
       notes: '',
     });
     setEditingWithdrawal(null);
+  };
+
+  const parseSaleDates = (saleDateStr: string | null): Date[] => {
+    if (!saleDateStr) return [];
+    return saleDateStr.split(',').map(d => new Date(d.trim() + 'T12:00:00'));
+  };
+
+  const formatSaleDatesForDb = (dates: Date[]): string | null => {
+    if (dates.length === 0) return null;
+    return dates
+      .sort((a, b) => a.getTime() - b.getTime())
+      .map(d => format(d, 'yyyy-MM-dd'))
+      .join(',');
+  };
+
+  const formatSaleDatesDisplay = (saleDateStr: string | null): string => {
+    if (!saleDateStr) return '-';
+    const dates = saleDateStr.split(',').map(d => {
+      const date = new Date(d.trim() + 'T12:00:00');
+      return format(date, 'dd/MM');
+    });
+    return dates.join(', ');
   };
 
   const openEditDialog = (withdrawal: ShopifyWithdrawal) => {
@@ -93,7 +115,7 @@ const ShopifyWithdrawals = () => {
       amount: withdrawal.amount.toString(),
       currency: withdrawal.currency,
       date: new Date(withdrawal.date),
-      sale_date: withdrawal.sale_date ? new Date(withdrawal.sale_date) : null,
+      sale_dates: parseSaleDates(withdrawal.sale_date),
       notes: withdrawal.notes || '',
     });
     setDialogOpen(true);
@@ -124,7 +146,7 @@ const ShopifyWithdrawals = () => {
       converted_amount: convertedAmount,
       exchange_rate_used: exchangeRate,
       date: format(form.date, 'yyyy-MM-dd'),
-      sale_date: form.sale_date ? format(form.sale_date, 'yyyy-MM-dd') : null,
+      sale_date: formatSaleDatesForDb(form.sale_dates),
       notes: form.notes || null,
       created_by: user?.id,
     };
@@ -238,25 +260,32 @@ const ShopifyWithdrawals = () => {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="sale_date">Data da Venda</Label>
+                    <Label htmlFor="sale_dates">Datas das Vendas</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
                           className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !form.sale_date && "text-muted-foreground"
+                            "w-full justify-start text-left font-normal h-auto min-h-10",
+                            form.sale_dates.length === 0 && "text-muted-foreground"
                           )}
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {form.sale_date ? format(form.sale_date, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                          <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                          <span className="truncate">
+                            {form.sale_dates.length > 0 
+                              ? form.sale_dates
+                                  .sort((a, b) => a.getTime() - b.getTime())
+                                  .map(d => format(d, "dd/MM"))
+                                  .join(', ')
+                              : "Selecione"}
+                          </span>
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
-                          mode="single"
-                          selected={form.sale_date || undefined}
-                          onSelect={(date) => setForm({ ...form, sale_date: date || null })}
+                          mode="multiple"
+                          selected={form.sale_dates}
+                          onSelect={(dates) => setForm({ ...form, sale_dates: dates || [] })}
                           initialFocus
                           className="p-3 pointer-events-auto"
                         />
@@ -456,8 +485,10 @@ const ShopifyWithdrawals = () => {
                           )}
                         </Button>
                       </TableCell>
-                      <TableCell>
-                        {w.sale_date ? format(new Date(w.sale_date), 'dd/MM/yyyy') : '-'}
+                      <TableCell className="max-w-[120px]">
+                        <span className="text-xs" title={w.sale_date || ''}>
+                          {formatSaleDatesDisplay(w.sale_date)}
+                        </span>
                       </TableCell>
                       <TableCell>
                         {format(new Date(w.date), 'dd/MM/yyyy')}
