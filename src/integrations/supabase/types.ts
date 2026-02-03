@@ -850,6 +850,8 @@ export type Database = {
           exchange_rate_used: number | null
           id: string
           notes: string | null
+          received_at: string | null
+          status: string
           store_name: string
           updated_at: string
         }
@@ -863,6 +865,8 @@ export type Database = {
           exchange_rate_used?: number | null
           id?: string
           notes?: string | null
+          received_at?: string | null
+          status?: string
           store_name: string
           updated_at?: string
         }
@@ -876,6 +880,8 @@ export type Database = {
           exchange_rate_used?: number | null
           id?: string
           notes?: string | null
+          received_at?: string | null
+          status?: string
           store_name?: string
           updated_at?: string
         }
