@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Plus, CalendarIcon, Pencil, Trash2, ArrowDownCircle } from 'lucide-react';
+import { Plus, CalendarIcon, Pencil, Trash2, ArrowDownCircle, Check, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -26,6 +26,8 @@ interface ShopifyWithdrawal {
   exchange_rate_used: number | null;
   date: string;
   notes: string | null;
+  status: string;
+  received_at: string | null;
   created_by: string | null;
   created_at: string;
 }
@@ -162,6 +164,27 @@ const ShopifyWithdrawals = () => {
       toast.error('Erro ao excluir saque');
     } else {
       toast.success('Saque excluído!');
+      fetchWithdrawals();
+    }
+  };
+
+  const toggleStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'received' ? 'pending' : 'received';
+    const receivedAt = newStatus === 'received' ? new Date().toISOString() : null;
+
+    const { error } = await supabase
+      .from('shopify_withdrawals')
+      .update({ 
+        status: newStatus,
+        received_at: receivedAt
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating status:', error);
+      toast.error('Erro ao atualizar status');
+    } else {
+      toast.success(newStatus === 'received' ? 'Saque marcado como recebido!' : 'Saque marcado como pendente');
       fetchWithdrawals();
     }
   };
@@ -325,6 +348,7 @@ const ShopifyWithdrawals = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Status</TableHead>
                     <TableHead>Data</TableHead>
                     <TableHead>Loja</TableHead>
                     <TableHead className="text-right">Valor Original</TableHead>
@@ -336,6 +360,31 @@ const ShopifyWithdrawals = () => {
                 <TableBody>
                   {withdrawals.map((w) => (
                     <TableRow key={w.id}>
+                      <TableCell>
+                        <Button
+                          variant={w.status === 'received' ? 'default' : 'outline'}
+                          size="sm"
+                          className={cn(
+                            "gap-1.5",
+                            w.status === 'received' 
+                              ? "bg-green-600 hover:bg-green-700 text-white" 
+                              : "text-amber-600 border-amber-300 hover:bg-amber-50"
+                          )}
+                          onClick={() => toggleStatus(w.id, w.status)}
+                        >
+                          {w.status === 'received' ? (
+                            <>
+                              <Check className="h-3.5 w-3.5" />
+                              Recebido
+                            </>
+                          ) : (
+                            <>
+                              <Clock className="h-3.5 w-3.5" />
+                              Pendente
+                            </>
+                          )}
+                        </Button>
+                      </TableCell>
                       <TableCell>
                         {format(new Date(w.date), 'dd/MM/yyyy')}
                       </TableCell>
