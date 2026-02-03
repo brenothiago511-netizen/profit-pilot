@@ -839,6 +839,48 @@ export type Database = {
           },
         ]
       }
+      shopify_withdrawals: {
+        Row: {
+          amount: number
+          converted_amount: number | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          date: string
+          exchange_rate_used: number | null
+          id: string
+          notes: string | null
+          store_name: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          converted_amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          date?: string
+          exchange_rate_used?: number | null
+          id?: string
+          notes?: string | null
+          store_name: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          converted_amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          date?: string
+          exchange_rate_used?: number | null
+          id?: string
+          notes?: string | null
+          store_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       store_roi_alerts: {
         Row: {
           created_at: string

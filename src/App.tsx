@@ -20,6 +20,7 @@ import Goals from "./pages/Goals";
 import ExecutiveReport from "./pages/ExecutiveReport";
 import PartnerDashboardPage from "./pages/PartnerDashboardPage";
 import Payroll from "./pages/Payroll";
+import ShopifyWithdrawals from "./pages/ShopifyWithdrawals";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -140,6 +141,14 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <Payroll />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/shopify-withdrawals"
+                element={
+                  <ProtectedRoute allowedRoles={['admin', 'financeiro', 'socio']}>
+                    <ShopifyWithdrawals />
                   </ProtectedRoute>
                 }
               />
