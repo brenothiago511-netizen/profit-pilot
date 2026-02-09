@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Plus, CalendarIcon, Pencil, Trash2, ArrowDownCircle, Check, Clock, Filter, X } from 'lucide-react';
+import { Plus, CalendarIcon, Pencil, Trash2, ArrowDownCircle, Check, Clock, Filter, X, AlertTriangle } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -221,8 +222,7 @@ const ShopifyWithdrawals = () => {
     }
   };
 
-  const toggleStatus = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'received' ? 'pending' : 'received';
+  const updateStatus = async (id: string, newStatus: string) => {
     const receivedAt = newStatus === 'received' ? new Date().toISOString() : null;
 
     const { error } = await supabase
@@ -237,7 +237,8 @@ const ShopifyWithdrawals = () => {
       console.error('Error updating status:', error);
       toast.error('Erro ao atualizar status');
     } else {
-      toast.success(newStatus === 'received' ? 'Saque marcado como recebido!' : 'Saque marcado como pendente');
+      const labels: Record<string, string> = { received: 'recebido', pending: 'pendente', lost: 'perdido' };
+      toast.success(`Saque marcado como ${labels[newStatus] || newStatus}!`);
       fetchWithdrawals();
     }
   };
@@ -273,6 +274,8 @@ const ShopifyWithdrawals = () => {
   const totalPending = pendingWithdrawals.reduce((sum, w) => sum + (w.converted_amount || 0), 0);
   const receivedWithdrawals = filteredWithdrawals.filter(w => w.status === 'received');
   const totalReceived = receivedWithdrawals.reduce((sum, w) => sum + (w.converted_amount || 0), 0);
+  const lostWithdrawals = filteredWithdrawals.filter(w => w.status === 'lost');
+  const totalLost = lostWithdrawals.reduce((sum, w) => sum + (w.converted_amount || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -612,29 +615,35 @@ const ShopifyWithdrawals = () => {
                   {filteredWithdrawals.map((w) => (
                     <TableRow key={w.id}>
                       <TableCell>
-                        <Button
-                          variant={w.status === 'received' ? 'default' : 'outline'}
-                          size="sm"
-                          className={cn(
-                            "gap-1.5",
-                            w.status === 'received' 
-                              ? "bg-green-600 hover:bg-green-700 text-white" 
-                              : "text-amber-600 border-amber-300 hover:bg-amber-50"
-                          )}
-                          onClick={() => toggleStatus(w.id, w.status)}
-                        >
-                          {w.status === 'received' ? (
-                            <>
-                              <Check className="h-3.5 w-3.5" />
-                              Recebido
-                            </>
-                          ) : (
-                            <>
-                              <Clock className="h-3.5 w-3.5" />
-                              Pendente
-                            </>
-                          )}
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className={cn(
+                                "gap-1.5",
+                                w.status === 'received' && "bg-green-600 hover:bg-green-700 text-white border-green-600",
+                                w.status === 'pending' && "text-amber-600 border-amber-300 hover:bg-amber-50",
+                                w.status === 'lost' && "text-red-600 border-red-300 hover:bg-red-50"
+                              )}
+                            >
+                              {w.status === 'received' && <><Check className="h-3.5 w-3.5" /> Recebido</>}
+                              {w.status === 'pending' && <><Clock className="h-3.5 w-3.5" /> Pendente</>}
+                              {w.status === 'lost' && <><AlertTriangle className="h-3.5 w-3.5" /> Perdido</>}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuItem onClick={() => updateStatus(w.id, 'pending')} className="gap-2">
+                              <Clock className="h-4 w-4 text-amber-600" /> Pendente
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => updateStatus(w.id, 'received')} className="gap-2">
+                              <Check className="h-4 w-4 text-green-600" /> Recebido
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => updateStatus(w.id, 'lost')} className="gap-2">
+                              <AlertTriangle className="h-4 w-4 text-red-600" /> Perdido
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                       <TableCell className="max-w-[120px]">
                         <span className="text-xs" title={w.sale_date || ''}>
