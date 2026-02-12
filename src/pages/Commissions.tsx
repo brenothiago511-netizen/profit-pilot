@@ -537,7 +537,7 @@ export default function Commissions() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Lucro do Dia (R$) *</Label>
+                  <Label>Lucro/Prejuízo do Dia (R$) *</Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
                       R$
@@ -545,13 +545,13 @@ export default function Commissions() {
                     <Input
                       type="number"
                       step="0.01"
-                      min="0"
                       value={recordForm.daily_profit}
                       onChange={(e) => setRecordForm({ ...recordForm, daily_profit: e.target.value })}
                       placeholder="0,00"
                       className="pl-10"
                       required
                     />
+                    <p className="text-xs text-muted-foreground mt-1">Use valor negativo para prejuízo</p>
                   </div>
                 </div>
 
