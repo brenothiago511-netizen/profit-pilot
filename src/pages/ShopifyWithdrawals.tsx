@@ -223,6 +223,9 @@ const ShopifyWithdrawals = () => {
   };
 
   const updateStatus = async (id: string, newStatus: string) => {
+    const withdrawal = withdrawals.find(w => w.id === id);
+    if (!withdrawal) return;
+
     const receivedAt = newStatus === 'received' ? new Date().toISOString() : null;
 
     const { error } = await supabase
@@ -236,11 +239,42 @@ const ShopifyWithdrawals = () => {
     if (error) {
       console.error('Error updating status:', error);
       toast.error('Erro ao atualizar status');
-    } else {
-      const labels: Record<string, string> = { received: 'recebido', pending: 'pendente', lost: 'perdido' };
-      toast.success(`Saque marcado como ${labels[newStatus] || newStatus}!`);
-      fetchWithdrawals();
+      return;
     }
+
+    // Auto-create revenue when marked as received
+    if (newStatus === 'received') {
+      // Find matching store by name
+      const matchedStore = stores.find(s => s.name === withdrawal.store_name);
+
+      const { error: revenueError } = await supabase
+        .from('revenues')
+        .insert({
+          amount: withdrawal.converted_amount || withdrawal.amount,
+          original_amount: withdrawal.amount,
+          original_currency: withdrawal.currency,
+          converted_amount: withdrawal.converted_amount,
+          exchange_rate_used: withdrawal.exchange_rate_used,
+          date: withdrawal.date,
+          source: 'Saque Shopify',
+          notes: `Saque Shopify - ${withdrawal.store_name}`,
+          store_id: matchedStore?.id || null,
+          user_id: user?.id || '',
+        });
+
+      if (revenueError) {
+        console.error('Error creating revenue:', revenueError);
+        toast.error('Status atualizado, mas erro ao criar receita automaticamente');
+      } else {
+        toast.success('Saque recebido e receita registrada automaticamente!');
+      }
+      fetchWithdrawals();
+      return;
+    }
+
+    const labels: Record<string, string> = { pending: 'pendente', lost: 'perdido' };
+    toast.success(`Saque marcado como ${labels[newStatus] || newStatus}!`);
+    fetchWithdrawals();
   };
 
   // Apply filters
