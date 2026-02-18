@@ -452,10 +452,11 @@ export default function Commissions() {
     return records;
   }, [dailyRecords, filterStatus, filterUser]);
 
-  // Stats
+  // Stats - based on filtered records
   const stats = useMemo(() => {
-    const received = dailyRecords.filter(r => r.shopify_status === 'received');
-    const pending = dailyRecords.filter(r => r.shopify_status === 'pending');
+    const base = filterUser !== 'all' ? dailyRecords.filter(r => r.user_id === filterUser) : dailyRecords;
+    const received = base.filter(r => r.shopify_status === 'received');
+    const pending = base.filter(r => r.shopify_status === 'pending');
     const totalReceived = received.reduce((sum, r) => sum + r.daily_profit, 0);
     const totalPending = pending.reduce((sum, r) => sum + r.daily_profit, 0);
     
@@ -465,11 +466,12 @@ export default function Commissions() {
       receivedCount: received.length,
       pendingCount: pending.length,
     };
-  }, [dailyRecords]);
+  }, [dailyRecords, filterUser]);
 
-  // Chart data
+  // Chart data - based on filtered user
   const chartData = useMemo(() => {
-    const last30Days = dailyRecords
+    const base = filterUser !== 'all' ? dailyRecords.filter(r => r.user_id === filterUser) : dailyRecords;
+    const last30Days = base
       .filter(r => r.shopify_status === 'received')
       .slice(0, 30)
       .reverse();
@@ -478,7 +480,7 @@ export default function Commissions() {
       date: format(parseLocalDate(r.date), 'dd/MM'),
       lucro: r.daily_profit,
     }));
-  }, [dailyRecords]);
+  }, [dailyRecords, filterUser]);
 
   if (loading) {
     return (
