@@ -74,6 +74,7 @@ export default function Commissions() {
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterUser, setFilterUser] = useState<string>('all');
   
   // Dialog states
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
@@ -431,13 +432,25 @@ export default function Commissions() {
     }).format(value);
   };
 
-  // Filtered records based on status
+  // Unique users for filter
+  const uniqueUsers = useMemo(() => {
+    const users = new Map<string, string>();
+    dailyRecords.forEach(r => {
+      if (r.user_id && r.user_name && r.user_name !== '-') {
+        users.set(r.user_id, r.user_name);
+      }
+    });
+    return Array.from(users.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [dailyRecords]);
+
+  // Filtered records based on status and user
   const filteredRecords = useMemo(() => {
-    if (filterStatus === 'all') return dailyRecords;
-    if (filterStatus === 'received') return dailyRecords.filter(r => r.shopify_status === 'received');
-    if (filterStatus === 'pending') return dailyRecords.filter(r => r.shopify_status === 'pending');
-    return dailyRecords;
-  }, [dailyRecords, filterStatus]);
+    let records = dailyRecords;
+    if (filterStatus === 'received') records = records.filter(r => r.shopify_status === 'received');
+    if (filterStatus === 'pending') records = records.filter(r => r.shopify_status === 'pending');
+    if (filterUser !== 'all') records = records.filter(r => r.user_id === filterUser);
+    return records;
+  }, [dailyRecords, filterStatus, filterUser]);
 
   // Stats
   const stats = useMemo(() => {
@@ -691,19 +704,35 @@ export default function Commissions() {
         </Card>
       </div>
 
-      {/* Filter */}
-      <div className="flex gap-4 items-center">
-        <Label>Filtrar por status:</Label>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="received">Recebido (Shopify)</SelectItem>
-            <SelectItem value="pending">Aguardando Shopify</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Filters */}
+      <div className="flex flex-wrap gap-4 items-center">
+        <div className="flex gap-2 items-center">
+          <Label>Status:</Label>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="received">Recebido (Shopify)</SelectItem>
+              <SelectItem value="pending">Aguardando Shopify</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex gap-2 items-center">
+          <Label>Usuário:</Label>
+          <Select value={filterUser} onValueChange={setFilterUser}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Todos os usuários" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {uniqueUsers.map(u => (
+                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Records Table */}
