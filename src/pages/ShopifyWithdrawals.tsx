@@ -40,12 +40,17 @@ interface Store {
   name: string;
 }
 
+interface ProfileMap {
+  [userId: string]: string;
+}
+
 const ShopifyWithdrawals = () => {
   const { user, profile } = useAuth();
   const { getExchangeRate, formatCurrency, getCurrencySymbol, config } = useCurrency();
   
   const [withdrawals, setWithdrawals] = useState<ShopifyWithdrawal[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
+  const [profileNames, setProfileNames] = useState<ProfileMap>({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingWithdrawal, setEditingWithdrawal] = useState<ShopifyWithdrawal | null>(null);
@@ -69,6 +74,7 @@ const ShopifyWithdrawals = () => {
   useEffect(() => {
     fetchWithdrawals();
     fetchStores();
+    if (isAdmin) fetchProfileNames();
   }, []);
 
   const fetchStores = async () => {
@@ -82,6 +88,18 @@ const ShopifyWithdrawals = () => {
       console.error('Error fetching stores:', error);
     } else {
       setStores(data || []);
+    }
+  };
+
+  const fetchProfileNames = async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, name');
+
+    if (!error && data) {
+      const map: ProfileMap = {};
+      data.forEach((p: any) => { map[p.id] = p.name; });
+      setProfileNames(map);
     }
   };
 
@@ -657,6 +675,7 @@ const ShopifyWithdrawals = () => {
                     <TableHead className="text-right">Valor Original</TableHead>
                     <TableHead className="text-right">Valor Convertido</TableHead>
                     <TableHead>Observações</TableHead>
+                    {isAdmin && <TableHead>Registrado por</TableHead>}
                     {isAdmin && <TableHead className="text-right">Ações</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -714,6 +733,11 @@ const ShopifyWithdrawals = () => {
                       <TableCell className="max-w-[200px] truncate">
                         {w.notes || '-'}
                       </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-sm text-muted-foreground">
+                          {w.created_by ? (profileNames[w.created_by] || '-') : '-'}
+                        </TableCell>
+                      )}
                       {isAdmin && (
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
