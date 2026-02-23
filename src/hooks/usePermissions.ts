@@ -32,6 +32,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'delete_expense',
     'manage_bank_accounts',
     'manage_currency_rates',
+    'manage_stores',
     'export_reports',
   ],
   socio: [
