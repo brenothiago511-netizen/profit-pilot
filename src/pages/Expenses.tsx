@@ -64,6 +64,8 @@ export default function Expenses() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [aiTransactions, setAiTransactions] = useState<any[]>([]);
+  const [selectedTransactionIdx, setSelectedTransactionIdx] = useState(0);
   
   const [formData, setFormData] = useState({
     store_id: '',
@@ -355,6 +357,32 @@ export default function Expenses() {
       payment_method: '',
     });
     setImagePreview(null);
+    setAiTransactions([]);
+    setSelectedTransactionIdx(0);
+  };
+
+  const applyTransaction = (transaction: any) => {
+    const detectedCurrency = transaction.currency || 'BRL';
+    const validCurrency = CURRENCIES.find(c => c.code === detectedCurrency) ? detectedCurrency : 'BRL';
+    
+    setAiFormData(prev => ({
+      ...prev,
+      amount: transaction.amount?.toString() || '',
+      description: transaction.description || '',
+      date: transaction.date || format(new Date(), 'yyyy-MM-dd'),
+      currency: validCurrency,
+    }));
+
+    // Try to match category
+    if (transaction.category) {
+      const matchedCategory = categories.find(c => 
+        c.name.toLowerCase().includes(transaction.category.toLowerCase()) ||
+        transaction.category.toLowerCase().includes(c.name.toLowerCase())
+      );
+      if (matchedCategory) {
+        setAiFormData(prev => ({ ...prev, category_id: matchedCategory.id }));
+      }
+    }
   };
 
   const processImageFile = async (file: File) => {
@@ -377,27 +405,20 @@ export default function Expenses() {
       if (error) throw error;
 
       if (data) {
-        setAiFormData(prev => ({
-          ...prev,
-          amount: data.amount?.toString() || '',
-          description: data.description || '',
-          date: data.date || format(new Date(), 'yyyy-MM-dd'),
-        }));
-
-        // Try to match category
-        if (data.category) {
-          const matchedCategory = categories.find(c => 
-            c.name.toLowerCase().includes(data.category.toLowerCase()) ||
-            data.category.toLowerCase().includes(c.name.toLowerCase())
-          );
-          if (matchedCategory) {
-            setAiFormData(prev => ({ ...prev, category_id: matchedCategory.id }));
-          }
+        const transactions = Array.isArray(data) ? data : [data];
+        setAiTransactions(transactions);
+        setSelectedTransactionIdx(0);
+        
+        // Apply first transaction
+        if (transactions.length > 0) {
+          applyTransaction(transactions[0]);
         }
 
         toast({
           title: 'Dados extraídos!',
-          description: 'Revise os dados antes de salvar',
+          description: transactions.length > 1 
+            ? `${transactions.length} transações encontradas. Selecione qual salvar.`
+            : 'Revise os dados antes de salvar',
         });
       }
     } catch (error: any) {
@@ -533,6 +554,32 @@ export default function Expenses() {
                     </div>
                   )}
                 </div>
+
+                {/* Transaction selector for multiple results */}
+                {aiTransactions.length > 1 && (
+                  <div className="space-y-2">
+                    <Label>Transações encontradas ({aiTransactions.length})</Label>
+                    <Select
+                      value={selectedTransactionIdx.toString()}
+                      onValueChange={(v) => {
+                        const idx = parseInt(v);
+                        setSelectedTransactionIdx(idx);
+                        applyTransaction(aiTransactions[idx]);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {aiTransactions.map((t, idx) => (
+                          <SelectItem key={idx} value={idx.toString()}>
+                            {t.currency || 'BRL'} {t.amount?.toFixed(2)} - {(t.description || '').substring(0, 40)}...
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label>Loja (opcional)</Label>
