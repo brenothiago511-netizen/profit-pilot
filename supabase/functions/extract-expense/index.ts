@@ -55,6 +55,8 @@ Analise a imagem e extraia TODAS as transações/despesas visíveis. Para cada t
   - "Marketing" (agência, influenciadores, conteúdo, design)
   - "Infraestrutura" (aluguel, internet, energia, escritório, equipamentos)
   - "Serviços Terceirizados" (contabilidade, advocacia, consultoria, freelancers)
+  - "Manutenção" (reparos, consertos, manutenção preventiva)
+  - "Material de Escritório" (papelaria, suprimentos, material de escritório)
   - "Outros" (quando não se encaixar em nenhuma outra)
 
 Se a imagem contiver MÚLTIPLAS transações (como um extrato bancário), retorne a principal/maior ou a mais recente.
