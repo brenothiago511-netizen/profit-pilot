@@ -331,6 +331,81 @@ export default function Expenses() {
     }
   };
 
+  const handleSaveAllTransactions = async () => {
+    if (aiTransactions.length === 0) return;
+
+    setSaving(true);
+    
+    try {
+      const expensesToInsert = await Promise.all(
+        aiTransactions.map(async (t) => {
+          const detectedCurrency = t.currency || 'BRL';
+          const validCurrency = CURRENCIES.find(c => c.code === detectedCurrency) ? detectedCurrency : 'BRL';
+          const originalAmount = Math.abs(t.amount || 0);
+          let convertedAmount = originalAmount;
+          let exchangeRate = 1;
+
+          if (validCurrency !== 'BRL') {
+            exchangeRate = await getExchangeRate(validCurrency, 'BRL');
+            convertedAmount = originalAmount * exchangeRate;
+          }
+
+          // Try to match category
+          let categoryId: string | null = null;
+          if (t.category) {
+            const matched = categories.find(c =>
+              c.name.toLowerCase().includes(t.category.toLowerCase()) ||
+              t.category.toLowerCase().includes(c.name.toLowerCase())
+            );
+            if (matched) categoryId = matched.id;
+          }
+
+          return {
+            store_id: aiFormData.store_id || null,
+            user_id: user?.id,
+            date: t.date || aiFormData.date,
+            amount: convertedAmount,
+            original_amount: originalAmount,
+            original_currency: validCurrency,
+            converted_amount: convertedAmount,
+            exchange_rate_used: exchangeRate,
+            description: t.description || 'Despesa extraída por IA',
+            category_id: categoryId,
+            type: aiFormData.type,
+            payment_method: aiFormData.payment_method || null,
+            ai_extracted: true,
+          };
+        })
+      );
+
+      const { error } = await supabase.from('expenses').insert(expensesToInsert);
+
+      if (error) {
+        toast({
+          title: 'Erro ao salvar',
+          description: error.message,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Sucesso',
+          description: `${expensesToInsert.length} despesas cadastradas com sucesso!`,
+        });
+        setAiDialogOpen(false);
+        resetAiForm();
+        fetchExpenses();
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: err.message || 'Erro ao salvar transações',
+        variant: 'destructive',
+      });
+    }
+
+    setSaving(false);
+  };
+
   const resetForm = () => {
     setEditingExpense(null);
     setFormData({
@@ -691,6 +766,23 @@ export default function Expenses() {
                   <Button type="button" variant="outline" onClick={() => setAiDialogOpen(false)}>
                     Cancelar
                   </Button>
+                  {aiTransactions.length > 1 && (
+                    <Button 
+                      type="button" 
+                      variant="secondary" 
+                      disabled={saving}
+                      onClick={handleSaveAllTransactions}
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        `Salvar Todas (${aiTransactions.length})`
+                      )}
+                    </Button>
+                  )}
                   <Button type="submit" disabled={saving}>
                     {saving ? (
                       <>
