@@ -357,10 +357,7 @@ export default function Expenses() {
     setImagePreview(null);
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processImageFile = async (file: File) => {
     // Show preview
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -412,6 +409,28 @@ export default function Expenses() {
       });
     }
     setExtracting(false);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processImageFile(file);
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          await processImageFile(file);
+        }
+        return;
+      }
+    }
   };
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -470,7 +489,7 @@ export default function Expenses() {
                   Despesa com IA
                 </Button>
               </DialogTrigger>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-lg" onPaste={handlePaste}>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-info" />
@@ -509,8 +528,8 @@ export default function Expenses() {
                       <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
                         <Camera className="w-6 h-6 text-muted-foreground" />
                       </div>
-                      <p className="text-sm font-medium">Tire uma foto ou selecione</p>
-                      <p className="text-xs text-muted-foreground">Recibo, nota fiscal ou comprovante</p>
+                      <p className="text-sm font-medium">Tire uma foto, selecione ou cole (Ctrl+V)</p>
+                      <p className="text-xs text-muted-foreground">Recibo, nota fiscal, extrato ou comprovante</p>
                     </div>
                   )}
                 </div>
