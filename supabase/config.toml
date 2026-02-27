@@ -1,7 +1,7 @@
 project_id = "gyovaxenxtrogrxmbjde"
 
 [functions.extract-expense]
-verify_jwt = true
+verify_jwt = false
 
 [functions.bulk-import-users]
 verify_jwt = true
