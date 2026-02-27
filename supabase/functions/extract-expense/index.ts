@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 serve(async (req) => {
@@ -38,25 +38,38 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an AI assistant that extracts expense data from receipts, invoices, and bills.
-            
-Extract the following information from the image:
-- amount: The total amount (number only, no currency symbols)
-- description: A brief description of the expense
-- date: The date in YYYY-MM-DD format (if visible)
-- category: One of: Aluguel, Energia, Água, Internet, Telefone, Salários, Impostos, Material de Escritório, Marketing, Transporte, Alimentação, Manutenção, Outros
+            content: `Você é um assistente de IA especializado em extrair dados financeiros de imagens de extratos bancários, comprovantes de pagamento, recibos, notas fiscais e faturas.
 
-Respond ONLY with a valid JSON object in this exact format:
-{"amount": 123.45, "description": "Description here", "date": "2024-01-15", "category": "Category name"}
+Analise a imagem e extraia TODAS as transações/despesas visíveis. Para cada transação, extraia:
+- amount: O valor (número, sem símbolo de moeda)
+- description: Descrição da transação como aparece no extrato
+- date: A data no formato YYYY-MM-DD (se visível)
+- category: Classifique em UMA das categorias abaixo baseado na descrição:
+  - "Ads / Tráfego Pago" (Facebook Ads, Google Ads, TikTok Ads, mídia paga)
+  - "Plataformas e Ferramentas" (Shopify, apps, SaaS, software, assinaturas digitais)
+  - "Fornecedores / Produtos" (compra de mercadoria, matéria-prima, estoque)
+  - "Logística / Frete" (Correios, transportadora, shipping, envio)
+  - "Taxas e Comissões" (taxas bancárias, IOF, tarifas, comissões de gateway)
+  - "Impostos" (DAS, DARF, ICMS, ISS, impostos em geral)
+  - "Salários" (folha de pagamento, salários, pró-labore, benefícios)
+  - "Marketing" (agência, influenciadores, conteúdo, design)
+  - "Infraestrutura" (aluguel, internet, energia, escritório, equipamentos)
+  - "Serviços Terceirizados" (contabilidade, advocacia, consultoria, freelancers)
+  - "Outros" (quando não se encaixar em nenhuma outra)
 
-If you cannot extract a value, use null for that field.`
+Se a imagem contiver MÚLTIPLAS transações (como um extrato bancário), retorne a principal/maior ou a mais recente.
+
+Responda APENAS com um JSON válido neste formato exato:
+{"amount": 123.45, "description": "Descrição aqui", "date": "2024-01-15", "category": "Nome da categoria"}
+
+Se não conseguir extrair um valor, use null para esse campo. Nunca retorne valores negativos, converta para positivo.`
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Extract the expense data from this receipt/invoice image.'
+                text: 'Extraia os dados de despesa desta imagem. Pode ser um extrato bancário, comprovante de pagamento, recibo ou nota fiscal.'
               },
               {
                 type: 'image_url',
@@ -76,13 +89,13 @@ If you cannot extract a value, use null for that field.`
       
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+          JSON.stringify({ error: 'Limite de requisições excedido. Tente novamente em alguns minutos.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }),
+          JSON.stringify({ error: 'Créditos de IA esgotados. Adicione créditos para continuar.' }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -101,12 +114,16 @@ If you cannot extract a value, use null for that field.`
     // Parse the JSON response
     let extractedData;
     try {
-      // Try to extract JSON from the response (it might be wrapped in markdown code blocks)
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         extractedData = JSON.parse(jsonMatch[0]);
       } else {
         extractedData = JSON.parse(content);
+      }
+      
+      // Ensure amount is positive
+      if (extractedData.amount && extractedData.amount < 0) {
+        extractedData.amount = Math.abs(extractedData.amount);
       }
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
