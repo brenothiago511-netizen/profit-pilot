@@ -63,6 +63,7 @@ Analise a imagem e extraia TODAS as transações/despesas visíveis. Para cada t
 - amount: O valor (número, sem símbolo de moeda)
 - description: Descrição da transação como aparece no extrato
 - date: A data no formato YYYY-MM-DD (se visível)
+- currency: A moeda da transação (USD, BRL, EUR, GBP, MXN, etc). Identifique pela presença de símbolos ($, R$, €, £), textos como "USD", "BRL", ou pelo contexto (ex: transações em sites americanos = USD).
 - category: Classifique em UMA das categorias abaixo baseado na descrição:
   - "Ads / Tráfego Pago" (Facebook Ads, Google Ads, TikTok Ads, mídia paga)
   - "Plataformas e Ferramentas" (Shopify, apps, SaaS, software, assinaturas digitais)
@@ -78,11 +79,13 @@ Analise a imagem e extraia TODAS as transações/despesas visíveis. Para cada t
   - "Material de Escritório" (papelaria, suprimentos, material de escritório)
   - "Outros" (quando não se encaixar em nenhuma outra)
 
-Se a imagem contiver MÚLTIPLAS transações (como um extrato bancário), retorne a principal/maior ou a mais recente.
+IMPORTANTE: Se a imagem contiver MÚLTIPLAS transações (como um extrato bancário), retorne TODAS elas em um array JSON.
 
 Responda APENAS com um JSON válido neste formato exato:
-{"amount": 123.45, "description": "Descrição aqui", "date": "2024-01-15", "category": "Nome da categoria"}
+- Para MÚLTIPLAS transações: [{"amount": 123.45, "description": "Desc", "date": "2024-01-15", "currency": "USD", "category": "Categoria"}, ...]
+- Para UMA transação: [{"amount": 123.45, "description": "Desc", "date": "2024-01-15", "currency": "USD", "category": "Categoria"}]
 
+Sempre retorne um ARRAY, mesmo que tenha apenas uma transação.
 Se não conseguir extrair um valor, use null para esse campo. Nunca retorne valores negativos, converta para positivo.`
           },
           {
@@ -132,28 +135,38 @@ Se não conseguir extrair um valor, use null para esse campo. Nunca retorne valo
       throw new Error('No response from AI');
     }
 
-    // Parse the JSON response
-    let extractedData;
+    // Parse the JSON response - always return an array
+    let extractedData: any[];
     try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        extractedData = JSON.parse(jsonMatch[0]);
+      // Try to find array first
+      const arrayMatch = content.match(/\[[\s\S]*\]/);
+      if (arrayMatch) {
+        extractedData = JSON.parse(arrayMatch[0]);
       } else {
-        extractedData = JSON.parse(content);
+        // Fallback: try single object
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          extractedData = [JSON.parse(jsonMatch[0])];
+        } else {
+          extractedData = JSON.parse(content);
+          if (!Array.isArray(extractedData)) extractedData = [extractedData];
+        }
       }
       
-      // Ensure amount is positive
-      if (extractedData.amount && extractedData.amount < 0) {
-        extractedData.amount = Math.abs(extractedData.amount);
-      }
+      // Ensure all amounts are positive
+      extractedData = extractedData.map((item: any) => ({
+        ...item,
+        amount: item.amount ? Math.abs(item.amount) : null,
+      }));
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
-      extractedData = {
+      extractedData = [{
         amount: null,
         description: null,
         date: null,
+        currency: null,
         category: null
-      };
+      }];
     }
 
     console.log('Extracted data:', extractedData);
