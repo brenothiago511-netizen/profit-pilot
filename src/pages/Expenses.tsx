@@ -593,14 +593,14 @@ export default function Expenses() {
                   Despesa com IA
                 </Button>
               </DialogTrigger>
-            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto" onPaste={handlePaste}>
-              <DialogHeader>
+            <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col p-0" onPaste={handlePaste}>
+              <DialogHeader className="px-6 pt-6 pb-0">
                 <DialogTitle className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-info" />
                   Cadastrar Despesa com IA
                 </DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleAiSubmit} className="space-y-4">
+              <form onSubmit={handleAiSubmit} className="space-y-4 overflow-y-auto px-6 pb-6 flex-1">
                 {/* Image upload area */}
                 <div 
                   className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
