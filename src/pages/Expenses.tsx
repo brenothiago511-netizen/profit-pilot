@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, TrendingDown, Loader2, Trash2, Camera, Sparkles, Upload, Pencil } from 'lucide-react';
+import { Plus, TrendingDown, Loader2, Trash2, Camera, Sparkles, Upload, Pencil, Check, X } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import { parseDate } from '@/lib/dateUtils';
 
@@ -66,6 +68,8 @@ export default function Expenses() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [aiTransactions, setAiTransactions] = useState<any[]>([]);
   const [selectedTransactionIdx, setSelectedTransactionIdx] = useState(0);
+  const [selectedForSave, setSelectedForSave] = useState<Set<number>>(new Set());
+  const [showTransactionPreview, setShowTransactionPreview] = useState(true);
   
   const [formData, setFormData] = useState({
     store_id: '',
@@ -332,13 +336,14 @@ export default function Expenses() {
   };
 
   const handleSaveAllTransactions = async () => {
-    if (aiTransactions.length === 0) return;
-
+    const indicesToSave = selectedForSave.size > 0 ? Array.from(selectedForSave) : aiTransactions.map((_, i) => i);
+    if (indicesToSave.length === 0) return;
     setSaving(true);
     
     try {
       const expensesToInsert = await Promise.all(
-        aiTransactions.map(async (t) => {
+        indicesToSave.map(async (idx) => {
+          const t = aiTransactions[idx];
           const detectedCurrency = t.currency || 'BRL';
           const validCurrency = CURRENCIES.find(c => c.code === detectedCurrency) ? detectedCurrency : 'BRL';
           const originalAmount = Math.abs(t.amount || 0);
@@ -434,6 +439,8 @@ export default function Expenses() {
     setImagePreview(null);
     setAiTransactions([]);
     setSelectedTransactionIdx(0);
+    setSelectedForSave(new Set());
+    setShowTransactionPreview(true);
   };
 
   const applyTransaction = (transaction: any) => {
@@ -483,8 +490,9 @@ export default function Expenses() {
         const transactions = Array.isArray(data) ? data : [data];
         setAiTransactions(transactions);
         setSelectedTransactionIdx(0);
-        
-        // Apply first transaction
+        setSelectedForSave(new Set(transactions.map((_: any, i: number) => i)));
+        setShowTransactionPreview(true);
+
         if (transactions.length > 0) {
           applyTransaction(transactions[0]);
         }
@@ -492,7 +500,7 @@ export default function Expenses() {
         toast({
           title: 'Dados extraídos!',
           description: transactions.length > 1 
-            ? `${transactions.length} transações encontradas. Selecione qual salvar.`
+            ? `${transactions.length} transações encontradas. Revise abaixo.`
             : 'Revise os dados antes de salvar',
         });
       }
@@ -630,29 +638,89 @@ export default function Expenses() {
                   )}
                 </div>
 
-                {/* Transaction selector for multiple results */}
-                {aiTransactions.length > 1 && (
+                {/* Transaction preview list */}
+                {aiTransactions.length > 0 && showTransactionPreview && (
                   <div className="space-y-2">
-                    <Label>Transações encontradas ({aiTransactions.length})</Label>
-                    <Select
-                      value={selectedTransactionIdx.toString()}
-                      onValueChange={(v) => {
-                        const idx = parseInt(v);
-                        setSelectedTransactionIdx(idx);
-                        applyTransaction(aiTransactions[idx]);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {aiTransactions.map((t, idx) => (
-                          <SelectItem key={idx} value={idx.toString()}>
-                            {t.currency || 'BRL'} {t.amount?.toFixed(2)} - {(t.description || '').substring(0, 40)}...
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">
+                        Transações detectadas ({aiTransactions.length})
+                      </Label>
+                      {aiTransactions.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            if (selectedForSave.size === aiTransactions.length) {
+                              setSelectedForSave(new Set());
+                            } else {
+                              setSelectedForSave(new Set(aiTransactions.map((_: any, i: number) => i)));
+                            }
+                          }}
+                        >
+                          {selectedForSave.size === aiTransactions.length ? 'Desmarcar todas' : 'Selecionar todas'}
+                        </Button>
+                      )}
+                    </div>
+                    <ScrollArea className="max-h-48 rounded-md border">
+                      <div className="p-2 space-y-1">
+                        {aiTransactions.map((t: any, idx: number) => {
+                          const curr = t.currency || 'BRL';
+                          const currSymbol = CURRENCIES.find(c => c.code === curr)?.symbol || curr;
+                          const isSelected = selectedForSave.has(idx);
+                          const isActive = selectedTransactionIdx === idx;
+                          return (
+                            <div
+                              key={idx}
+                              className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors ${
+                                isActive ? 'bg-accent' : 'hover:bg-muted'
+                              }`}
+                              onClick={() => {
+                                setSelectedTransactionIdx(idx);
+                                applyTransaction(t);
+                              }}
+                            >
+                              {aiTransactions.length > 1 && (
+                                <Checkbox
+                                  checked={isSelected}
+                                  onCheckedChange={(checked) => {
+                                    const next = new Set(selectedForSave);
+                                    if (checked) {
+                                      next.add(idx);
+                                    } else {
+                                      next.delete(idx);
+                                    }
+                                    setSelectedForSave(next);
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-sm font-medium truncate">
+                                    {(t.description || 'Sem descrição').substring(0, 35)}
+                                    {(t.description || '').length > 35 ? '...' : ''}
+                                  </span>
+                                  <span className="text-sm font-semibold whitespace-nowrap text-destructive">
+                                    {currSymbol} {Math.abs(t.amount || 0).toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  {t.date && <span>{t.date}</span>}
+                                  {t.category && <span>• {t.category}</span>}
+                                </div>
+                              </div>
+                              {isActive && (
+                                <Badge variant="secondary" className="text-xs shrink-0">
+                                  Editando
+                                </Badge>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </ScrollArea>
                   </div>
                 )}
 
@@ -770,7 +838,7 @@ export default function Expenses() {
                     <Button 
                       type="button" 
                       variant="secondary" 
-                      disabled={saving}
+                      disabled={saving || selectedForSave.size === 0}
                       onClick={handleSaveAllTransactions}
                     >
                       {saving ? (
@@ -779,7 +847,7 @@ export default function Expenses() {
                           Salvando...
                         </>
                       ) : (
-                        `Salvar Todas (${aiTransactions.length})`
+                        `Salvar Selecionadas (${selectedForSave.size})`
                       )}
                     </Button>
                   )}
