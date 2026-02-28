@@ -663,7 +663,7 @@ export default function Expenses() {
                         </Button>
                       )}
                     </div>
-                    <ScrollArea className="max-h-48 rounded-md border">
+                    <ScrollArea className="h-[220px] rounded-md border">
                       <div className="p-2 space-y-1">
                         {aiTransactions.map((t: any, idx: number) => {
                           const curr = t.currency || 'BRL';
