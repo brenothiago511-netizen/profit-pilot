@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -11,6 +11,8 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import ROIAlerts from '@/components/alerts/ROIAlerts';
 import EarningsProjection from '@/components/projections/EarningsProjection';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { parseDate } from '@/lib/dateUtils';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -33,6 +35,9 @@ import {
   Bell,
   Sparkles,
   User,
+  CheckCircle,
+  Clock,
+  Banknote,
 } from 'lucide-react';
 import { format, subMonths, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -120,6 +125,21 @@ interface PartnerProfile {
   user_name: string;
 }
 
+interface CommissionRecord {
+  id: string;
+  manager_id: string;
+  store_id: string;
+  store_name: string;
+  manager_name: string;
+  period_start: string;
+  period_end: string;
+  base_amount: number;
+  percent: number;
+  commission_amount: number;
+  status: string;
+  paid_at: string | null;
+}
+
 const CHART_COLORS = [
   'hsl(var(--primary))',
   'hsl(var(--success))',
@@ -131,12 +151,15 @@ const CHART_COLORS = [
 
 export default function PartnerDashboardPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [partnerships, setPartnerships] = useState<PartnerData[]>([]);
   const [transactions, setTransactions] = useState<PartnerTransaction[]>([]);
   const [storePerformance, setStorePerformance] = useState<StorePerformance[]>([]);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [goals, setGoals] = useState<GoalData[]>([]);
+  const [commissions, setCommissions] = useState<CommissionRecord[]>([]);
+  const [updatingCommission, setUpdatingCommission] = useState<string | null>(null);
   const [allPartners, setAllPartners] = useState<PartnerProfile[]>([]);
   const [selectedPartner, setSelectedPartner] = useState<string>(user?.id || 'all');
   const [selectedStore, setSelectedStore] = useState<string>('all');
@@ -457,6 +480,55 @@ export default function PartnerDashboardPage() {
 
       setMonthlyData(monthlyEvolution);
 
+      // Fetch commissions for partner's stores
+      if (storeIds.length > 0) {
+        const { data: commissionsData } = await supabase
+          .from('commissions')
+          .select('*, stores:store_id(name)')
+          .in('store_id', storeIds)
+          .order('period_end', { ascending: false });
+
+        if (commissionsData) {
+          // Fetch manager names
+          const managerIds = [...new Set(commissionsData.map(c => c.manager_id))];
+          const { data: managersData } = await supabase
+            .from('managers')
+            .select('id, user_id')
+            .in('id', managerIds);
+
+          let managerProfileMap = new Map<string, string>();
+          if (managersData && managersData.length > 0) {
+            const managerUserIds = managersData.map(m => m.user_id);
+            const { data: managerProfiles } = await supabase
+              .from('profiles')
+              .select('id, name')
+              .in('id', managerUserIds);
+
+            managersData.forEach(m => {
+              const profile = managerProfiles?.find(p => p.id === m.user_id);
+              managerProfileMap.set(m.id, profile?.name || 'Gestor');
+            });
+          }
+
+          const enrichedCommissions: CommissionRecord[] = commissionsData.map((c: any) => ({
+            id: c.id,
+            manager_id: c.manager_id,
+            store_id: c.store_id,
+            store_name: c.stores?.name || 'N/A',
+            manager_name: managerProfileMap.get(c.manager_id) || 'Gestor',
+            period_start: c.period_start,
+            period_end: c.period_end,
+            base_amount: c.base_amount,
+            percent: c.percent,
+            commission_amount: c.commission_amount,
+            status: c.status,
+            paid_at: c.paid_at,
+          }));
+
+          setCommissions(enrichedCommissions);
+        }
+      }
+
     } catch (error) {
       console.error('Error fetching partner data:', error);
     }
@@ -475,6 +547,30 @@ export default function PartnerDashboardPage() {
       style: 'currency',
       currency: 'BRL',
     }).format(value);
+  };
+
+  const toggleCommissionStatus = async (commissionId: string, currentStatus: string) => {
+    setUpdatingCommission(commissionId);
+    const newStatus = currentStatus === 'pago' ? 'pendente' : 'pago';
+    const paidAt = newStatus === 'pago' ? new Date().toISOString() : null;
+    
+    const { error } = await supabase
+      .from('commissions')
+      .update({ status: newStatus, paid_at: paidAt })
+      .eq('id', commissionId);
+
+    setUpdatingCommission(null);
+
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: newStatus === 'pago' ? 'Pagamento confirmado!' : 'Status revertido para pendente' });
+      setCommissions(prev => prev.map(c => 
+        c.id === commissionId 
+          ? { ...c, status: newStatus, paid_at: paidAt }
+          : c
+      ));
+    }
   };
 
   const getTransactionIcon = (type: string) => {
@@ -791,6 +887,15 @@ export default function PartnerDashboardPage() {
           <TabsTrigger value="projection" className="flex items-center gap-2">
             <Sparkles className="w-4 h-4" />
             Projeção
+          </TabsTrigger>
+          <TabsTrigger value="commissions" className="flex items-center gap-2">
+            <Banknote className="w-4 h-4" />
+            Comissões
+            {commissions.filter(c => c.status === 'pendente').length > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
+                {commissions.filter(c => c.status === 'pendente').length}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -1388,6 +1493,175 @@ export default function PartnerDashboardPage() {
             monthlyData={monthlyData} 
             avgPercentage={avgPercentage}
           />
+        </TabsContent>
+
+        <TabsContent value="commissions" className="space-y-6">
+          {/* Commission Stats */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Pendente</CardTitle>
+                <Clock className="h-4 w-4 text-warning" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-warning">
+                  {formatCurrencyBRL(commissions.filter(c => c.status === 'pendente').reduce((s, c) => s + c.commission_amount, 0))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {commissions.filter(c => c.status === 'pendente').length} comissões pendentes
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Pago</CardTitle>
+                <CheckCircle className="h-4 w-4 text-success" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-success">
+                  {formatCurrencyBRL(commissions.filter(c => c.status === 'pago').reduce((s, c) => s + c.commission_amount, 0))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {commissions.filter(c => c.status === 'pago').length} comissões pagas
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Geral</CardTitle>
+                <Banknote className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {formatCurrencyBRL(commissions.reduce((s, c) => s + c.commission_amount, 0))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {commissions.length} comissões no total
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Pending Commissions */}
+          {commissions.filter(c => c.status === 'pendente').length > 0 && (
+            <Card className="border-warning/50">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-warning" />
+                  Comissões Pendentes
+                </CardTitle>
+                <CardDescription>Confirme o pagamento das comissões abaixo</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {commissions.filter(c => c.status === 'pendente').map((commission) => (
+                    <div
+                      key={commission.id}
+                      className="flex items-center justify-between p-4 rounded-lg border bg-warning/5 hover:bg-warning/10 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center">
+                          <Clock className="w-5 h-5 text-warning" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{commission.manager_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {commission.store_name} • {commission.percent}% sobre {formatCurrencyBRL(commission.base_amount)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Período: {format(parseDate(commission.period_start), "dd/MM/yy")} - {format(parseDate(commission.period_end), "dd/MM/yy")}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-warning">{formatCurrencyBRL(commission.commission_amount)}</p>
+                          <Badge variant="outline" className="border-warning/30 text-warning">Pendente</Badge>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => toggleCommissionStatus(commission.id, commission.status)}
+                          disabled={updatingCommission === commission.id}
+                        >
+                          {updatingCommission === commission.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Confirmar Pagamento
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Paid Commissions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-success" />
+                Histórico de Comissões
+              </CardTitle>
+              <CardDescription>Todas as comissões registradas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {commissions.length === 0 ? (
+                <div className="text-center py-8">
+                  <Banknote className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                  <p className="text-muted-foreground">Nenhuma comissão registrada</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {commissions.filter(c => c.status === 'pago').map((commission) => (
+                    <div
+                      key={commission.id}
+                      className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+                          <CheckCircle className="w-5 h-5 text-success" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{commission.manager_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {commission.store_name} • {commission.percent}% sobre {formatCurrencyBRL(commission.base_amount)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Período: {format(parseDate(commission.period_start), "dd/MM/yy")} - {format(parseDate(commission.period_end), "dd/MM/yy")}
+                            {commission.paid_at && ` • Pago em ${format(new Date(commission.paid_at), "dd/MM/yy")}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-success">{formatCurrencyBRL(commission.commission_amount)}</p>
+                          <Badge variant="outline" className="border-success/30 text-success">Pago</Badge>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => toggleCommissionStatus(commission.id, commission.status)}
+                          disabled={updatingCommission === commission.id}
+                          className="text-muted-foreground"
+                        >
+                          {updatingCommission === commission.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            'Desfazer'
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
