@@ -593,7 +593,7 @@ export default function Expenses() {
                   Despesa com IA
                 </Button>
               </DialogTrigger>
-            <DialogContent className="sm:max-w-lg" onPaste={handlePaste}>
+            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto" onPaste={handlePaste}>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-info" />
