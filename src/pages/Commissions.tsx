@@ -254,7 +254,7 @@ export default function Commissions() {
 
     // If editing existing record
     if (editingRecord) {
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from('daily_records')
         .update({
           store_id: recordForm.store_id,
@@ -271,7 +271,7 @@ export default function Commissions() {
           shopify_deposit_2_rate: deposit2Rate,
           shopify_deposit_1_number: recordForm.shopify_deposit_1_number || null,
           shopify_deposit_2_number: recordForm.shopify_deposit_2_number || null,
-        })
+        }, { count: 'exact' })
         .eq('id', editingRecord.id);
 
       setSavingRecord(false);
@@ -280,6 +280,12 @@ export default function Commissions() {
         toast({
           title: 'Erro ao atualizar',
           description: error.message,
+          variant: 'destructive',
+        });
+      } else if (count === 0) {
+        toast({
+          title: 'Erro ao atualizar',
+          description: 'Sem permissão para atualizar este registro. Verifique se você tem acesso à loja associada.',
           variant: 'destructive',
         });
       } else {
