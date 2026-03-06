@@ -74,6 +74,8 @@ interface PartnerSummary {
 interface StoreBreakdown {
   storeId: string;
   storeName: string;
+  storeStatus: string;
+  partnerStatus: string;
   revenues: number;
   expenses: number;
   profitRegistered: number;
