@@ -723,20 +723,6 @@ export default function Commissions() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex gap-2 items-center">
-          <Label>Usuário:</Label>
-          <Select value={filterUser} onValueChange={setFilterUser}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Todos os usuários" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {uniqueUsers.map(u => (
-                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       {/* Records Table */}
