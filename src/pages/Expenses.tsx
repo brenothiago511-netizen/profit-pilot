@@ -57,9 +57,11 @@ const CURRENCIES = [
 ];
 
 export default function Expenses() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { can } = usePermissions();
   const { toast } = useToast();
+  const [profileNames, setProfileNames] = useState<ProfileMap>({});
+  const isAdmin = profile?.role === 'admin';
   const [loading, setLoading] = useState(true);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
