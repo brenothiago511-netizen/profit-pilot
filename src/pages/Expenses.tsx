@@ -104,7 +104,17 @@ export default function Expenses() {
     fetchStores();
     fetchCategories();
     fetchExpenses();
+    if (isAdmin) fetchProfileNames();
   }, []);
+
+  const fetchProfileNames = async () => {
+    const { data } = await supabase.from('profiles').select('id, name');
+    if (data) {
+      const map: ProfileMap = {};
+      data.forEach((p: any) => { map[p.id] = p.name; });
+      setProfileNames(map);
+    }
+  };
 
   const fetchStores = async () => {
     const { data } = await supabase
