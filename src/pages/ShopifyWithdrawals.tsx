@@ -296,10 +296,19 @@ const ShopifyWithdrawals = () => {
     fetchWithdrawals();
   };
 
+  // Get unique user list for filter
+  const uniqueUsers = isAdmin ? Object.entries(profileNames).filter(([id]) => 
+    withdrawals.some(w => w.created_by === id)
+  ) : [];
+
   // Apply filters
   const filteredWithdrawals = withdrawals.filter(w => {
     // Filter by store
     if (filterStore !== 'all' && w.store_name !== filterStore) {
+      return false;
+    }
+    // Filter by user
+    if (filterUser !== 'all' && w.created_by !== filterUser) {
       return false;
     }
     // Filter by date range (using receipt date)
@@ -316,11 +325,12 @@ const ShopifyWithdrawals = () => {
 
   const clearFilters = () => {
     setFilterStore('all');
+    setFilterUser('all');
     setFilterDateStart(undefined);
     setFilterDateEnd(undefined);
   };
 
-  const hasActiveFilters = filterStore !== 'all' || filterDateStart || filterDateEnd;
+  const hasActiveFilters = filterStore !== 'all' || filterUser !== 'all' || filterDateStart || filterDateEnd;
 
   const totalConverted = filteredWithdrawals.reduce((sum, w) => sum + (w.converted_amount || 0), 0);
   const pendingWithdrawals = filteredWithdrawals.filter(w => w.status === 'pending');
