@@ -206,7 +206,9 @@ export default function PartnerDashboardPage() {
         user_id: p.user_id,
         store_id: p.store_id,
         capital_percentage: p.capital_percentage,
-        store_name: storesMap.get(p.store_id) || 'N/A',
+        store_name: storesMap.get(p.store_id)?.name || 'N/A',
+        store_status: storesMap.get(p.store_id)?.status || 'inactive',
+        partner_status: p.status || 'inactive',
       }));
 
       // 5. Group by user
