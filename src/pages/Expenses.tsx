@@ -20,6 +20,7 @@ import { parseDate } from '@/lib/dateUtils';
 interface Expense {
   id: string;
   store_id: string;
+  user_id: string;
   date: string;
   amount: number;
   description: string;
@@ -41,6 +42,10 @@ interface StoreOption {
 interface Category {
   id: string;
   name: string;
+}
+
+interface ProfileMap {
+  [userId: string]: string;
 }
 
 const CURRENCIES = [
