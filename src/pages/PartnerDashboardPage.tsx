@@ -138,8 +138,7 @@ export default function PartnerDashboardPage() {
     try {
       const { data: partnersData } = await supabase
         .from('partners')
-        .select('id, user_id')
-        .eq('status', 'active');
+        .select('id, user_id');
 
       if (partnersData && partnersData.length > 0) {
         const uniqueUserIds = [...new Set(partnersData.map(p => p.user_id))];
