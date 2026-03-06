@@ -143,28 +143,21 @@ export default function Dashboard() {
       console.log('All stores for admin/financeiro:', storesData, 'error:', storesError);
       if (storesData) setStores(storesData);
       
-      // Admin can filter by partner
+      // Admin can filter by user
       if (isAdmin) {
-        const { data: partnersData } = await supabase
-          .from('partners')
-          .select('user_id')
-          .eq('status', 'active');
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .neq('id', user!.id)
+          .eq('status', 'active')
+          .order('name');
         
-        if (partnersData && partnersData.length > 0) {
-          const uniqueUserIds = [...new Set(partnersData.map(p => p.user_id))];
-          
-          const { data: profilesData } = await supabase
-            .from('profiles')
-            .select('id, name')
-            .in('id', uniqueUserIds);
-          
-          const partnersList: PartnerOption[] = (profilesData || []).map(p => ({
-            user_id: p.id,
-            name: p.name,
-          }));
-          
-          setPartners(partnersList);
-        }
+        const partnersList: PartnerOption[] = (profilesData || []).map(p => ({
+          user_id: p.id,
+          name: p.name,
+        }));
+        
+        setPartners(partnersList);
       }
       
       setPartnerStoreIds(null); // null means no restriction
