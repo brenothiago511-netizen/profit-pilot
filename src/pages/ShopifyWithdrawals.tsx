@@ -664,119 +664,141 @@ const ShopifyWithdrawals = () => {
           </Card>
         </div>
 
-        {/* Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Histórico de Saques</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <p className="text-center py-8 text-muted-foreground">Carregando...</p>
-            ) : filteredWithdrawals.length === 0 ? (
-              <p className="text-center py-8 text-muted-foreground">
+        {/* Tables grouped by user */}
+        {loading ? (
+          <Card>
+            <CardContent className="py-8">
+              <p className="text-center text-muted-foreground">Carregando...</p>
+            </CardContent>
+          </Card>
+        ) : filteredWithdrawals.length === 0 ? (
+          <Card>
+            <CardContent className="py-8">
+              <p className="text-center text-muted-foreground">
                 {hasActiveFilters ? 'Nenhum saque encontrado com os filtros aplicados' : 'Nenhum saque cadastrado'}
               </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Data Venda</TableHead>
-                    <TableHead>Data Receb.</TableHead>
-                    <TableHead>Loja</TableHead>
-                    <TableHead className="text-right">Valor Original</TableHead>
-                    <TableHead className="text-right">Valor Convertido</TableHead>
-                    <TableHead>Observações</TableHead>
-                    {isAdmin && <TableHead>Registrado por</TableHead>}
-                    {isAdmin && <TableHead className="text-right">Ações</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredWithdrawals.map((w) => (
-                    <TableRow key={w.id}>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className={cn(
-                                "gap-1.5",
-                                w.status === 'received' && "bg-green-600 hover:bg-green-700 text-white border-green-600",
-                                w.status === 'pending' && "text-amber-600 border-amber-300 hover:bg-amber-50",
-                                w.status === 'lost' && "text-red-600 border-red-300 hover:bg-red-50"
-                              )}
-                            >
-                              {w.status === 'received' && <><Check className="h-3.5 w-3.5" /> Recebido</>}
-                              {w.status === 'pending' && <><Clock className="h-3.5 w-3.5" /> Pendente</>}
-                              {w.status === 'lost' && <><AlertTriangle className="h-3.5 w-3.5" /> Perdido</>}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            <DropdownMenuItem onClick={() => updateStatus(w.id, 'pending')} className="gap-2">
-                              <Clock className="h-4 w-4 text-amber-600" /> Pendente
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => updateStatus(w.id, 'received')} className="gap-2">
-                              <Check className="h-4 w-4 text-green-600" /> Recebido
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => updateStatus(w.id, 'lost')} className="gap-2">
-                              <AlertTriangle className="h-4 w-4 text-red-600" /> Perdido
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                      <TableCell className="max-w-[120px]">
-                        <span className="text-xs" title={w.sale_date || ''}>
-                          {formatSaleDatesDisplay(w.sale_date)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {format(parseDate(w.date), 'dd/MM/yyyy')}
-                      </TableCell>
-                      <TableCell className="font-medium">{w.store_name}</TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(w.amount, w.currency)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {w.converted_amount 
-                          ? formatCurrency(w.converted_amount, config.baseCurrency)
-                          : '-'}
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {w.notes || '-'}
-                      </TableCell>
-                      {isAdmin && (
-                        <TableCell className="text-sm text-muted-foreground">
-                          {w.created_by ? (profileNames[w.created_by] || '-') : '-'}
-                        </TableCell>
-                      )}
-                      {isAdmin && (
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEditDialog(w)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(w.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ) : (
+          Object.entries(withdrawalsByUser).map(([userId, userWithdrawals]) => {
+            const userName = isAdmin ? (profileNames[userId] || 'Desconhecido') : '';
+            const userTotal = userWithdrawals.reduce((sum, w) => sum + (w.converted_amount || 0), 0);
+            const userPending = userWithdrawals.filter(w => w.status === 'pending').reduce((sum, w) => sum + (w.converted_amount || 0), 0);
+            const userReceived = userWithdrawals.filter(w => w.status === 'received').reduce((sum, w) => sum + (w.converted_amount || 0), 0);
+
+            return (
+              <Card key={userId}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      {isAdmin ? `Saques - ${userName}` : 'Histórico de Saques'}
+                    </CardTitle>
+                    {isAdmin && (
+                      <div className="flex gap-4 text-sm">
+                        <span className="text-muted-foreground">Total: <strong>{formatCurrency(userTotal, config.baseCurrency)}</strong></span>
+                        <span className="text-amber-600">Pendente: <strong>{formatCurrency(userPending, config.baseCurrency)}</strong></span>
+                        <span className="text-green-600">Recebido: <strong>{formatCurrency(userReceived, config.baseCurrency)}</strong></span>
+                      </div>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Data Venda</TableHead>
+                        <TableHead>Data Receb.</TableHead>
+                        <TableHead>Loja</TableHead>
+                        <TableHead className="text-right">Valor Original</TableHead>
+                        <TableHead className="text-right">Valor Convertido</TableHead>
+                        <TableHead>Observações</TableHead>
+                        {isAdmin && <TableHead className="text-right">Ações</TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {userWithdrawals.map((w) => (
+                        <TableRow key={w.id}>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={cn(
+                                    "gap-1.5",
+                                    w.status === 'received' && "bg-green-600 hover:bg-green-700 text-white border-green-600",
+                                    w.status === 'pending' && "text-amber-600 border-amber-300 hover:bg-amber-50",
+                                    w.status === 'lost' && "text-red-600 border-red-300 hover:bg-red-50"
+                                  )}
+                                >
+                                  {w.status === 'received' && <><Check className="h-3.5 w-3.5" /> Recebido</>}
+                                  {w.status === 'pending' && <><Clock className="h-3.5 w-3.5" /> Pendente</>}
+                                  {w.status === 'lost' && <><AlertTriangle className="h-3.5 w-3.5" /> Perdido</>}
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start">
+                                <DropdownMenuItem onClick={() => updateStatus(w.id, 'pending')} className="gap-2">
+                                  <Clock className="h-4 w-4 text-amber-600" /> Pendente
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => updateStatus(w.id, 'received')} className="gap-2">
+                                  <Check className="h-4 w-4 text-green-600" /> Recebido
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => updateStatus(w.id, 'lost')} className="gap-2">
+                                  <AlertTriangle className="h-4 w-4 text-red-600" /> Perdido
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                          <TableCell className="max-w-[120px]">
+                            <span className="text-xs" title={w.sale_date || ''}>
+                              {formatSaleDatesDisplay(w.sale_date)}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {format(parseDate(w.date), 'dd/MM/yyyy')}
+                          </TableCell>
+                          <TableCell className="font-medium">{w.store_name}</TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency(w.amount, w.currency)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {w.converted_amount 
+                              ? formatCurrency(w.converted_amount, config.baseCurrency)
+                              : '-'}
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate">
+                            {w.notes || '-'}
+                          </TableCell>
+                          {isAdmin && (
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditDialog(w)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDelete(w.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
       </div>
   );
 };
