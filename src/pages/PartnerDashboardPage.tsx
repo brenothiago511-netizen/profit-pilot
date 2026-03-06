@@ -48,6 +48,8 @@ interface PartnershipInfo {
   store_id: string;
   capital_percentage: number;
   store_name: string;
+  store_status: string;
+  partner_status: string;
 }
 
 interface PartnerProfile {
@@ -72,6 +74,8 @@ interface PartnerSummary {
 interface StoreBreakdown {
   storeId: string;
   storeName: string;
+  storeStatus: string;
+  partnerStatus: string;
   revenues: number;
   expenses: number;
   profitRegistered: number;
@@ -138,8 +142,7 @@ export default function PartnerDashboardPage() {
     try {
       const { data: partnersData } = await supabase
         .from('partners')
-        .select('id, user_id')
-        .eq('status', 'active');
+        .select('id, user_id');
 
       if (partnersData && partnersData.length > 0) {
         const uniqueUserIds = [...new Set(partnersData.map(p => p.user_id))];
@@ -165,8 +168,7 @@ export default function PartnerDashboardPage() {
       // 1. Get partnerships
       let partnerQuery = supabase
         .from('partners')
-        .select('id, user_id, store_id, capital_percentage')
-        .eq('status', 'active');
+        .select('id, user_id, store_id, capital_percentage, status');
 
       if (selectedPartner !== 'all') {
         partnerQuery = partnerQuery.eq('user_id', selectedPartner);
@@ -186,9 +188,9 @@ export default function PartnerDashboardPage() {
       const storeIds = [...new Set(partnersData.map(p => p.store_id).filter(Boolean))];
       const { data: storesData } = await supabase
         .from('stores')
-        .select('id, name')
+        .select('id, name, status')
         .in('id', storeIds);
-      const storesMap = new Map((storesData || []).map(s => [s.id, s.name]));
+      const storesMap = new Map((storesData || []).map(s => [s.id, { name: s.name, status: s.status }]));
 
       // 3. Get user names
       const userIds = [...new Set(partnersData.map(p => p.user_id))];
@@ -204,7 +206,9 @@ export default function PartnerDashboardPage() {
         user_id: p.user_id,
         store_id: p.store_id,
         capital_percentage: p.capital_percentage,
-        store_name: storesMap.get(p.store_id) || 'N/A',
+        store_name: storesMap.get(p.store_id)?.name || 'N/A',
+        store_status: storesMap.get(p.store_id)?.status || 'inactive',
+        partner_status: p.status || 'inactive',
       }));
 
       // 5. Group by user
@@ -278,6 +282,8 @@ export default function PartnerDashboardPage() {
           return {
             storeId: p.store_id,
             storeName: p.store_name,
+            storeStatus: p.store_status,
+            partnerStatus: p.partner_status,
             revenues: storeRevenues,
             expenses: storeExpenses,
             profitRegistered,
@@ -668,6 +674,16 @@ export default function PartnerDashboardPage() {
                               <div className="flex items-center gap-2">
                                 <Store className="w-4 h-4 text-muted-foreground" />
                                 {store.storeName}
+                                {store.storeStatus !== 'active' && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-destructive/10 text-destructive border-destructive/30">
+                                    Inativa
+                                  </Badge>
+                                )}
+                                {store.partnerStatus !== 'active' && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-warning/10 text-warning border-warning/30">
+                                    Desvinculado
+                                  </Badge>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell className="text-right">{fmt(store.revenues)}</TableCell>
