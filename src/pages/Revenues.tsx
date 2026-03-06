@@ -507,104 +507,137 @@ export default function Revenues() {
         </PermissionGate>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-success" />
-            Receitas Recentes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          ) : revenues.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhuma receita cadastrada
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th></th>
-                    <th>Data</th>
-                    <th>Loja</th>
-                    <th>Origem</th>
-                    <th>Pagamento</th>
-                    <th className="text-right">Valor Original</th>
-                    <th className="text-right">Valor (BRL)</th>
-                    {(can('edit_revenue') || can('delete_revenue')) && <th>Ações</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {revenues.map((revenue) => {
-                    const currencyInfo = CURRENCIES.find(c => c.code === revenue.original_currency);
-                    const showOriginal = revenue.original_currency && revenue.original_currency !== 'BRL' && revenue.original_amount;
-                    
-                    return (
-                      <tr key={revenue.id}>
-                        <td className="w-10">
-                          {revenue.image_url ? (
-                            <a href={revenue.image_url} target="_blank" rel="noopener noreferrer">
-                              <img 
-                                src={revenue.image_url} 
-                                alt="Comprovante" 
-                                className="w-8 h-8 object-cover rounded border hover:opacity-80 transition-opacity"
-                              />
-                            </a>
-                          ) : (
-                            <div className="w-8 h-8 flex items-center justify-center text-muted-foreground">
-                              <Image className="w-4 h-4" />
-                            </div>
-                          )}
-                        </td>
-                        <td>{format(parseDate(revenue.date), 'dd/MM/yyyy')}</td>
-                        <td>{revenue.stores?.name || '-'}</td>
-                        <td>{revenue.source || '-'}</td>
-                        <td className="capitalize">{revenue.payment_method?.replace('_', ' ') || '-'}</td>
-                        <td className="text-right font-medium">
-                          {showOriginal 
-                            ? `${currencyInfo?.symbol || ''}${revenue.original_amount?.toFixed(2)}`
-                            : '-'
-                          }
-                        </td>
-                        <td className="text-right font-medium text-success">
-                          {formatCurrency(revenue.amount)}
-                        </td>
-                        {(can('edit_revenue') || can('delete_revenue')) && (
-                          <td className="flex gap-1">
-                            {can('edit_revenue') && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openEditDialog(revenue)}
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {can('delete_revenue') && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => handleDelete(revenue.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {(() => {
+        const revenuesByUser = isAdmin
+          ? revenues.reduce((acc, r) => {
+              const key = r.user_id || 'unknown';
+              if (!acc[key]) acc[key] = [];
+              acc[key].push(r);
+              return acc;
+            }, {} as Record<string, Revenue[]>)
+          : { all: revenues };
+
+        return loading ? (
+          <Card>
+            <CardContent className="py-8">
+              <div className="flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+        ) : revenues.length === 0 ? (
+          <Card>
+            <CardContent className="py-8">
+              <div className="text-center text-muted-foreground">
+                Nenhuma receita cadastrada
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          Object.entries(revenuesByUser).map(([userId, userRevenues]) => {
+            const userName = isAdmin ? (profileNames[userId] || 'Desconhecido') : '';
+            const userTotal = userRevenues.reduce((sum, r) => sum + r.amount, 0);
+
+            return (
+              <Card key={userId}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-success" />
+                      {isAdmin ? `Receitas - ${userName}` : 'Receitas Recentes'}
+                    </CardTitle>
+                    {isAdmin && (
+                      <span className="text-sm text-muted-foreground">
+                        Total: <strong className="text-success">{formatCurrency(userTotal)}</strong>
+                      </span>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th></th>
+                          <th>Data</th>
+                          <th>Loja</th>
+                          <th>Origem</th>
+                          <th>Pagamento</th>
+                          <th className="text-right">Valor Original</th>
+                          <th className="text-right">Valor (BRL)</th>
+                          {(can('edit_revenue') || can('delete_revenue')) && <th>Ações</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {userRevenues.map((revenue) => {
+                          const currencyInfo = CURRENCIES.find(c => c.code === revenue.original_currency);
+                          const showOriginal = revenue.original_currency && revenue.original_currency !== 'BRL' && revenue.original_amount;
+                          
+                          return (
+                            <tr key={revenue.id}>
+                              <td className="w-10">
+                                {revenue.image_url ? (
+                                  <a href={revenue.image_url} target="_blank" rel="noopener noreferrer">
+                                    <img 
+                                      src={revenue.image_url} 
+                                      alt="Comprovante" 
+                                      className="w-8 h-8 object-cover rounded border hover:opacity-80 transition-opacity"
+                                    />
+                                  </a>
+                                ) : (
+                                  <div className="w-8 h-8 flex items-center justify-center text-muted-foreground">
+                                    <Image className="w-4 h-4" />
+                                  </div>
+                                )}
+                              </td>
+                              <td>{format(parseDate(revenue.date), 'dd/MM/yyyy')}</td>
+                              <td>{revenue.stores?.name || '-'}</td>
+                              <td>{revenue.source || '-'}</td>
+                              <td className="capitalize">{revenue.payment_method?.replace('_', ' ') || '-'}</td>
+                              <td className="text-right font-medium">
+                                {showOriginal 
+                                  ? `${currencyInfo?.symbol || ''}${revenue.original_amount?.toFixed(2)}`
+                                  : '-'
+                                }
+                              </td>
+                              <td className="text-right font-medium text-success">
+                                {formatCurrency(revenue.amount)}
+                              </td>
+                              {(can('edit_revenue') || can('delete_revenue')) && (
+                                <td className="flex gap-1">
+                                  {can('edit_revenue') && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => openEditDialog(revenue)}
+                                    >
+                                      <Pencil className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                  {can('delete_revenue') && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive"
+                                      onClick={() => handleDelete(revenue.id)}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        );
+      })()}
     </div>
   );
 }
