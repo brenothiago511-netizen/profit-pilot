@@ -1049,106 +1049,139 @@ export default function Expenses() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingDown className="w-5 h-5 text-danger" />
-            Despesas Recentes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          ) : expenses.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhuma despesa cadastrada
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Data</th>
-                    <th>Loja</th>
-                    <th>Descrição</th>
-                    <th>Categoria</th>
-                    <th>Tipo</th>
-                    <th className="text-right">Valor Original</th>
-                    <th className="text-right">Valor (BRL)</th>
-                    {(can('edit_expense') || can('delete_expense')) && <th>Ações</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {expenses.map((expense) => {
-                    const currencyInfo = CURRENCIES.find(c => c.code === expense.original_currency);
-                    const showOriginal = expense.original_currency && expense.original_currency !== 'BRL' && expense.original_amount;
-                    
-                    return (
-                      <tr key={expense.id}>
-                        <td>{format(parseDate(expense.date), 'dd/MM/yyyy')}</td>
-                        <td>{expense.store_name || '-'}</td>
-                        <td>
-                          <div className="flex items-center gap-2">
-                            {expense.description}
-                            {expense.ai_extracted && (
-                              <Badge variant="outline" className="text-xs">
-                                <Sparkles className="w-3 h-3 mr-1" />
-                                IA
-                              </Badge>
-                            )}
-                          </div>
-                        </td>
-                        <td>{expense.category_name || '-'}</td>
-                        <td>
-                          <Badge variant={expense.type === 'fixa' ? 'default' : 'secondary'}>
-                            {expense.type === 'fixa' ? 'Fixa' : 'Variável'}
-                          </Badge>
-                        </td>
-                        <td className="text-right font-medium">
-                          {showOriginal 
-                            ? `${currencyInfo?.symbol || ''}${expense.original_amount?.toFixed(2)}`
-                            : '-'
-                          }
-                        </td>
-                        <td className="text-right font-medium text-danger">
-                          {formatCurrency(expense.amount)}
-                        </td>
-                        {(can('edit_expense') || can('delete_expense')) && (
-                          <td>
-                            <div className="flex items-center gap-1">
-                              {can('edit_expense') && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openEditDialog(expense)}
-                                >
-                                  <Pencil className="w-4 h-4" />
-                                </Button>
+      {(() => {
+        const expensesByUser = isAdmin
+          ? expenses.reduce((acc, e) => {
+              const key = e.user_id || 'unknown';
+              if (!acc[key]) acc[key] = [];
+              acc[key].push(e);
+              return acc;
+            }, {} as Record<string, Expense[]>)
+          : { all: expenses };
+
+        return loading ? (
+          <Card>
+            <CardContent className="py-8">
+              <div className="flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+        ) : expenses.length === 0 ? (
+          <Card>
+            <CardContent className="py-8">
+              <div className="text-center text-muted-foreground">
+                Nenhuma despesa cadastrada
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          Object.entries(expensesByUser).map(([userId, userExpenses]) => {
+            const userName = isAdmin ? (profileNames[userId] || 'Desconhecido') : '';
+            const userTotal = userExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+            return (
+              <Card key={userId}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingDown className="w-5 h-5 text-danger" />
+                      {isAdmin ? `Despesas - ${userName}` : 'Despesas Recentes'}
+                    </CardTitle>
+                    {isAdmin && (
+                      <span className="text-sm text-muted-foreground">
+                        Total: <strong className="text-danger">{formatCurrency(userTotal)}</strong>
+                      </span>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Data</th>
+                          <th>Loja</th>
+                          <th>Descrição</th>
+                          <th>Categoria</th>
+                          <th>Tipo</th>
+                          <th className="text-right">Valor Original</th>
+                          <th className="text-right">Valor (BRL)</th>
+                          {(can('edit_expense') || can('delete_expense')) && <th>Ações</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {userExpenses.map((expense) => {
+                          const currencyInfo = CURRENCIES.find(c => c.code === expense.original_currency);
+                          const showOriginal = expense.original_currency && expense.original_currency !== 'BRL' && expense.original_amount;
+                          
+                          return (
+                            <tr key={expense.id}>
+                              <td>{format(parseDate(expense.date), 'dd/MM/yyyy')}</td>
+                              <td>{expense.store_name || '-'}</td>
+                              <td>
+                                <div className="flex items-center gap-2">
+                                  {expense.description}
+                                  {expense.ai_extracted && (
+                                    <Badge variant="outline" className="text-xs">
+                                      <Sparkles className="w-3 h-3 mr-1" />
+                                      IA
+                                    </Badge>
+                                  )}
+                                </div>
+                              </td>
+                              <td>{expense.category_name || '-'}</td>
+                              <td>
+                                <Badge variant={expense.type === 'fixa' ? 'default' : 'secondary'}>
+                                  {expense.type === 'fixa' ? 'Fixa' : 'Variável'}
+                                </Badge>
+                              </td>
+                              <td className="text-right font-medium">
+                                {showOriginal 
+                                  ? `${currencyInfo?.symbol || ''}${expense.original_amount?.toFixed(2)}`
+                                  : '-'
+                                }
+                              </td>
+                              <td className="text-right font-medium text-danger">
+                                {formatCurrency(expense.amount)}
+                              </td>
+                              {(can('edit_expense') || can('delete_expense')) && (
+                                <td>
+                                  <div className="flex items-center gap-1">
+                                    {can('edit_expense') && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => openEditDialog(expense)}
+                                      >
+                                        <Pencil className="w-4 h-4" />
+                                      </Button>
+                                    )}
+                                    {can('delete_expense') && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-destructive hover:text-destructive"
+                                        onClick={() => handleDelete(expense.id)}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </td>
                               )}
-                              {can('delete_expense') && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={() => handleDelete(expense.id)}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        );
+      })()}
     </div>
   );
 }
