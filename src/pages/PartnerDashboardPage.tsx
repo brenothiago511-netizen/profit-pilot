@@ -674,6 +674,16 @@ export default function PartnerDashboardPage() {
                               <div className="flex items-center gap-2">
                                 <Store className="w-4 h-4 text-muted-foreground" />
                                 {store.storeName}
+                                {store.storeStatus !== 'active' && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-destructive/10 text-destructive border-destructive/30">
+                                    Inativa
+                                  </Badge>
+                                )}
+                                {store.partnerStatus !== 'active' && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-warning/10 text-warning border-warning/30">
+                                    Desvinculado
+                                  </Badge>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell className="text-right">{fmt(store.revenues)}</TableCell>
