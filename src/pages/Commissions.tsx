@@ -437,31 +437,29 @@ export default function Commissions() {
     }).format(value);
   };
 
-  // Unique users for filter
-  const uniqueUsers = useMemo(() => {
-    const users = new Map<string, string>();
-    dailyRecords.forEach(r => {
-      if (r.user_id && r.user_name && r.user_name !== '-') {
-        users.set(r.user_id, r.user_name);
-      }
-    });
-    return Array.from(users.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [dailyRecords]);
-
-  // Filtered records based on status and user
+  // Filtered records based on status
   const filteredRecords = useMemo(() => {
     let records = dailyRecords;
     if (filterStatus === 'received') records = records.filter(r => r.shopify_status === 'received');
     if (filterStatus === 'pending') records = records.filter(r => r.shopify_status === 'pending');
-    if (filterUser !== 'all') records = records.filter(r => r.user_id === filterUser);
     return records;
-  }, [dailyRecords, filterStatus, filterUser]);
+  }, [dailyRecords, filterStatus]);
 
-  // Stats - based on filtered records
+  // Group by user for admin view
+  const recordsByUser = useMemo(() => {
+    if (!isAdmin) return { all: filteredRecords };
+    return filteredRecords.reduce((acc, r) => {
+      const key = r.user_id || 'unknown';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(r);
+      return acc;
+    }, {} as Record<string, DailyRecord[]>);
+  }, [filteredRecords, isAdmin]);
+
+  // Stats
   const stats = useMemo(() => {
-    const base = filterUser !== 'all' ? dailyRecords.filter(r => r.user_id === filterUser) : dailyRecords;
-    const received = base.filter(r => r.shopify_status === 'received');
-    const pending = base.filter(r => r.shopify_status === 'pending');
+    const received = dailyRecords.filter(r => r.shopify_status === 'received');
+    const pending = dailyRecords.filter(r => r.shopify_status === 'pending');
     const totalReceived = received.reduce((sum, r) => sum + r.daily_profit, 0);
     const totalPending = pending.reduce((sum, r) => sum + r.daily_profit, 0);
     
@@ -471,12 +469,11 @@ export default function Commissions() {
       receivedCount: received.length,
       pendingCount: pending.length,
     };
-  }, [dailyRecords, filterUser]);
+  }, [dailyRecords]);
 
-  // Chart data - based on filtered user
+  // Chart data
   const chartData = useMemo(() => {
-    const base = filterUser !== 'all' ? dailyRecords.filter(r => r.user_id === filterUser) : dailyRecords;
-    const last30Days = base
+    const last30Days = dailyRecords
       .filter(r => r.shopify_status === 'received')
       .slice(0, 30)
       .reverse();
@@ -485,7 +482,7 @@ export default function Commissions() {
       date: format(parseLocalDate(r.date), 'dd/MM'),
       lucro: r.daily_profit,
     }));
-  }, [dailyRecords, filterUser]);
+  }, [dailyRecords]);
 
   if (loading) {
     return (
