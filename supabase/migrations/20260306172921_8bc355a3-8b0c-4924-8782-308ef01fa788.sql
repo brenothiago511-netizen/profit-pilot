@@ -1,0 +1,1 @@
+DROP POLICY "Partners can insert stores" ON public.stores;
