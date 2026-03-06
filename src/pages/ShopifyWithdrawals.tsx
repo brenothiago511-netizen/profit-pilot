@@ -58,6 +58,7 @@ const ShopifyWithdrawals = () => {
   
   // Filters
   const [filterStore, setFilterStore] = useState<string>('all');
+  const [filterUser, setFilterUser] = useState<string>('all');
   const [filterDateStart, setFilterDateStart] = useState<Date | undefined>(undefined);
   const [filterDateEnd, setFilterDateEnd] = useState<Date | undefined>(undefined);
   const [form, setForm] = useState({
