@@ -20,6 +20,7 @@ import { DialogDescription } from '@/components/ui/dialog';
 interface Revenue {
   id: string;
   store_id: string;
+  user_id: string;
   date: string;
   amount: number;
   source: string | null;
@@ -34,6 +35,10 @@ interface Revenue {
 interface StoreOption {
   id: string;
   name: string;
+}
+
+interface ProfileMap {
+  [userId: string]: string;
 }
 
 const CURRENCIES = [
