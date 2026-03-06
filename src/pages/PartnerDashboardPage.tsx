@@ -282,6 +282,8 @@ export default function PartnerDashboardPage() {
           return {
             storeId: p.store_id,
             storeName: p.store_name,
+            storeStatus: p.store_status,
+            partnerStatus: p.partner_status,
             revenues: storeRevenues,
             expenses: storeExpenses,
             profitRegistered,
