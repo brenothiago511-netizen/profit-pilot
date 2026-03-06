@@ -164,8 +164,7 @@ export default function PartnerDashboardPage() {
       // 1. Get partnerships
       let partnerQuery = supabase
         .from('partners')
-        .select('id, user_id, store_id, capital_percentage')
-        .eq('status', 'active');
+        .select('id, user_id, store_id, capital_percentage, status');
 
       if (selectedPartner !== 'all') {
         partnerQuery = partnerQuery.eq('user_id', selectedPartner);
