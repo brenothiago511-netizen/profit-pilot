@@ -147,6 +147,7 @@ export default function Expenses() {
       const enrichedExpenses: Expense[] = (data || []).map((e: any) => ({
         id: e.id,
         store_id: e.store_id,
+        user_id: e.user_id,
         date: e.date,
         amount: e.amount,
         description: e.description,
