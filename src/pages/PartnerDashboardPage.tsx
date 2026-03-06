@@ -48,6 +48,8 @@ interface PartnershipInfo {
   store_id: string;
   capital_percentage: number;
   store_name: string;
+  store_status: string;
+  partner_status: string;
 }
 
 interface PartnerProfile {
