@@ -188,9 +188,9 @@ export default function PartnerDashboardPage() {
       const storeIds = [...new Set(partnersData.map(p => p.store_id).filter(Boolean))];
       const { data: storesData } = await supabase
         .from('stores')
-        .select('id, name')
+        .select('id, name, status')
         .in('id', storeIds);
-      const storesMap = new Map((storesData || []).map(s => [s.id, s.name]));
+      const storesMap = new Map((storesData || []).map(s => [s.id, { name: s.name, status: s.status }]));
 
       // 3. Get user names
       const userIds = [...new Set(partnersData.map(p => p.user_id))];
