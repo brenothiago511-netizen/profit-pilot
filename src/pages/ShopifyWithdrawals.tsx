@@ -295,11 +295,6 @@ const ShopifyWithdrawals = () => {
     fetchWithdrawals();
   };
 
-  // Get unique user list for filter
-  const uniqueUsers = isAdmin ? Object.entries(profileNames).filter(([id]) => 
-    withdrawals.some(w => w.created_by === id)
-  ) : [];
-
   // Apply filters
   const filteredWithdrawals = withdrawals.filter(w => {
     if (filterStore !== 'all' && w.store_name !== filterStore) return false;
