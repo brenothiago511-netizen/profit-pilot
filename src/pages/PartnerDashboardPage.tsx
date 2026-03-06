@@ -5,599 +5,393 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import ROIAlerts from '@/components/alerts/ROIAlerts';
-import EarningsProjection from '@/components/projections/EarningsProjection';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
-import { parseDate } from '@/lib/dateUtils';
 import { 
-  DollarSign, 
   TrendingUp, 
   TrendingDown, 
-  Percent, 
-  Store, 
   Loader2,
-  Wallet,
-  PiggyBank,
   ArrowUpRight,
   ArrowDownRight,
   Building2,
   Calendar,
   CalendarIcon,
-  FileText,
-  Target,
-  BarChart3,
-  Scale,
-  Trophy,
-  Bell,
-  Sparkles,
-  User,
-  CheckCircle,
+  CheckCircle2,
   Clock,
-  Banknote,
+  DollarSign,
+  Percent,
+  Store,
+  User,
+  Wallet,
+  BarChart3,
 } from 'lucide-react';
-import { format, subMonths, startOfMonth, endOfMonth, parseISO } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   Legend,
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  ComposedChart,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
 } from 'recharts';
 
-interface PartnerData {
+interface PartnershipInfo {
   id: string;
+  user_id: string;
   store_id: string;
-  capital_amount: number;
   capital_percentage: number;
-  status: string;
-  store?: {
-    id: string;
-    name: string;
-    currency: string;
-  };
-}
-
-interface PartnerTransaction {
-  id: string;
-  partner_id: string;
-  store_id: string;
-  type: string;
-  amount: number;
-  description: string | null;
-  date: string;
-  created_at: string;
-}
-
-interface StorePerformance {
-  storeId: string;
-  storeName: string;
-  revenue: number;
-  expenses: number;
-  profit: number;
-  partnerShare: number;
-  percentage: number;
-  goal: number;
-  goalProgress: number;
-}
-
-interface MonthlyData {
-  month: string;
-  aportes: number;
-  distribuicoes: number;
-  capital: number;
-  lucro: number;
-  receita: number;
-  despesa: number;
-}
-
-interface GoalData {
-  storeId: string;
-  storeName: string;
-  goal: number;
-  achieved: number;
-  progress: number;
+  store_name: string;
 }
 
 interface PartnerProfile {
-  id: string;
   user_id: string;
   user_name: string;
 }
 
-interface CommissionRecord {
-  id: string;
-  manager_id: string;
-  store_id: string;
-  store_name: string;
-  manager_name: string;
-  period_start: string;
-  period_end: string;
-  base_amount: number;
-  percent: number;
-  commission_amount: number;
-  status: string;
-  paid_at: string | null;
+interface PartnerSummary {
+  userId: string;
+  userName: string;
+  totalRevenues: number;
+  totalExpenses: number;
+  totalProfitRegistered: number;
+  totalProfitConfirmed: number;
+  totalProfitPending: number;
+  partnerPercentage: number;
+  amountToPay: number;
+  amountPending: number;
+  storeBreakdown: StoreBreakdown[];
 }
 
-const CHART_COLORS = [
-  'hsl(var(--primary))',
-  'hsl(var(--success))',
-  'hsl(var(--warning))',
-  'hsl(var(--info))',
-  'hsl(142, 76%, 36%)',
-  'hsl(221, 83%, 53%)',
-];
+interface StoreBreakdown {
+  storeId: string;
+  storeName: string;
+  revenues: number;
+  expenses: number;
+  profitRegistered: number;
+  profitConfirmed: number;
+  profitPending: number;
+  percentage: number;
+  amountToPay: number;
+}
+
+interface MonthlyTrend {
+  month: string;
+  receitas: number;
+  despesas: number;
+  lucroRegistrado: number;
+  lucroConfirmado: number;
+}
+
+const PARTNER_PERCENTAGE = 30;
 
 export default function PartnerDashboardPage() {
-  const { user } = useAuth();
-  const { toast } = useToast();
+  const { user, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [partnerships, setPartnerships] = useState<PartnerData[]>([]);
-  const [transactions, setTransactions] = useState<PartnerTransaction[]>([]);
-  const [storePerformance, setStorePerformance] = useState<StorePerformance[]>([]);
-  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
-  const [goals, setGoals] = useState<GoalData[]>([]);
-  const [commissions, setCommissions] = useState<CommissionRecord[]>([]);
-  const [updatingCommission, setUpdatingCommission] = useState<string | null>(null);
   const [allPartners, setAllPartners] = useState<PartnerProfile[]>([]);
-  const [selectedPartner, setSelectedPartner] = useState<string>(user?.id || 'all');
-  const [selectedStore, setSelectedStore] = useState<string>('all');
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('3');
+  const [selectedPartner, setSelectedPartner] = useState<string>('all');
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('current');
+  const [useCustomDates, setUseCustomDates] = useState(false);
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
-    from: subMonths(new Date(), 3),
+    from: startOfMonth(new Date()),
     to: new Date(),
   });
-  const [useCustomDates, setUseCustomDates] = useState(false);
+  const [summaries, setSummaries] = useState<PartnerSummary[]>([]);
+  const [monthlyTrend, setMonthlyTrend] = useState<MonthlyTrend[]>([]);
 
-  const filteredPerformance = selectedStore === 'all' 
-    ? storePerformance 
-    : storePerformance.filter(s => s.storeId === selectedStore);
-
-  const totalCapital = partnerships.reduce((sum, p) => sum + (p.capital_amount || 0), 0);
-  const totalDistributions = transactions
-    .filter(t => t.type === 'distribuicao')
-    .reduce((sum, t) => sum + t.amount, 0);
-  const totalAportes = transactions
-    .filter(t => t.type === 'aporte')
-    .reduce((sum, t) => sum + t.amount, 0);
-  const totalRetiradas = transactions
-    .filter(t => t.type === 'retirada')
-    .reduce((sum, t) => sum + t.amount, 0);
-  const totalPartnerShare = filteredPerformance.reduce((sum, s) => sum + s.partnerShare, 0);
-  const totalRevenue = filteredPerformance.reduce((sum, s) => sum + s.revenue, 0);
-  const totalExpenses = filteredPerformance.reduce((sum, s) => sum + s.expenses, 0);
-  const totalProfit = filteredPerformance.reduce((sum, s) => sum + s.profit, 0);
-  const avgPercentage = partnerships.length > 0 
-    ? partnerships.reduce((sum, p) => sum + (p.capital_percentage || 0), 0) / partnerships.length 
-    : 0;
-
-  // Computed profitability data for comparison
-  const profitabilityData = storePerformance.map((store, index) => {
-    const partnership = partnerships.find(p => p.store_id === store.storeId);
-    const capitalInvested = partnership?.capital_amount || 0;
-    const roi = capitalInvested > 0 ? (store.partnerShare / capitalInvested) * 100 : 0;
-    const profitMargin = store.revenue > 0 ? (store.profit / store.revenue) * 100 : 0;
-    const efficiencyRatio = store.expenses > 0 ? store.revenue / store.expenses : 0;
-    
+  const periodDates = useMemo(() => {
+    if (useCustomDates) {
+      return {
+        start: format(dateRange.from, 'yyyy-MM-dd'),
+        end: format(dateRange.to, 'yyyy-MM-dd'),
+      };
+    }
+    const today = new Date();
+    if (selectedPeriod === 'current') {
+      return {
+        start: format(startOfMonth(today), 'yyyy-MM-dd'),
+        end: format(today, 'yyyy-MM-dd'),
+      };
+    }
+    const monthsBack = parseInt(selectedPeriod);
     return {
-      name: store.storeName,
-      storeId: store.storeId,
-      revenue: store.revenue,
-      expenses: store.expenses,
-      profit: store.profit,
-      partnerShare: store.partnerShare,
-      capitalInvested,
-      roi,
-      profitMargin,
-      efficiencyRatio,
-      percentage: store.percentage,
-      color: CHART_COLORS[index % CHART_COLORS.length],
+      start: format(subMonths(today, monthsBack), 'yyyy-MM-dd'),
+      end: format(today, 'yyyy-MM-dd'),
     };
-  }).sort((a, b) => b.roi - a.roi);
-
-  // Data for radar chart (normalized 0-100)
-  const radarData = storePerformance.map(store => {
-    const partnership = partnerships.find(p => p.store_id === store.storeId);
-    const capitalInvested = partnership?.capital_amount || 0;
-    const roi = capitalInvested > 0 ? (store.partnerShare / capitalInvested) * 100 : 0;
-    const profitMargin = store.revenue > 0 ? (store.profit / store.revenue) * 100 : 0;
-    const efficiencyRatio = store.expenses > 0 ? (store.revenue / store.expenses) * 20 : 0; // Normalized
-    const goalAchievement = store.goalProgress || 0;
-    
-    return {
-      store: store.storeName,
-      ROI: Math.min(roi, 100),
-      Margem: Math.min(profitMargin, 100),
-      Eficiência: Math.min(efficiencyRatio, 100),
-      Metas: Math.min(goalAchievement, 100),
-    };
-  });
-
-  // Best and worst performing stores
-  const bestStore = profitabilityData.length > 0 ? profitabilityData[0] : null;
-  const worstStore = profitabilityData.length > 1 ? profitabilityData[profitabilityData.length - 1] : null;
+  }, [useCustomDates, dateRange, selectedPeriod]);
 
   useEffect(() => {
     fetchAllPartners();
   }, []);
 
   useEffect(() => {
-    fetchPartnerData();
-  }, [selectedPartner, selectedPeriod, dateRange, useCustomDates]);
+    fetchData();
+  }, [selectedPartner, periodDates]);
 
   const fetchAllPartners = async () => {
     try {
-      // Fetch all partners with their profile names
       const { data: partnersData } = await supabase
         .from('partners')
         .select('id, user_id')
         .eq('status', 'active');
 
       if (partnersData && partnersData.length > 0) {
-        // Get unique user_ids
         const uniqueUserIds = [...new Set(partnersData.map(p => p.user_id))];
-        
-        // Fetch profiles for these users
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('id, name')
           .in('id', uniqueUserIds);
 
         const profilesMap = new Map((profilesData || []).map(p => [p.id, p.name]));
-        
-        const partnersWithNames: PartnerProfile[] = uniqueUserIds.map(userId => ({
-          id: partnersData.find(p => p.user_id === userId)?.id || '',
-          user_id: userId,
-          user_name: profilesMap.get(userId) || 'Sócio',
-        }));
-
-        setAllPartners(partnersWithNames);
+        setAllPartners(uniqueUserIds.map(uid => ({
+          user_id: uid,
+          user_name: profilesMap.get(uid) || 'Sócio',
+        })));
       }
     } catch (error) {
       console.error('Error fetching partners:', error);
     }
   };
 
-  const fetchPartnerData = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const today = new Date();
-      let periodStart: string;
-      let periodEnd: string;
-
-      if (useCustomDates) {
-        periodStart = format(dateRange.from, 'yyyy-MM-dd');
-        periodEnd = format(dateRange.to, 'yyyy-MM-dd');
-      } else if (selectedPeriod === 'current') {
-        periodStart = format(startOfMonth(today), 'yyyy-MM-dd');
-        periodEnd = format(today, 'yyyy-MM-dd');
-      } else {
-        const monthsBack = parseInt(selectedPeriod);
-        periodStart = format(subMonths(today, monthsBack), 'yyyy-MM-dd');
-        periodEnd = format(today, 'yyyy-MM-dd');
-      }
-
-      // Fetch partnerships - filter by selected partner or show all
+      // 1. Get partnerships
       let partnerQuery = supabase
         .from('partners')
-        .select('*')
+        .select('id, user_id, store_id, capital_percentage')
         .eq('status', 'active');
 
       if (selectedPartner !== 'all') {
         partnerQuery = partnerQuery.eq('user_id', selectedPartner);
+      } else if (!isAdmin) {
+        partnerQuery = partnerQuery.eq('user_id', user!.id);
       }
 
-      const { data: partnerData, error: partnerError } = await partnerQuery;
-
-      if (partnerError) throw partnerError;
-
-      if (!partnerData || partnerData.length === 0) {
+      const { data: partnersData } = await partnerQuery;
+      if (!partnersData || partnersData.length === 0) {
+        setSummaries([]);
+        setMonthlyTrend([]);
         setLoading(false);
         return;
       }
 
-      // Fetch store details
-      const storeIds = partnerData.map(p => p.store_id);
+      // 2. Get store names
+      const storeIds = [...new Set(partnersData.map(p => p.store_id).filter(Boolean))];
       const { data: storesData } = await supabase
         .from('stores')
-        .select('id, name, currency')
+        .select('id, name')
         .in('id', storeIds);
+      const storesMap = new Map((storesData || []).map(s => [s.id, s.name]));
 
-      const storesMap = new Map((storesData || []).map(s => [s.id, s]));
-      const partnershipsWithStores = partnerData.map(p => ({
-        ...p,
-        store: storesMap.get(p.store_id),
+      // 3. Get user names
+      const userIds = [...new Set(partnersData.map(p => p.user_id))];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', userIds);
+      const profilesMap = new Map((profilesData || []).map(p => [p.id, p.name]));
+
+      // 4. Build partnerships with info
+      const partnerships: PartnershipInfo[] = partnersData.map(p => ({
+        id: p.id,
+        user_id: p.user_id,
+        store_id: p.store_id,
+        capital_percentage: p.capital_percentage,
+        store_name: storesMap.get(p.store_id) || 'N/A',
       }));
 
-      setPartnerships(partnershipsWithStores);
+      // 5. Group by user
+      const userPartnerships = new Map<string, PartnershipInfo[]>();
+      partnerships.forEach(p => {
+        const list = userPartnerships.get(p.user_id) || [];
+        list.push(p);
+        userPartnerships.set(p.user_id, list);
+      });
 
-      // Fetch transactions
-      const partnerIds = partnerData.map(p => p.id);
-      const { data: txData } = await supabase
-        .from('partner_transactions')
-        .select('*')
-        .in('partner_id', partnerIds)
-        .order('date', { ascending: false });
+      // 6. Fetch data per user
+      const results: PartnerSummary[] = [];
 
-      setTransactions(txData || []);
+      for (const [userId, userParts] of userPartnerships) {
+        const userStoreIds = userParts.map(p => p.store_id).filter(Boolean);
+        const userName = profilesMap.get(userId) || 'Sócio';
 
-      // Fetch goals
-      const { data: goalsData } = await supabase
-        .from('revenue_goals')
-        .select('*')
-        .in('store_id', storeIds)
-        .gte('period_start', periodStart)
-        .lte('period_end', periodEnd);
-
-      // Calculate store performance
-      const performanceData: StorePerformance[] = [];
-      const goalsResult: GoalData[] = [];
-
-      for (const partnership of partnershipsWithStores) {
-        // Fetch revenues
-        const { data: revenues } = await supabase
+        // Revenues registered by this user in the period
+        let revQuery = supabase
           .from('revenues')
-          .select('amount')
-          .eq('store_id', partnership.store_id)
-          .gte('date', periodStart)
-          .lte('date', periodEnd);
+          .select('amount, store_id')
+          .eq('user_id', userId)
+          .gte('date', periodDates.start)
+          .lte('date', periodDates.end);
+        if (userStoreIds.length > 0) {
+          revQuery = revQuery.in('store_id', userStoreIds);
+        }
+        const { data: revenues } = await revQuery;
 
-        const totalRevenue = revenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
-
-        // Fetch expenses
-        const { data: expenses } = await supabase
+        // Expenses registered by this user in the period
+        let expQuery = supabase
           .from('expenses')
-          .select('amount')
-          .eq('store_id', partnership.store_id)
-          .gte('date', periodStart)
-          .lte('date', periodEnd);
+          .select('amount, store_id')
+          .eq('user_id', userId)
+          .gte('date', periodDates.start)
+          .lte('date', periodDates.end);
+        if (userStoreIds.length > 0) {
+          expQuery = expQuery.in('store_id', userStoreIds);
+        }
+        const { data: expenses } = await expQuery;
 
-        const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
-        const profit = totalRevenue - totalExpenses;
-
-        // Fetch confirmed daily profits (shopify_status = 'received') for partner share
-        const { data: dailyRecords } = await supabase
+        // Daily records (profit) registered by this user
+        let profitQuery = supabase
           .from('daily_records')
-          .select('daily_profit')
-          .eq('store_id', partnership.store_id)
-          .eq('shopify_status', 'received')
-          .gte('date', periodStart)
-          .lte('date', periodEnd);
+          .select('daily_profit, store_id, shopify_status')
+          .eq('created_by', userId)
+          .gte('date', periodDates.start)
+          .lte('date', periodDates.end);
+        if (userStoreIds.length > 0) {
+          profitQuery = profitQuery.in('store_id', userStoreIds);
+        }
+        const { data: dailyRecords } = await profitQuery;
 
-        const confirmedProfit = dailyRecords?.reduce((sum, r) => sum + Number(r.daily_profit), 0) || 0;
-        const partnerShare = confirmedProfit * ((partnership.capital_percentage || 0) / 100);
+        // Build store breakdown
+        const storeBreakdown: StoreBreakdown[] = userParts.map(p => {
+          const storeRevenues = (revenues || [])
+            .filter(r => r.store_id === p.store_id)
+            .reduce((sum, r) => sum + Number(r.amount), 0);
+          const storeExpenses = (expenses || [])
+            .filter(e => e.store_id === p.store_id)
+            .reduce((sum, e) => sum + Number(e.amount), 0);
+          const storeRecords = (dailyRecords || []).filter(d => d.store_id === p.store_id);
+          const profitRegistered = storeRecords.reduce((sum, d) => sum + Number(d.daily_profit), 0);
+          const profitConfirmed = storeRecords
+            .filter(d => d.shopify_status === 'received')
+            .reduce((sum, d) => sum + Number(d.daily_profit), 0);
+          const profitPending = storeRecords
+            .filter(d => d.shopify_status !== 'received')
+            .reduce((sum, d) => sum + Number(d.daily_profit), 0);
 
-        // Get goal for this store
-        const storeGoals = goalsData?.filter(g => g.store_id === partnership.store_id) || [];
-        const totalGoal = storeGoals.reduce((sum, g) => sum + Number(g.goal_amount_original), 0);
-        const goalProgress = totalGoal > 0 ? (totalRevenue / totalGoal) * 100 : 0;
-
-        performanceData.push({
-          storeId: partnership.store_id,
-          storeName: partnership.store?.name || 'N/A',
-          revenue: totalRevenue,
-          expenses: totalExpenses,
-          profit,
-          partnerShare,
-          percentage: partnership.capital_percentage || 0,
-          goal: totalGoal,
-          goalProgress,
+          return {
+            storeId: p.store_id,
+            storeName: p.store_name,
+            revenues: storeRevenues,
+            expenses: storeExpenses,
+            profitRegistered,
+            profitConfirmed,
+            profitPending,
+            percentage: PARTNER_PERCENTAGE,
+            amountToPay: profitConfirmed * (PARTNER_PERCENTAGE / 100),
+          };
         });
 
-        goalsResult.push({
-          storeId: partnership.store_id,
-          storeName: partnership.store?.name || 'N/A',
-          goal: totalGoal,
-          achieved: totalRevenue,
-          progress: goalProgress,
+        const totalRevenues = storeBreakdown.reduce((s, b) => s + b.revenues, 0);
+        const totalExpenses = storeBreakdown.reduce((s, b) => s + b.expenses, 0);
+        const totalProfitRegistered = storeBreakdown.reduce((s, b) => s + b.profitRegistered, 0);
+        const totalProfitConfirmed = storeBreakdown.reduce((s, b) => s + b.profitConfirmed, 0);
+        const totalProfitPending = storeBreakdown.reduce((s, b) => s + b.profitPending, 0);
+        const amountToPay = storeBreakdown.reduce((s, b) => s + b.amountToPay, 0);
+        const amountPending = totalProfitPending * (PARTNER_PERCENTAGE / 100);
+
+        results.push({
+          userId,
+          userName,
+          totalRevenues,
+          totalExpenses,
+          totalProfitRegistered,
+          totalProfitConfirmed,
+          totalProfitPending,
+          partnerPercentage: PARTNER_PERCENTAGE,
+          amountToPay,
+          amountPending,
+          storeBreakdown,
         });
       }
 
-      setStorePerformance(performanceData);
-      setGoals(goalsResult);
+      setSummaries(results);
 
-      // Calculate monthly evolution
-      const monthlyEvolution: MonthlyData[] = [];
-      let runningCapital = totalCapital - totalAportes + totalRetiradas + totalDistributions;
+      // 7. Monthly trend (last 6 months)
+      const today = new Date();
+      const trends: MonthlyTrend[] = [];
+      const allUserIds = [...userPartnerships.keys()];
+      const allStoreIds = storeIds;
 
       for (let i = 5; i >= 0; i--) {
         const monthDate = subMonths(today, i);
-        const monthStart = format(startOfMonth(monthDate), 'yyyy-MM-dd');
-        const monthEnd = format(endOfMonth(monthDate), 'yyyy-MM-dd');
-        const monthLabel = format(monthDate, 'MMM', { locale: ptBR });
+        const mStart = format(startOfMonth(monthDate), 'yyyy-MM-dd');
+        const mEnd = format(endOfMonth(monthDate), 'yyyy-MM-dd');
+        const label = format(monthDate, 'MMM', { locale: ptBR });
 
-        const monthTransactions = (txData || []).filter(t => {
-          return t.date >= monthStart && t.date <= monthEnd;
-        });
+        let revQ = supabase.from('revenues').select('amount').gte('date', mStart).lte('date', mEnd);
+        let expQ = supabase.from('expenses').select('amount').gte('date', mStart).lte('date', mEnd);
+        let drQ = supabase.from('daily_records').select('daily_profit, shopify_status').gte('date', mStart).lte('date', mEnd);
 
-        const aportes = monthTransactions
-          .filter(t => t.type === 'aporte')
-          .reduce((sum, t) => sum + t.amount, 0);
-
-        const distribuicoes = monthTransactions
-          .filter(t => t.type === 'distribuicao' || t.type === 'retirada')
-          .reduce((sum, t) => sum + t.amount, 0);
-
-        runningCapital += aportes - distribuicoes;
-
-        // Fetch monthly revenue/expenses for all partner stores
-        let monthRevenue = 0;
-        let monthExpenses = 0;
-
-        for (const partnership of partnershipsWithStores) {
-          const { data: revs } = await supabase
-            .from('revenues')
-            .select('amount')
-            .eq('store_id', partnership.store_id)
-            .gte('date', monthStart)
-            .lte('date', monthEnd);
-
-          const { data: exps } = await supabase
-            .from('expenses')
-            .select('amount')
-            .eq('store_id', partnership.store_id)
-            .gte('date', monthStart)
-            .lte('date', monthEnd);
-
-          const storeRevenue = revs?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
-          const storeExpenses = exps?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
-
-          monthRevenue += storeRevenue * ((partnership.capital_percentage || 0) / 100);
-          monthExpenses += storeExpenses * ((partnership.capital_percentage || 0) / 100);
+        if (selectedPartner !== 'all') {
+          revQ = revQ.eq('user_id', selectedPartner);
+          expQ = expQ.eq('user_id', selectedPartner);
+          drQ = drQ.eq('created_by', selectedPartner);
+        } else if (!isAdmin) {
+          revQ = revQ.eq('user_id', user!.id);
+          expQ = expQ.eq('user_id', user!.id);
+          drQ = drQ.eq('created_by', user!.id);
         }
 
-        monthlyEvolution.push({
-          month: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
-          aportes,
-          distribuicoes,
-          capital: Math.max(0, runningCapital),
-          receita: monthRevenue,
-          despesa: monthExpenses,
-          lucro: monthRevenue - monthExpenses,
+        if (allStoreIds.length > 0) {
+          revQ = revQ.in('store_id', allStoreIds);
+          expQ = expQ.in('store_id', allStoreIds);
+          drQ = drQ.in('store_id', allStoreIds);
+        }
+
+        const [{ data: revs }, { data: exps }, { data: drs }] = await Promise.all([revQ, expQ, drQ]);
+
+        trends.push({
+          month: label.charAt(0).toUpperCase() + label.slice(1),
+          receitas: (revs || []).reduce((s, r) => s + Number(r.amount), 0),
+          despesas: (exps || []).reduce((s, e) => s + Number(e.amount), 0),
+          lucroRegistrado: (drs || []).reduce((s, d) => s + Number(d.daily_profit), 0),
+          lucroConfirmado: (drs || []).filter(d => d.shopify_status === 'received').reduce((s, d) => s + Number(d.daily_profit), 0),
         });
       }
 
-      setMonthlyData(monthlyEvolution);
-
-      // Fetch commissions for partner's stores
-      if (storeIds.length > 0) {
-        const { data: commissionsData } = await supabase
-          .from('commissions')
-          .select('*, stores:store_id(name)')
-          .in('store_id', storeIds)
-          .order('period_end', { ascending: false });
-
-        if (commissionsData) {
-          // Fetch manager names
-          const managerIds = [...new Set(commissionsData.map(c => c.manager_id))];
-          const { data: managersData } = await supabase
-            .from('managers')
-            .select('id, user_id')
-            .in('id', managerIds);
-
-          let managerProfileMap = new Map<string, string>();
-          if (managersData && managersData.length > 0) {
-            const managerUserIds = managersData.map(m => m.user_id);
-            const { data: managerProfiles } = await supabase
-              .from('profiles')
-              .select('id, name')
-              .in('id', managerUserIds);
-
-            managersData.forEach(m => {
-              const profile = managerProfiles?.find(p => p.id === m.user_id);
-              managerProfileMap.set(m.id, profile?.name || 'Gestor');
-            });
-          }
-
-          const enrichedCommissions: CommissionRecord[] = commissionsData.map((c: any) => ({
-            id: c.id,
-            manager_id: c.manager_id,
-            store_id: c.store_id,
-            store_name: c.stores?.name || 'N/A',
-            manager_name: managerProfileMap.get(c.manager_id) || 'Gestor',
-            period_start: c.period_start,
-            period_end: c.period_end,
-            base_amount: c.base_amount,
-            percent: c.percent,
-            commission_amount: c.commission_amount,
-            status: c.status,
-            paid_at: c.paid_at,
-          }));
-
-          setCommissions(enrichedCommissions);
-        }
-      }
-
+      setMonthlyTrend(trends);
     } catch (error) {
       console.error('Error fetching partner data:', error);
     }
     setLoading(false);
   };
 
-  const formatCurrencyUSD = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(value);
+  const fmt = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  const formatCurrencyBRL = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
-  };
+  // Aggregated totals
+  const totals = useMemo(() => {
+    return summaries.reduce(
+      (acc, s) => ({
+        revenues: acc.revenues + s.totalRevenues,
+        expenses: acc.expenses + s.totalExpenses,
+        profitRegistered: acc.profitRegistered + s.totalProfitRegistered,
+        profitConfirmed: acc.profitConfirmed + s.totalProfitConfirmed,
+        profitPending: acc.profitPending + s.totalProfitPending,
+        amountToPay: acc.amountToPay + s.amountToPay,
+        amountPending: acc.amountPending + s.amountPending,
+      }),
+      { revenues: 0, expenses: 0, profitRegistered: 0, profitConfirmed: 0, profitPending: 0, amountToPay: 0, amountPending: 0 }
+    );
+  }, [summaries]);
 
-  const toggleCommissionStatus = async (commissionId: string, currentStatus: string) => {
-    setUpdatingCommission(commissionId);
-    const newStatus = currentStatus === 'pago' ? 'pendente' : 'pago';
-    const paidAt = newStatus === 'pago' ? new Date().toISOString() : null;
-    
-    const { error } = await supabase
-      .from('commissions')
-      .update({ status: newStatus, paid_at: paidAt })
-      .eq('id', commissionId);
+  const confirmationRate = totals.profitRegistered > 0 
+    ? (totals.profitConfirmed / totals.profitRegistered) * 100 
+    : 0;
 
-    setUpdatingCommission(null);
-
-    if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: newStatus === 'pago' ? 'Pagamento confirmado!' : 'Status revertido para pendente' });
-      setCommissions(prev => prev.map(c => 
-        c.id === commissionId 
-          ? { ...c, status: newStatus, paid_at: paidAt }
-          : c
-      ));
-    }
-  };
-
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case 'aporte': return <ArrowUpRight className="w-4 h-4 text-success" />;
-      case 'distribuicao': return <ArrowDownRight className="w-4 h-4 text-primary" />;
-      case 'retirada': return <ArrowDownRight className="w-4 h-4 text-warning" />;
-      default: return <DollarSign className="w-4 h-4" />;
-    }
-  };
-
-  const getTransactionLabel = (type: string) => {
-    switch (type) {
-      case 'aporte': return 'Aporte';
-      case 'distribuicao': return 'Distribuição';
-      case 'retirada': return 'Retirada';
-      default: return type;
-    }
-  };
-
-  const pieData = partnerships.map((p, i) => ({
-    name: p.store?.name || 'Loja',
-    value: p.capital_amount || 0,
-    percentage: p.capital_percentage || 0,
-  }));
-
-  const recentTransactions = transactions.slice(0, 8);
+  const periodLabel = useCustomDates
+    ? `${format(dateRange.from, "dd/MM/yy")} - ${format(dateRange.to, "dd/MM/yy")}`
+    : selectedPeriod === 'current'
+      ? 'Mês atual'
+      : `Últimos ${selectedPeriod} ${selectedPeriod === '1' ? 'mês' : 'meses'}`;
 
   if (loading) {
     return (
@@ -607,87 +401,34 @@ export default function PartnerDashboardPage() {
     );
   }
 
-  if (partnerships.length === 0) {
-    return (
-      <div className="space-y-6 animate-fade-in">
-        <div className="page-header">
-          <h1 className="page-title">Meu Painel de Sócio</h1>
-          <p className="page-description">
-            Acompanhe seus investimentos e resultados
-          </p>
-        </div>
-        <Card className="text-center py-12">
-          <CardContent>
-            <Building2 className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Nenhuma participação encontrada</h3>
-            <p className="text-muted-foreground">
-              Você ainda não está vinculado como sócio em nenhuma loja.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Header */}
       <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="page-title">Meu Painel de Sócio</h1>
+          <h1 className="page-title">Painel de Sócios</h1>
           <p className="page-description">
-            Acompanhe seus investimentos, participações e resultados
+            Resumo financeiro por sócio — {periodLabel}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Select value={selectedPartner} onValueChange={setSelectedPartner}>
-            <SelectTrigger className="w-48">
-              <User className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="Todos os sócios" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os sócios</SelectItem>
-              {allPartners.map((partner) => (
-                <SelectItem key={partner.user_id} value={partner.user_id}>
-                  {partner.user_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={selectedStore} onValueChange={setSelectedStore}>
-            <SelectTrigger className="w-48">
-              <Store className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="Todas as lojas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as lojas</SelectItem>
-              {partnerships
-                .filter((p, index, self) => 
-                  p.store_id && 
-                  p.store?.name && 
-                  self.findIndex(x => x.store_id === p.store_id) === index
-                )
-                .map((p) => (
-                  <SelectItem key={p.store_id} value={p.store_id}>
-                    {p.store?.name}
-                  </SelectItem>
+          {isAdmin && allPartners.length > 0 && (
+            <Select value={selectedPartner} onValueChange={setSelectedPartner}>
+              <SelectTrigger className="w-48">
+                <User className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Todos os sócios" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os sócios</SelectItem>
+                {allPartners.map((p) => (
+                  <SelectItem key={p.user_id} value={p.user_id}>{p.user_name}</SelectItem>
                 ))}
-            </SelectContent>
-          </Select>
+              </SelectContent>
+            </Select>
+          )}
           <div className="flex items-center gap-2">
-            <Button
-              variant={useCustomDates ? "outline" : "default"}
-              size="sm"
-              onClick={() => setUseCustomDates(false)}
-            >
-              Período
-            </Button>
-            <Button
-              variant={useCustomDates ? "default" : "outline"}
-              size="sm"
-              onClick={() => setUseCustomDates(true)}
-            >
-              Datas
-            </Button>
+            <Button variant={useCustomDates ? "outline" : "default"} size="sm" onClick={() => setUseCustomDates(false)}>Período</Button>
+            <Button variant={useCustomDates ? "default" : "outline"} size="sm" onClick={() => setUseCustomDates(true)}>Datas</Button>
           </div>
           {!useCustomDates ? (
             <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
@@ -701,7 +442,6 @@ export default function PartnerDashboardPage() {
                 <SelectItem value="3">Últimos 3 meses</SelectItem>
                 <SelectItem value="6">Últimos 6 meses</SelectItem>
                 <SelectItem value="12">Últimos 12 meses</SelectItem>
-                <SelectItem value="24">Últimos 24 meses</SelectItem>
               </SelectContent>
             </Select>
           ) : (
@@ -714,14 +454,7 @@ export default function PartnerDashboardPage() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={dateRange.from}
-                    onSelect={(date) => date && setDateRange(prev => ({ ...prev, from: date }))}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                    locale={ptBR}
-                  />
+                  <CalendarComponent mode="single" selected={dateRange.from} onSelect={(d) => d && setDateRange(prev => ({ ...prev, from: d }))} initialFocus className="p-3 pointer-events-auto" locale={ptBR} />
                 </PopoverContent>
               </Popover>
               <span className="text-muted-foreground">até</span>
@@ -733,14 +466,7 @@ export default function PartnerDashboardPage() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={dateRange.to}
-                    onSelect={(date) => date && setDateRange(prev => ({ ...prev, to: date }))}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                    locale={ptBR}
-                  />
+                  <CalendarComponent mode="single" selected={dateRange.to} onSelect={(d) => d && setDateRange(prev => ({ ...prev, to: d }))} initialFocus className="p-3 pointer-events-auto" locale={ptBR} />
                 </PopoverContent>
               </Popover>
             </div>
@@ -748,283 +474,108 @@ export default function PartnerDashboardPage() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="metric-card-primary">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Capital Total
-            </CardTitle>
-            <Wallet className="h-5 w-5 text-primary" />
-          </CardHeader>
+      {summaries.length === 0 ? (
+        <Card className="text-center py-12">
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrencyUSD(totalCapital)}</div>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge variant="outline" className="text-xs">
-                {partnerships.length} {partnerships.length === 1 ? 'loja' : 'lojas'}
-              </Badge>
-              <Badge variant="secondary" className="text-xs">
-                Média {avgPercentage.toFixed(1)}%
-              </Badge>
-            </div>
+            <Building2 className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Nenhuma participação encontrada</h3>
+            <p className="text-muted-foreground">Nenhum sócio vinculado a lojas ativas no período selecionado.</p>
           </CardContent>
         </Card>
-
-        <Card className="metric-card-success">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Sua Parte do Lucro
-            </CardTitle>
-            <TrendingUp className="h-5 w-5 text-success" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${totalPartnerShare >= 0 ? 'text-success' : 'text-destructive'}`}>
-              {formatCurrencyBRL(totalPartnerShare)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {useCustomDates 
-                ? `${format(dateRange.from, "dd/MM/yy")} - ${format(dateRange.to, "dd/MM/yy")}`
-                : `nos últimos ${selectedPeriod} ${selectedPeriod === '1' ? 'mês' : 'meses'}`
-              }
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="metric-card-info">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Distribuições Recebidas
-            </CardTitle>
-            <PiggyBank className="h-5 w-5 text-info" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrencyUSD(totalDistributions)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              total histórico
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="metric-card-warning">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total de Aportes
-            </CardTitle>
-            <ArrowUpRight className="h-5 w-5 text-warning" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrencyUSD(totalAportes)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              total investido
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Secondary Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Receita (Sua Parte)
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-success">{formatCurrencyBRL(totalRevenue * (avgPercentage / 100))}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Despesas (Sua Parte)
-            </CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-destructive">{formatCurrencyBRL(totalExpenses * (avgPercentage / 100))}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Retiradas
-            </CardTitle>
-            <ArrowDownRight className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold">{formatCurrencyUSD(totalRetiradas)}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4" />
-            Visão Geral
-          </TabsTrigger>
-          <TabsTrigger value="comparison" className="flex items-center gap-2">
-            <Scale className="w-4 h-4" />
-            Comparativo
-          </TabsTrigger>
-          <TabsTrigger value="stores" className="flex items-center gap-2">
-            <Store className="w-4 h-4" />
-            Por Loja
-          </TabsTrigger>
-          <TabsTrigger value="goals" className="flex items-center gap-2">
-            <Target className="w-4 h-4" />
-            Metas
-          </TabsTrigger>
-          <TabsTrigger value="transactions" className="flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            Movimentações
-          </TabsTrigger>
-          <TabsTrigger value="alerts" className="flex items-center gap-2">
-            <Bell className="w-4 h-4" />
-            Alertas
-          </TabsTrigger>
-          <TabsTrigger value="projection" className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4" />
-            Projeção
-          </TabsTrigger>
-          <TabsTrigger value="commissions" className="flex items-center gap-2">
-            <Banknote className="w-4 h-4" />
-            Comissões
-            {commissions.filter(c => c.status === 'pendente').length > 0 && (
-              <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
-                {commissions.filter(c => c.status === 'pendente').length}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
-          {/* ROI Alerts Banner */}
-          <ROIAlerts 
-            storePerformance={storePerformance} 
-            partnerships={partnerships}
-            onRefresh={fetchPartnerData}
-          />
-          
-          {/* Charts Row */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Capital & Profit Evolution */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Evolução Mensal</CardTitle>
-                <CardDescription>Capital e lucro nos últimos 6 meses</CardDescription>
+      ) : (
+        <>
+          {/* KPI Cards */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="border-l-4 border-l-primary">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Entradas Registradas</CardTitle>
+                <ArrowUpRight className="h-5 w-5 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={monthlyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorCapitalGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                      <YAxis 
-                        yAxisId="left"
-                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                        tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                      />
-                      <YAxis 
-                        yAxisId="right"
-                        orientation="right"
-                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                        tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                        }}
-                        formatter={(value: number, name: string) => [formatCurrencyBRL(value), name]}
-                      />
-                      <Legend />
-                      <Area
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="capital"
-                        name="Capital"
-                        stroke="hsl(var(--primary))"
-                        fillOpacity={1}
-                        fill="url(#colorCapitalGrad)"
-                        strokeWidth={2}
-                      />
-                      <Bar
-                        yAxisId="right"
-                        dataKey="lucro"
-                        name="Lucro (sua parte)"
-                        fill="hsl(var(--success))"
-                        radius={[4, 4, 0, 0]}
-                        opacity={0.8}
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
+                <div className="text-2xl font-bold">{fmt(totals.revenues)}</div>
+                <p className="text-xs text-muted-foreground mt-1">receitas cadastradas no período</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-destructive">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Saídas Registradas</CardTitle>
+                <ArrowDownRight className="h-5 w-5 text-destructive" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{fmt(totals.expenses)}</div>
+                <p className="text-xs text-muted-foreground mt-1">despesas cadastradas no período</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-warning">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Lucro Registrado</CardTitle>
+                <BarChart3 className="h-5 w-5 text-warning" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{fmt(totals.profitRegistered)}</div>
+                <div className="flex items-center gap-2 mt-1">
+                  <CheckCircle2 className="w-3 h-3 text-success" />
+                  <span className="text-xs text-success">{fmt(totals.profitConfirmed)} confirmado</span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <Clock className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">{fmt(totals.profitPending)} pendente</span>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Distribution by Store */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Distribuição por Loja</CardTitle>
-                <CardDescription>Participação no capital</CardDescription>
+            <Card className="border-l-4 border-l-success bg-success/5">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">A Pagar ao Sócio ({PARTNER_PERCENTAGE}%)</CardTitle>
+                <Wallet className="h-5 w-5 text-success" />
               </CardHeader>
               <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        paddingAngle={5}
-                        dataKey="value"
-                        label={({ name, percentage }) => `${name} (${percentage}%)`}
-                      >
-                        {pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                        }}
-                        formatter={(value: number) => [formatCurrencyUSD(value), 'Capital']}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                <div className="text-2xl font-bold text-success">{fmt(totals.amountToPay)}</div>
+                <p className="text-xs text-muted-foreground mt-1">sobre lucro confirmado</p>
+                {totals.amountPending > 0 && (
+                  <Badge variant="outline" className="mt-2 bg-warning/10 text-warning border-warning/30 text-xs">
+                    <Clock className="w-3 h-3 mr-1" />
+                    {fmt(totals.amountPending)} pendente confirmação
+                  </Badge>
+                )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Aportes vs Distributions */}
+          {/* Confirmation Progress */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Aportes vs Distribuições</CardTitle>
-              <CardDescription>Movimentações mensais</CardDescription>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Taxa de Confirmação do Lucro</CardTitle>
+                <span className="text-sm font-semibold text-muted-foreground">{confirmationRate.toFixed(1)}%</span>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="h-[250px]">
+              <Progress value={Math.min(confirmationRate, 100)} className="h-3" />
+              <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                <span>Confirmado: {fmt(totals.profitConfirmed)}</span>
+                <span>Total Registrado: {fmt(totals.profitRegistered)}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Monthly Trend Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Evolução Mensal</CardTitle>
+              <CardDescription>Receitas, despesas e lucro nos últimos 6 meses</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <BarChart data={monthlyTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                    <YAxis 
+                    <YAxis
                       tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                      tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`}
                     />
                     <Tooltip
                       contentStyle={{
@@ -1032,638 +583,113 @@ export default function PartnerDashboardPage() {
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '8px',
                       }}
-                      formatter={(value: number) => [formatCurrencyUSD(value), '']}
+                      formatter={(value: number, name: string) => [fmt(value), name]}
                     />
                     <Legend />
-                    <Bar dataKey="aportes" name="Aportes" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="distribuicoes" name="Distribuições" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="receitas" name="Receitas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="despesas" name="Despesas" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} opacity={0.7} />
+                    <Bar dataKey="lucroConfirmado" name="Lucro Confirmado" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="lucroRegistrado" name="Lucro Registrado" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} opacity={0.5} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="comparison" className="space-y-6">
-          {storePerformance.length < 2 ? (
-            <Card className="text-center py-12">
-              <CardContent>
-                <Scale className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="font-semibold mb-2">Comparativo não disponível</h3>
-                <p className="text-muted-foreground">
-                  É necessário ter participação em pelo menos 2 lojas para ver o comparativo.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              {/* Best/Worst Performance Cards */}
-              <div className="grid gap-4 md:grid-cols-2">
-                {bestStore && (
-                  <Card className="border-success/50 bg-success/5">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center gap-2">
-                        <Trophy className="w-5 h-5 text-success" />
-                        <CardTitle className="text-base">Melhor Desempenho</CardTitle>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-lg font-bold">{bestStore.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            ROI: {bestStore.roi.toFixed(1)}% | Margem: {bestStore.profitMargin.toFixed(1)}%
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-success">{formatCurrencyBRL(bestStore.partnerShare)}</p>
-                          <p className="text-xs text-muted-foreground">sua parte do lucro</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-                {worstStore && worstStore.storeId !== bestStore?.storeId && (
-                  <Card className="border-warning/50 bg-warning/5">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center gap-2">
-                        <TrendingDown className="w-5 h-5 text-warning" />
-                        <CardTitle className="text-base">Menor Desempenho</CardTitle>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-lg font-bold">{worstStore.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            ROI: {worstStore.roi.toFixed(1)}% | Margem: {worstStore.profitMargin.toFixed(1)}%
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className={`text-2xl font-bold ${worstStore.partnerShare >= 0 ? 'text-foreground' : 'text-destructive'}`}>
-                            {formatCurrencyBRL(worstStore.partnerShare)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">sua parte do lucro</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-
-              {/* ROI Comparison Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Comparativo de ROI</CardTitle>
-                  <CardDescription>Retorno sobre investimento por loja</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={profitabilityData} layout="vertical" margin={{ top: 10, right: 30, left: 100, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis 
-                          type="number" 
-                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                          tickFormatter={(value) => `${value.toFixed(0)}%`}
-                        />
-                        <YAxis 
-                          type="category" 
-                          dataKey="name" 
-                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                          width={90}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: 'hsl(var(--card))',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: '8px',
-                          }}
-                          formatter={(value: number) => [`${value.toFixed(2)}%`, 'ROI']}
-                        />
-                        <Bar dataKey="roi" name="ROI" radius={[0, 4, 4, 0]}>
-                          {profitabilityData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.roi >= 0 ? 'hsl(var(--success))' : 'hsl(var(--destructive))'} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Profit Margin & Revenue Comparison */}
-              <div className="grid gap-6 lg:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Margem de Lucro</CardTitle>
-                    <CardDescription>Percentual de lucro sobre receita</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[250px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={profitabilityData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                          <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
-                          <YAxis 
-                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                            tickFormatter={(value) => `${value}%`}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: 'hsl(var(--card))',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '8px',
-                            }}
-                            formatter={(value: number) => [`${value.toFixed(2)}%`, 'Margem']}
-                          />
-                          <Bar dataKey="profitMargin" name="Margem de Lucro" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Receita vs Despesas</CardTitle>
-                    <CardDescription>Comparativo financeiro por loja</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[250px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={profitabilityData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                          <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
-                          <YAxis 
-                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                            tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: 'hsl(var(--card))',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '8px',
-                            }}
-                            formatter={(value: number) => [formatCurrencyBRL(value), '']}
-                          />
-                          <Legend />
-                          <Bar dataKey="revenue" name="Receita" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="expenses" name="Despesas" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Radar Chart for Overall Performance */}
-              {radarData.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Análise Multidimensional</CardTitle>
-                    <CardDescription>Comparativo de métricas normalizadas (0-100)</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[350px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart data={radarData}>
-                          <PolarGrid className="stroke-muted" />
-                          <PolarAngleAxis 
-                            dataKey="store" 
-                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                          />
-                          <PolarRadiusAxis 
-                            angle={30} 
-                            domain={[0, 100]}
-                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                          />
-                          <Radar name="ROI" dataKey="ROI" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.3} />
-                          <Radar name="Margem" dataKey="Margem" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.3} />
-                          <Radar name="Eficiência" dataKey="Eficiência" stroke="hsl(var(--warning))" fill="hsl(var(--warning))" fillOpacity={0.3} />
-                          <Radar name="Metas" dataKey="Metas" stroke="hsl(var(--info))" fill="hsl(var(--info))" fillOpacity={0.3} />
-                          <Legend />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: 'hsl(var(--card))',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '8px',
-                            }}
-                          />
-                        </RadarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Detailed Comparison Table */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Ranking de Rentabilidade</CardTitle>
-                  <CardDescription>Ordenado por ROI (retorno sobre investimento)</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {profitabilityData.map((store, index) => (
-                      <div 
-                        key={store.storeId}
-                        className="flex items-center gap-4 p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-                      >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                          index === 0 ? 'bg-success text-success-foreground' : 
-                          index === 1 ? 'bg-primary text-primary-foreground' : 
-                          index === 2 ? 'bg-warning text-warning-foreground' : 
-                          'bg-muted text-muted-foreground'
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-semibold">{store.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Participação: {store.percentage}% | Capital: {formatCurrencyUSD(store.capitalInvested)}
-                          </p>
-                        </div>
-                        <div className="grid grid-cols-3 gap-6 text-center">
-                          <div>
-                            <p className="text-xs text-muted-foreground">ROI</p>
-                            <p className={`font-bold ${store.roi >= 0 ? 'text-success' : 'text-destructive'}`}>
-                              {store.roi.toFixed(1)}%
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Margem</p>
-                            <p className={`font-bold ${store.profitMargin >= 0 ? 'text-foreground' : 'text-destructive'}`}>
-                              {store.profitMargin.toFixed(1)}%
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Lucro (sua parte)</p>
-                            <p className={`font-bold ${store.partnerShare >= 0 ? 'text-success' : 'text-destructive'}`}>
-                              {formatCurrencyBRL(store.partnerShare)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
-        </TabsContent>
-
-        <TabsContent value="stores" className="space-y-4">
-          {filteredPerformance.map((store) => (
-            <Card key={store.storeId}>
+          {/* Per-User Breakdown */}
+          {summaries.map((summary) => (
+            <Card key={summary.userId}>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Building2 className="w-6 h-6 text-primary" />
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <CardTitle>{store.storeName}</CardTitle>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline">
-                          <Percent className="w-3 h-3 mr-1" />
-                          {store.percentage}% participação
-                        </Badge>
-                        {store.goalProgress > 0 && (
-                          <Badge variant={store.goalProgress >= 100 ? 'default' : 'secondary'}>
-                            <Target className="w-3 h-3 mr-1" />
-                            {store.goalProgress.toFixed(0)}% da meta
-                          </Badge>
-                        )}
-                      </div>
+                      <CardTitle className="text-lg">{summary.userName}</CardTitle>
+                      <CardDescription>
+                        {summary.storeBreakdown.length} {summary.storeBreakdown.length === 1 ? 'loja' : 'lojas'} vinculada{summary.storeBreakdown.length > 1 ? 's' : ''}
+                      </CardDescription>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Sua parte do lucro</p>
-                    <p className={`text-2xl font-bold ${store.partnerShare >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrencyBRL(store.partnerShare)}
-                    </p>
+                  <div className="flex flex-wrap gap-3">
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">A pagar</p>
+                      <p className="text-xl font-bold text-success">{fmt(summary.amountToPay)}</p>
+                    </div>
+                    {summary.amountPending > 0 && (
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Pendente</p>
+                        <p className="text-xl font-bold text-warning">{fmt(summary.amountPending)}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
-                  <div className="text-center p-3 rounded-lg bg-muted/50">
-                    <p className="text-xs text-muted-foreground mb-1">Receita Total</p>
-                    <p className="font-semibold text-success">{formatCurrencyBRL(store.revenue)}</p>
+                {/* Summary metrics row */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">Entradas</p>
+                    <p className="text-lg font-semibold">{fmt(summary.totalRevenues)}</p>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-muted/50">
-                    <p className="text-xs text-muted-foreground mb-1">Despesas Total</p>
-                    <p className="font-semibold text-destructive">{formatCurrencyBRL(store.expenses)}</p>
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">Saídas</p>
+                    <p className="text-lg font-semibold">{fmt(summary.totalExpenses)}</p>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-muted/50">
-                    <p className="text-xs text-muted-foreground mb-1">Lucro Total</p>
-                    <p className={`font-semibold ${store.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                      {formatCurrencyBRL(store.profit)}
-                    </p>
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-success" /> Lucro Confirmado</p>
+                    <p className="text-lg font-semibold text-success">{fmt(summary.totalProfitConfirmed)}</p>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-primary/10">
-                    <p className="text-xs text-muted-foreground mb-1">Sua Receita</p>
-                    <p className="font-semibold text-primary">
-                      {formatCurrencyBRL(store.revenue * (store.percentage / 100))}
-                    </p>
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3 text-warning" /> Lucro Pendente</p>
+                    <p className="text-lg font-semibold text-warning">{fmt(summary.totalProfitPending)}</p>
                   </div>
                 </div>
+
+                {/* Store breakdown table */}
+                {summary.storeBreakdown.length > 0 && (
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Loja</TableHead>
+                          <TableHead className="text-right">Entradas</TableHead>
+                          <TableHead className="text-right">Saídas</TableHead>
+                          <TableHead className="text-right">Lucro Registrado</TableHead>
+                          <TableHead className="text-right">Lucro Confirmado</TableHead>
+                          <TableHead className="text-right">A Pagar ({PARTNER_PERCENTAGE}%)</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {summary.storeBreakdown.map((store) => (
+                          <TableRow key={store.storeId}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                <Store className="w-4 h-4 text-muted-foreground" />
+                                {store.storeName}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">{fmt(store.revenues)}</TableCell>
+                            <TableCell className="text-right">{fmt(store.expenses)}</TableCell>
+                            <TableCell className="text-right">{fmt(store.profitRegistered)}</TableCell>
+                            <TableCell className="text-right">
+                              <span className="text-success">{fmt(store.profitConfirmed)}</span>
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-success">
+                              {fmt(store.amountToPay)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
-        </TabsContent>
-
-        <TabsContent value="goals" className="space-y-4">
-          {goals.length === 0 ? (
-            <Card className="text-center py-12">
-              <CardContent>
-                <Target className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="font-semibold mb-2">Nenhuma meta encontrada</h3>
-                <p className="text-muted-foreground">
-                  Não há metas definidas para o período selecionado.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {goals.map((goal) => (
-                <Card key={goal.storeId}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Target className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-base">{goal.storeName}</CardTitle>
-                          <p className="text-sm text-muted-foreground">Meta de receita</p>
-                        </div>
-                      </div>
-                      <Badge variant={goal.progress >= 100 ? 'default' : goal.progress >= 75 ? 'secondary' : 'outline'}>
-                        {goal.progress >= 100 ? 'Atingida!' : `${goal.progress.toFixed(1)}%`}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span>Alcançado: {formatCurrencyBRL(goal.achieved)}</span>
-                        <span>Meta: {formatCurrencyBRL(goal.goal)}</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            goal.progress >= 100 ? 'bg-success' : goal.progress >= 75 ? 'bg-primary' : 'bg-warning'
-                          }`}
-                          style={{ width: `${Math.min(goal.progress, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="transactions" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
-                Movimentações Recentes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {recentTransactions.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhuma movimentação registrada
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {recentTransactions.map((tx) => {
-                    const partnership = partnerships.find(p => p.id === tx.partner_id);
-                    return (
-                      <div 
-                        key={tx.id} 
-                        className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            tx.type === 'aporte' ? 'bg-success/10' : 
-                            tx.type === 'distribuicao' ? 'bg-primary/10' : 'bg-warning/10'
-                          }`}>
-                            {getTransactionIcon(tx.type)}
-                          </div>
-                          <div>
-                            <p className="font-medium">{getTransactionLabel(tx.type)}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {partnership?.store?.name} • {format(parseISO(tx.date), "dd 'de' MMM, yyyy", { locale: ptBR })}
-                            </p>
-                            {tx.description && (
-                              <p className="text-xs text-muted-foreground mt-1">{tx.description}</p>
-                            )}
-                          </div>
-                        </div>
-                        <div className={`text-lg font-bold ${
-                          tx.type === 'aporte' ? 'text-success' : 'text-foreground'
-                        }`}>
-                          {tx.type === 'aporte' ? '+' : '-'}{formatCurrencyUSD(tx.amount)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="alerts" className="space-y-6">
-          <ROIAlerts 
-            storePerformance={storePerformance} 
-            partnerships={partnerships}
-            onRefresh={fetchPartnerData}
-          />
-        </TabsContent>
-
-        <TabsContent value="projection" className="space-y-6">
-          <EarningsProjection 
-            monthlyData={monthlyData} 
-            avgPercentage={avgPercentage}
-          />
-        </TabsContent>
-
-        <TabsContent value="commissions" className="space-y-6">
-          {/* Commission Stats */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Pendente</CardTitle>
-                <Clock className="h-4 w-4 text-warning" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-warning">
-                  {formatCurrencyBRL(commissions.filter(c => c.status === 'pendente').reduce((s, c) => s + c.commission_amount, 0))}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {commissions.filter(c => c.status === 'pendente').length} comissões pendentes
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Pago</CardTitle>
-                <CheckCircle className="h-4 w-4 text-success" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-success">
-                  {formatCurrencyBRL(commissions.filter(c => c.status === 'pago').reduce((s, c) => s + c.commission_amount, 0))}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {commissions.filter(c => c.status === 'pago').length} comissões pagas
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Geral</CardTitle>
-                <Banknote className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {formatCurrencyBRL(commissions.reduce((s, c) => s + c.commission_amount, 0))}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {commissions.length} comissões no total
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Pending Commissions */}
-          {commissions.filter(c => c.status === 'pendente').length > 0 && (
-            <Card className="border-warning/50">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-warning" />
-                  Comissões Pendentes
-                </CardTitle>
-                <CardDescription>Confirme o pagamento das comissões abaixo</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {commissions.filter(c => c.status === 'pendente').map((commission) => (
-                    <div
-                      key={commission.id}
-                      className="flex items-center justify-between p-4 rounded-lg border bg-warning/5 hover:bg-warning/10 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center">
-                          <Clock className="w-5 h-5 text-warning" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{commission.manager_name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {commission.store_name} • {commission.percent}% sobre {formatCurrencyBRL(commission.base_amount)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Período: {format(parseDate(commission.period_start), "dd/MM/yy")} - {format(parseDate(commission.period_end), "dd/MM/yy")}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-warning">{formatCurrencyBRL(commission.commission_amount)}</p>
-                          <Badge variant="outline" className="border-warning/30 text-warning">Pendente</Badge>
-                        </div>
-                        <Button
-                          size="sm"
-                          onClick={() => toggleCommissionStatus(commission.id, commission.status)}
-                          disabled={updatingCommission === commission.id}
-                        >
-                          {updatingCommission === commission.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <>
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                              Confirmar Pagamento
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Paid Commissions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-success" />
-                Histórico de Comissões
-              </CardTitle>
-              <CardDescription>Todas as comissões registradas</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {commissions.length === 0 ? (
-                <div className="text-center py-8">
-                  <Banknote className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-                  <p className="text-muted-foreground">Nenhuma comissão registrada</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {commissions.filter(c => c.status === 'pago').map((commission) => (
-                    <div
-                      key={commission.id}
-                      className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
-                          <CheckCircle className="w-5 h-5 text-success" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{commission.manager_name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {commission.store_name} • {commission.percent}% sobre {formatCurrencyBRL(commission.base_amount)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Período: {format(parseDate(commission.period_start), "dd/MM/yy")} - {format(parseDate(commission.period_end), "dd/MM/yy")}
-                            {commission.paid_at && ` • Pago em ${format(new Date(commission.paid_at), "dd/MM/yy")}`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-success">{formatCurrencyBRL(commission.commission_amount)}</p>
-                          <Badge variant="outline" className="border-success/30 text-success">Pago</Badge>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => toggleCommissionStatus(commission.id, commission.status)}
-                          disabled={updatingCommission === commission.id}
-                          className="text-muted-foreground"
-                        >
-                          {updatingCommission === commission.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            'Desfazer'
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </>
+      )}
     </div>
   );
 }
