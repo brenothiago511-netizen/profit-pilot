@@ -536,24 +536,6 @@ const ShopifyWithdrawals = () => {
                 </Select>
               </div>
 
-              {isAdmin && uniqueUsers.length > 0 && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Usuário</Label>
-                  <Select value={filterUser} onValueChange={setFilterUser}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Todos os usuários" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos os usuários</SelectItem>
-                      {uniqueUsers.map(([id, name]) => (
-                        <SelectItem key={id} value={id}>
-                          {name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
 
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data inicial</Label>
