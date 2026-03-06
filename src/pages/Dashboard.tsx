@@ -288,6 +288,9 @@ export default function Dashboard() {
       if (storeIdsToFilter && storeIdsToFilter.length > 0) {
         expenseQuery = expenseQuery.in('store_id', storeIdsToFilter);
       }
+      if (isAdmin && selectedPartner !== 'all') {
+        expenseQuery = expenseQuery.eq('user_id', selectedPartner);
+      }
       
       const { data: expenses } = await expenseQuery;
       const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
