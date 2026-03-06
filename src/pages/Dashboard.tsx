@@ -271,6 +271,9 @@ export default function Dashboard() {
       if (storeIdsToFilter && storeIdsToFilter.length > 0) {
         revenueQuery = revenueQuery.in('store_id', storeIdsToFilter);
       }
+      if (isAdmin && selectedPartner !== 'all') {
+        revenueQuery = revenueQuery.eq('user_id', selectedPartner);
+      }
       
       const { data: revenues } = await revenueQuery;
       const totalRevenue = revenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
