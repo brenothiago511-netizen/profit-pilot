@@ -50,12 +50,14 @@ const CURRENCIES = [
 ];
 
 export default function Revenues() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { can } = usePermissions();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [revenues, setRevenues] = useState<Revenue[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
+  const [profileNames, setProfileNames] = useState<ProfileMap>({});
+  const isAdmin = profile?.role === 'admin';
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
