@@ -725,109 +725,131 @@ export default function Commissions() {
         </div>
       </div>
 
-      {/* Records Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-success" />
-            Registros de Lucro
-          </CardTitle>
-          <CardDescription>
-            Clique em "Confirmar Shopify" quando o valor for recebido na sua conta Shopify
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {filteredRecords.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+      {/* Records Tables grouped by user */}
+      {filteredRecords.length === 0 ? (
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center text-muted-foreground">
               Nenhum registro encontrado
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Data</th>
-                    <th>Sócio</th>
-                    <th>Loja</th>
-                    <th className="text-right">Lucro</th>
-                    <th>Status Shopify</th>
-                    {canApprove && <th>Ações</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRecords.map((record) => (
-                    <tr key={record.id}>
-                      <td>{format(parseLocalDate(record.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
-                      <td>{record.user_name}</td>
-                      <td>{record.store_name}</td>
-                      <td className="text-right font-medium">{formatCurrency(record.daily_profit)}</td>
-                      <td>
-                        {record.shopify_status === 'received' ? (
-                          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                            <Check className="w-3 h-3 mr-1" />Recebido
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-amber-500 border-amber-500/50">
-                            <Clock className="w-3 h-3 mr-1" />Aguardando
-                          </Badge>
-                        )}
-                      </td>
-                      {canApprove && (
-                        <td>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEditRecord(record)}
-                              title="Editar registro"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        Object.entries(recordsByUser).map(([userId, userRecords]) => {
+          const userName = isAdmin ? (userRecords[0]?.user_name || 'Desconhecido') : '';
+          const userReceived = userRecords.filter(r => r.shopify_status === 'received').reduce((sum, r) => sum + r.daily_profit, 0);
+          const userPending = userRecords.filter(r => r.shopify_status === 'pending').reduce((sum, r) => sum + r.daily_profit, 0);
+
+          return (
+            <Card key={userId}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-success" />
+                      {isAdmin ? `Lucros - ${userName}` : 'Registros de Lucro'}
+                    </CardTitle>
+                    <CardDescription>
+                      Clique em "Confirmar Shopify" quando o valor for recebido
+                    </CardDescription>
+                  </div>
+                  {isAdmin && (
+                    <div className="flex gap-4 text-sm">
+                      <span className="text-muted-foreground">Recebido: <strong className="text-success">{formatCurrency(userReceived)}</strong></span>
+                      <span className="text-muted-foreground">Pendente: <strong className="text-amber-500">{formatCurrency(userPending)}</strong></span>
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Data</th>
+                        {!isAdmin && <th>Sócio</th>}
+                        <th>Loja</th>
+                        <th className="text-right">Lucro</th>
+                        <th>Status Shopify</th>
+                        {canApprove && <th>Ações</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {userRecords.map((record) => (
+                        <tr key={record.id}>
+                          <td>{format(parseLocalDate(record.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
+                          {!isAdmin && <td>{record.user_name}</td>}
+                          <td>{record.store_name}</td>
+                          <td className="text-right font-medium">{formatCurrency(record.daily_profit)}</td>
+                          <td>
                             {record.shopify_status === 'received' ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-muted-foreground hover:text-amber-500"
-                                onClick={() => toggleShopifyPaid(record.id, record.shopify_status)}
-                                title="Desmarcar recebimento Shopify"
-                              >
-                                Desmarcar
-                              </Button>
+                              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                                <Check className="w-3 h-3 mr-1" />Recebido
+                              </Badge>
                             ) : (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                                onClick={() => toggleShopifyPaid(record.id, record.shopify_status)}
-                                title="Confirmar que o valor foi recebido na Shopify"
-                              >
-                                <Check className="w-4 h-4 mr-1" />
-                                Confirmar Recebido
-                              </Button>
+                              <Badge variant="outline" className="text-amber-500 border-amber-500/50">
+                                <Clock className="w-3 h-3 mr-1" />Aguardando
+                              </Badge>
                             )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-destructive border-destructive/50 hover:bg-destructive/10"
-                              onClick={() => {
-                                setDeletingRecord(record);
-                                setDeleteDialogOpen(true);
-                              }}
-                              title="Excluir lucro"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                          </td>
+                          {canApprove && (
+                            <td>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openEditRecord(record)}
+                                  title="Editar registro"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                {record.shopify_status === 'received' ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-muted-foreground hover:text-amber-500"
+                                    onClick={() => toggleShopifyPaid(record.id, record.shopify_status)}
+                                    title="Desmarcar recebimento Shopify"
+                                  >
+                                    Desmarcar
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    onClick={() => toggleShopifyPaid(record.id, record.shopify_status)}
+                                    title="Confirmar que o valor foi recebido na Shopify"
+                                  >
+                                    <Check className="w-4 h-4 mr-1" />
+                                    Confirmar Recebido
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                                  onClick={() => {
+                                    setDeletingRecord(record);
+                                    setDeleteDialogOpen(true);
+                                  }}
+                                  title="Excluir lucro"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })
+      )}
 
       {/* Chart */}
       {chartData.length > 0 && (
