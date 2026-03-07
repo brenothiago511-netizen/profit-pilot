@@ -82,6 +82,9 @@ export default function Expenses() {
   const [selectedForSave, setSelectedForSave] = useState<Set<number>>(new Set());
   const [showTransactionPreview, setShowTransactionPreview] = useState(true);
   
+  const [filterDateFrom, setFilterDateFrom] = useState<Date>(startOfMonth(new Date()));
+  const [filterDateTo, setFilterDateTo] = useState<Date>(endOfMonth(new Date()));
+  
   const [formData, setFormData] = useState({
     store_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
