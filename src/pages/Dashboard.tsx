@@ -209,7 +209,9 @@ export default function Dashboard() {
           .gte('date', start)
           .lte('date', end);
         
-        if (storeIdsToFilter && storeIdsToFilter.length > 0) {
+        if (isSocio && storeIdsToFilter && storeIdsToFilter.length > 0) {
+          revenueQuery = revenueQuery.or(`store_id.in.(${storeIdsToFilter.join(',')}),and(store_id.is.null,user_id.eq.${user!.id})`);
+        } else if (storeIdsToFilter && storeIdsToFilter.length > 0) {
           revenueQuery = revenueQuery.in('store_id', storeIdsToFilter);
         }
         if (isAdmin && selectedPartner !== 'all') {
