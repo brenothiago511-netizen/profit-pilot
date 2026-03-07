@@ -11,10 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, TrendingDown, Loader2, Trash2, Camera, Sparkles, Upload, Pencil, Check, X } from 'lucide-react';
+import { Plus, TrendingDown, Loader2, Trash2, Camera, Sparkles, Upload, Pencil, Check, X, CalendarIcon } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { parseDate } from '@/lib/dateUtils';
 
 interface Expense {
@@ -77,6 +81,9 @@ export default function Expenses() {
   const [selectedTransactionIdx, setSelectedTransactionIdx] = useState(0);
   const [selectedForSave, setSelectedForSave] = useState<Set<number>>(new Set());
   const [showTransactionPreview, setShowTransactionPreview] = useState(true);
+  
+  const [filterDateFrom, setFilterDateFrom] = useState<Date>(startOfMonth(new Date()));
+  const [filterDateTo, setFilterDateTo] = useState<Date>(endOfMonth(new Date()));
   
   const [formData, setFormData] = useState({
     store_id: '',
@@ -597,6 +604,46 @@ export default function Expenses() {
           <h1 className="page-title">Despesas</h1>
           <p className="page-description">Gerencie as saídas financeiras</p>
         </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Date filters */}
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal", !filterDateFrom && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(filterDateFrom, "dd/MM/yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={filterDateFrom}
+                  onSelect={(d) => d && setFilterDateFrom(d)}
+                  locale={ptBR}
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            <span className="text-sm text-muted-foreground">até</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal", !filterDateTo && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(filterDateTo, "dd/MM/yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={filterDateTo}
+                  onSelect={(d) => d && setFilterDateTo(d)}
+                  locale={ptBR}
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
 
         <div className="flex gap-2">
           <PermissionGate permission="create_expense">
@@ -1049,14 +1096,18 @@ export default function Expenses() {
       </div>
 
       {(() => {
+        const fromStr = format(filterDateFrom, 'yyyy-MM-dd');
+        const toStr = format(filterDateTo, 'yyyy-MM-dd');
+        const filteredExpenses = expenses.filter(e => e.date >= fromStr && e.date <= toStr);
+        
         const expensesByUser = isAdmin
-          ? expenses.reduce((acc, e) => {
+          ? filteredExpenses.reduce((acc, e) => {
               const key = e.user_id || 'unknown';
               if (!acc[key]) acc[key] = [];
               acc[key].push(e);
               return acc;
             }, {} as Record<string, Expense[]>)
-          : { all: expenses };
+          : { all: filteredExpenses };
 
         return loading ? (
           <Card>
@@ -1066,11 +1117,11 @@ export default function Expenses() {
               </div>
             </CardContent>
           </Card>
-        ) : expenses.length === 0 ? (
+        ) : filteredExpenses.length === 0 ? (
           <Card>
             <CardContent className="py-8">
               <div className="text-center text-muted-foreground">
-                Nenhuma despesa cadastrada
+                Nenhuma despesa encontrada no período selecionado
               </div>
             </CardContent>
           </Card>
