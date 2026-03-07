@@ -168,15 +168,10 @@ export default function Dashboard() {
   };
 
   const getStoreIdsForQuery = async (): Promise<string[] | null> => {
-    // For admin filtering by partner
+    // For admin filtering by partner - return null so we don't filter by store
+    // The user_id filter applied separately is sufficient
     if (isAdmin && selectedPartner !== 'all') {
-      const { data: partnerData } = await supabase
-        .from('partners')
-        .select('store_id')
-        .eq('user_id', selectedPartner)
-        .eq('status', 'active');
-      
-      return partnerData?.map(p => p.store_id).filter(Boolean) as string[] || [];
+      return null;
     }
     
     // For sócio - use their own stores
@@ -185,7 +180,6 @@ export default function Dashboard() {
     }
     
     // For admin/financeiro with no partner filter - ALL stores (no restriction)
-    // This ensures admin sees all revenues and expenses from all users
     return null;
   };
 
