@@ -1056,14 +1056,18 @@ export default function Expenses() {
       </div>
 
       {(() => {
+        const fromStr = format(filterDateFrom, 'yyyy-MM-dd');
+        const toStr = format(filterDateTo, 'yyyy-MM-dd');
+        const filteredExpenses = expenses.filter(e => e.date >= fromStr && e.date <= toStr);
+        
         const expensesByUser = isAdmin
-          ? expenses.reduce((acc, e) => {
+          ? filteredExpenses.reduce((acc, e) => {
               const key = e.user_id || 'unknown';
               if (!acc[key]) acc[key] = [];
               acc[key].push(e);
               return acc;
             }, {} as Record<string, Expense[]>)
-          : { all: expenses };
+          : { all: filteredExpenses };
 
         return loading ? (
           <Card>
