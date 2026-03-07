@@ -138,8 +138,7 @@ export default function Expenses() {
     const { data, error } = await supabase
       .from('expenses')
       .select('*, stores(name), expense_categories(name)')
-      .order('date', { ascending: false })
-      .limit(100);
+      .order('date', { ascending: false });
     
     if (error) {
       console.error('Error fetching expenses:', error);
