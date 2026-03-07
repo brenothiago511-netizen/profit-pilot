@@ -1077,11 +1077,11 @@ export default function Expenses() {
               </div>
             </CardContent>
           </Card>
-        ) : expenses.length === 0 ? (
+        ) : filteredExpenses.length === 0 ? (
           <Card>
             <CardContent className="py-8">
               <div className="text-center text-muted-foreground">
-                Nenhuma despesa cadastrada
+                Nenhuma despesa encontrada no período selecionado
               </div>
             </CardContent>
           </Card>
