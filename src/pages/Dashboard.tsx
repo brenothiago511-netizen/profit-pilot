@@ -209,7 +209,9 @@ export default function Dashboard() {
           .gte('date', start)
           .lte('date', end);
         
-        if (storeIdsToFilter && storeIdsToFilter.length > 0) {
+        if (isSocio && storeIdsToFilter && storeIdsToFilter.length > 0) {
+          revenueQuery = revenueQuery.or(`store_id.in.(${storeIdsToFilter.join(',')}),and(store_id.is.null,user_id.eq.${user!.id})`);
+        } else if (storeIdsToFilter && storeIdsToFilter.length > 0) {
           revenueQuery = revenueQuery.in('store_id', storeIdsToFilter);
         }
         if (isAdmin && selectedPartner !== 'all') {
@@ -226,7 +228,9 @@ export default function Dashboard() {
           .gte('date', start)
           .lte('date', end);
         
-        if (storeIdsToFilter && storeIdsToFilter.length > 0) {
+        if (isSocio && storeIdsToFilter && storeIdsToFilter.length > 0) {
+          expenseQuery = expenseQuery.or(`store_id.in.(${storeIdsToFilter.join(',')}),and(store_id.is.null,user_id.eq.${user!.id})`);
+        } else if (storeIdsToFilter && storeIdsToFilter.length > 0) {
           expenseQuery = expenseQuery.in('store_id', storeIdsToFilter);
         }
         if (isAdmin && selectedPartner !== 'all') {
@@ -267,7 +271,10 @@ export default function Dashboard() {
         .gte('date', dateStart)
         .lte('date', dateEnd);
       
-      if (storeIdsToFilter && storeIdsToFilter.length > 0) {
+      if (isSocio && storeIdsToFilter && storeIdsToFilter.length > 0) {
+        // For socio: show revenues from their stores OR their own revenues without a store
+        revenueQuery = revenueQuery.or(`store_id.in.(${storeIdsToFilter.join(',')}),and(store_id.is.null,user_id.eq.${user!.id})`);
+      } else if (storeIdsToFilter && storeIdsToFilter.length > 0) {
         revenueQuery = revenueQuery.in('store_id', storeIdsToFilter);
       }
       if (isAdmin && selectedPartner !== 'all') {
@@ -284,7 +291,10 @@ export default function Dashboard() {
         .gte('date', dateStart)
         .lte('date', dateEnd);
       
-      if (storeIdsToFilter && storeIdsToFilter.length > 0) {
+      if (isSocio && storeIdsToFilter && storeIdsToFilter.length > 0) {
+        // For socio: show expenses from their stores OR their own expenses without a store
+        expenseQuery = expenseQuery.or(`store_id.in.(${storeIdsToFilter.join(',')}),and(store_id.is.null,user_id.eq.${user!.id})`);
+      } else if (storeIdsToFilter && storeIdsToFilter.length > 0) {
         expenseQuery = expenseQuery.in('store_id', storeIdsToFilter);
       }
       if (isAdmin && selectedPartner !== 'all') {
