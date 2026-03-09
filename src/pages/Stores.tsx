@@ -189,31 +189,6 @@ export default function Stores() {
         fetchData();
       }
     } else {
-      // For sócio users, ensure they have a partner record first (needed for RLS)
-      if (isSocio && user?.id) {
-        const { data: existingPartner } = await supabase
-          .from('partners')
-          .select('id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        
-        if (!existingPartner) {
-          // Create partner record first (without store_id)
-          const { error: partnerError } = await supabase.from('partners').insert({
-            user_id: user.id,
-            capital_percentage: 100,
-            capital_amount: 0,
-            status: 'active',
-          });
-          
-          if (partnerError) {
-            setSaving(false);
-            toast({ title: 'Erro ao criar registro de sócio', description: partnerError.message, variant: 'destructive' });
-            return;
-          }
-        }
-      }
-
       const { data: storeData, error } = await supabase.from('stores').insert({
         name: formData.name,
         country: formData.country,
@@ -224,20 +199,18 @@ export default function Stores() {
       if (error) {
         toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
       } else {
-        // Link the store to the partner record
+        // For sócio users, create a new partner record linked to this store
         if (isSocio && user?.id && storeData?.id) {
-          const { data: partnerRecord } = await supabase
-            .from('partners')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('status', 'active')
-            .maybeSingle();
+          const { error: partnerError } = await supabase.from('partners').insert({
+            user_id: user.id,
+            store_id: storeData.id,
+            capital_percentage: 100,
+            capital_amount: 0,
+            status: 'active',
+          });
           
-          if (partnerRecord) {
-            await supabase
-              .from('partners')
-              .update({ store_id: storeData.id })
-              .eq('id', partnerRecord.id);
+          if (partnerError) {
+            console.error('Error linking store to partner:', partnerError);
           }
         }
         toast({ title: 'Sucesso', description: 'Loja cadastrada' });
