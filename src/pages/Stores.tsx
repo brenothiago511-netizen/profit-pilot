@@ -57,7 +57,7 @@ export default function Stores() {
   const { can } = usePermissions();
   const { isAdmin, user, profile } = useAuth();
   const { toast } = useToast();
-  const isSocio = profile?.role === 'socio';
+  const isNonAdmin = !isAdmin;
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreData[]>([]);
   const [goals, setGoals] = useState<GoalData[]>([]);
