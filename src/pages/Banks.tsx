@@ -59,6 +59,8 @@ function formatCurrency(amount: number, currency: string = 'BRL') {
   return `${symbol} ${amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+const BANK_OPTIONS = ['Airwallex', 'Mercury', 'Relay', 'Revolut'];
+
 export default function Banks() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -67,7 +69,16 @@ export default function Banks() {
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>('all');
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
+  const [showAccountDialog, setShowAccountDialog] = useState(false);
+  const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
+  const [accountForm, setAccountForm] = useState({
+    bank_name: '',
+    store_id: '',
+    account_holder: '',
+    account_number: '',
+    currency: 'USD',
+  });
   const [txForm, setTxForm] = useState({
     bank_account_id: '',
     type: 'entrada',
