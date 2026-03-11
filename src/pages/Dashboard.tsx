@@ -306,11 +306,11 @@ export default function Dashboard() {
       const PARTNER_PERCENTAGE = 30;
       
       if (isSocio && user?.id) {
-        // Fetch confirmed profits (shopify_status = 'received') created by this user
+        // Fetch confirmed profits (shopify_status = 'received' or 'confirmed') created by this user
         let profitsQuery = supabase
           .from('daily_records')
           .select('daily_profit')
-          .eq('shopify_status', 'received')
+          .in('shopify_status', ['received', 'confirmed'])
           .eq('created_by', user.id)
           .gte('date', dateStart)
           .lte('date', dateEnd);
