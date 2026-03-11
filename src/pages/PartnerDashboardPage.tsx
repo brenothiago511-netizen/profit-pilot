@@ -358,7 +358,7 @@ export default function PartnerDashboardPage() {
           receitas: (revs || []).reduce((s, r) => s + Number(r.amount), 0),
           despesas: (exps || []).reduce((s, e) => s + Number(e.amount), 0),
           lucroRegistrado: (drs || []).reduce((s, d) => s + Number(d.daily_profit), 0),
-          lucroConfirmado: (drs || []).filter(d => d.shopify_status === 'received').reduce((s, d) => s + Number(d.daily_profit), 0),
+          lucroConfirmado: (drs || []).filter(d => d.shopify_status === 'received' || d.shopify_status === 'confirmed').reduce((s, d) => s + Number(d.daily_profit), 0),
         });
       }
 
