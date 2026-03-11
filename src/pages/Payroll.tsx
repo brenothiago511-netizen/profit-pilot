@@ -30,7 +30,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, DollarSign, Users, Calendar } from 'lucide-react';
+import { Plus, Pencil, Trash2, DollarSign, Users, Calendar, Receipt } from 'lucide-react';
+import PayrollPaymentsDialog from '@/components/payroll/PayrollPaymentsDialog';
 
 interface PayrollEntry {
   id: string;
