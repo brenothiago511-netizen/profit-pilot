@@ -564,7 +564,7 @@ export default function Banks() {
                 <SelectContent>
                   {accounts.map(a => (
                     <SelectItem key={a.id} value={a.id}>
-                      {a.bank_name} - {(a as any).stores?.name} ({formatCurrency(Number(a.balance), a.currency)})
+                      {a.account_holder} - {a.bank_name} ({(a as any).stores?.name}) • {formatCurrency(Number(a.balance), a.currency)}
                     </SelectItem>
                   ))}
                 </SelectContent>
