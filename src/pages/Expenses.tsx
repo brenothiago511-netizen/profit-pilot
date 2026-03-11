@@ -391,6 +391,38 @@ export default function Expenses() {
         variant: 'destructive',
       });
     } else {
+      // If a bank account was selected, create a bank transaction (debit)
+      if (selectedBankAccount) {
+        try {
+          const { data: bankData } = await supabase
+            .from('bank_accounts')
+            .select('balance')
+            .eq('id', selectedBankAccount)
+            .single();
+          
+          const currentBalance = Number(bankData?.balance || 0);
+          const newBalance = currentBalance - convertedAmount;
+
+          await supabase.from('bank_transactions').insert({
+            bank_account_id: selectedBankAccount,
+            type: 'saida',
+            amount: convertedAmount,
+            balance_after: newBalance,
+            date: aiFormData.date,
+            description: `Despesa IA: ${aiFormData.description}`,
+            reference_type: 'expense',
+            created_by: user?.id,
+          });
+
+          await supabase
+            .from('bank_accounts')
+            .update({ balance: newBalance })
+            .eq('id', selectedBankAccount);
+        } catch (err) {
+          console.error('Error creating bank transaction:', err);
+        }
+      }
+
       const currencyInfo = CURRENCIES.find(c => c.code === aiFormData.currency);
       const message = aiFormData.currency !== 'BRL' 
         ? `Despesa IA cadastrada: ${currencyInfo?.symbol}${originalAmount.toFixed(2)} → R$${convertedAmount.toFixed(2)}`
