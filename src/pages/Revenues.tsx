@@ -88,6 +88,7 @@ export default function Revenues() {
     setImageFile(null);
     setImagePreview(null);
     setEditingRevenue(null);
+    setSelectedBankAccount('');
   };
 
   const openEditDialog = (revenue: Revenue) => {
