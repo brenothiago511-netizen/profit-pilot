@@ -440,7 +440,8 @@ export default function Commissions() {
   // Filtered records based on status
   const filteredRecords = useMemo(() => {
     let records = dailyRecords;
-    if (filterStatus === 'received') records = records.filter(r => r.shopify_status === 'received');
+    if (filterStatus === 'received') records = records.filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed');
+    if (filterStatus === 'confirmed') records = records.filter(r => r.shopify_status === 'confirmed');
     if (filterStatus === 'pending') records = records.filter(r => r.shopify_status === 'pending');
     return records;
   }, [dailyRecords, filterStatus]);
