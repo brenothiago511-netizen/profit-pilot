@@ -361,7 +361,7 @@ export default function Banks() {
                         <Building2 className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-semibold text-foreground">{account.bank_name}</p>
+                        <p className="font-semibold text-foreground">{account.account_holder} - {account.bank_name}</p>
                         <p className="text-xs text-muted-foreground">{(account as any).stores?.name}</p>
                       </div>
                     </div>
@@ -378,7 +378,7 @@ export default function Banks() {
                     </p>
                   </div>
                   <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{account.account_holder}</span>
+                    <span>{account.currency}</span>
                     <span>•••• {account.account_number.slice(-4)}</span>
                   </div>
                 </CardContent>
@@ -409,7 +409,7 @@ export default function Banks() {
                   <SelectContent>
                     <SelectItem value="all">Todas as contas</SelectItem>
                     {accounts.map(a => (
-                      <SelectItem key={a.id} value={a.id}>{a.bank_name} - {(a as any).stores?.name}</SelectItem>
+                      <SelectItem key={a.id} value={a.id}>{a.account_holder} - {a.bank_name} ({(a as any).stores?.name})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -452,7 +452,7 @@ export default function Banks() {
                             </div>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {tx.bank_accounts?.bank_name}
+                            {tx.bank_accounts?.bank_name} ({tx.bank_accounts?.stores?.name})
                           </TableCell>
                           <TableCell>
                             <Badge variant={isDebit ? 'destructive' : 'default'} className="text-xs">
@@ -519,7 +519,7 @@ export default function Banks() {
                       <div key={account.id} className="space-y-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{account.bank_name}</span>
+                            <span className="text-sm font-medium">{account.account_holder} - {account.bank_name}</span>
                             <span className="text-xs text-muted-foreground">({(account as any).stores?.name})</span>
                           </div>
                           <span className={`text-sm font-bold ${balance >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
@@ -564,7 +564,7 @@ export default function Banks() {
                 <SelectContent>
                   {accounts.map(a => (
                     <SelectItem key={a.id} value={a.id}>
-                      {a.bank_name} - {(a as any).stores?.name} ({formatCurrency(Number(a.balance), a.currency)})
+                      {a.account_holder} - {a.bank_name} ({(a as any).stores?.name}) • {formatCurrency(Number(a.balance), a.currency)}
                     </SelectItem>
                   ))}
                 </SelectContent>
