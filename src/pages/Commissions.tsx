@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, Pencil, Trash2, Plus, DollarSign, Clock, TrendingUp } from 'lucide-react';
+import { Loader2, Check, Pencil, Trash2, Plus, DollarSign, Clock, TrendingUp, Zap } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -440,7 +440,8 @@ export default function Commissions() {
   // Filtered records based on status
   const filteredRecords = useMemo(() => {
     let records = dailyRecords;
-    if (filterStatus === 'received') records = records.filter(r => r.shopify_status === 'received');
+    if (filterStatus === 'received') records = records.filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed');
+    if (filterStatus === 'confirmed') records = records.filter(r => r.shopify_status === 'confirmed');
     if (filterStatus === 'pending') records = records.filter(r => r.shopify_status === 'pending');
     return records;
   }, [dailyRecords, filterStatus]);
@@ -458,8 +459,9 @@ export default function Commissions() {
 
   // Stats
   const stats = useMemo(() => {
-    const received = dailyRecords.filter(r => r.shopify_status === 'received');
+    const received = dailyRecords.filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed');
     const pending = dailyRecords.filter(r => r.shopify_status === 'pending');
+    const confirmed = dailyRecords.filter(r => r.shopify_status === 'confirmed');
     const totalReceived = received.reduce((sum, r) => sum + r.daily_profit, 0);
     const totalPending = pending.reduce((sum, r) => sum + r.daily_profit, 0);
     
@@ -468,13 +470,14 @@ export default function Commissions() {
       totalPending,
       receivedCount: received.length,
       pendingCount: pending.length,
+      confirmedCount: confirmed.length,
     };
   }, [dailyRecords]);
 
   // Chart data
   const chartData = useMemo(() => {
     const last30Days = dailyRecords
-      .filter(r => r.shopify_status === 'received')
+      .filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed')
       .slice(0, 30)
       .reverse();
     
@@ -719,6 +722,7 @@ export default function Commissions() {
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="received">Recebido (Shopify)</SelectItem>
+              <SelectItem value="confirmed">Confirmado Auto (Saque)</SelectItem>
               <SelectItem value="pending">Aguardando Shopify</SelectItem>
             </SelectContent>
           </Select>
@@ -737,7 +741,7 @@ export default function Commissions() {
       ) : (
         Object.entries(recordsByUser).map(([userId, userRecords]) => {
           const userName = isAdmin ? (userRecords[0]?.user_name || 'Desconhecido') : '';
-          const userReceived = userRecords.filter(r => r.shopify_status === 'received').reduce((sum, r) => sum + r.daily_profit, 0);
+          const userReceived = userRecords.filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed').reduce((sum, r) => sum + r.daily_profit, 0);
           const userPending = userRecords.filter(r => r.shopify_status === 'pending').reduce((sum, r) => sum + r.daily_profit, 0);
 
           return (
@@ -782,7 +786,11 @@ export default function Commissions() {
                           <td>{record.store_name}</td>
                           <td className="text-right font-medium">{formatCurrency(record.daily_profit)}</td>
                           <td>
-                            {record.shopify_status === 'received' ? (
+                            {record.shopify_status === 'confirmed' ? (
+                              <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
+                                <Zap className="w-3 h-3 mr-1" />Confirmado Auto
+                              </Badge>
+                            ) : record.shopify_status === 'received' ? (
                               <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                                 <Check className="w-3 h-3 mr-1" />Recebido
                               </Badge>
@@ -803,7 +811,7 @@ export default function Commissions() {
                                 >
                                   <Pencil className="w-4 h-4" />
                                 </Button>
-                                {record.shopify_status === 'received' ? (
+                                {(record.shopify_status === 'received' || record.shopify_status === 'confirmed') ? (
                                   <Button
                                     variant="ghost"
                                     size="sm"

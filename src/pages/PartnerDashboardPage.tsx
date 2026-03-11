@@ -273,10 +273,10 @@ export default function PartnerDashboardPage() {
           const storeRecords = (dailyRecords || []).filter(d => d.store_id === p.store_id);
           const profitRegistered = storeRecords.reduce((sum, d) => sum + Number(d.daily_profit), 0);
           const profitConfirmed = storeRecords
-            .filter(d => d.shopify_status === 'received')
+            .filter(d => d.shopify_status === 'received' || d.shopify_status === 'confirmed')
             .reduce((sum, d) => sum + Number(d.daily_profit), 0);
           const profitPending = storeRecords
-            .filter(d => d.shopify_status !== 'received')
+            .filter(d => d.shopify_status !== 'received' && d.shopify_status !== 'confirmed')
             .reduce((sum, d) => sum + Number(d.daily_profit), 0);
 
           return {
@@ -358,7 +358,7 @@ export default function PartnerDashboardPage() {
           receitas: (revs || []).reduce((s, r) => s + Number(r.amount), 0),
           despesas: (exps || []).reduce((s, e) => s + Number(e.amount), 0),
           lucroRegistrado: (drs || []).reduce((s, d) => s + Number(d.daily_profit), 0),
-          lucroConfirmado: (drs || []).filter(d => d.shopify_status === 'received').reduce((s, d) => s + Number(d.daily_profit), 0),
+          lucroConfirmado: (drs || []).filter(d => d.shopify_status === 'received' || d.shopify_status === 'confirmed').reduce((s, d) => s + Number(d.daily_profit), 0),
         });
       }
 
