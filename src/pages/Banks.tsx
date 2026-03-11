@@ -655,6 +655,90 @@ export default function Banks() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Create Bank Account Dialog */}
+      <Dialog open={showAccountDialog} onOpenChange={setShowAccountDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5" />
+              Cadastrar Banco
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateAccount} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Banco *</Label>
+              <Select value={accountForm.bank_name} onValueChange={v => setAccountForm({ ...accountForm, bank_name: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o banco" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BANK_OPTIONS.map(bank => (
+                    <SelectItem key={bank} value={bank}>{bank}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Loja *</Label>
+              <Select value={accountForm.store_id} onValueChange={v => setAccountForm({ ...accountForm, store_id: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a loja" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stores.map(store => (
+                    <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Titular da Conta *</Label>
+              <Input
+                placeholder="Nome do titular"
+                value={accountForm.account_holder}
+                onChange={e => setAccountForm({ ...accountForm, account_holder: e.target.value })}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Número da Conta *</Label>
+                <Input
+                  placeholder="Ex: 123456789"
+                  value={accountForm.account_number}
+                  onChange={e => setAccountForm({ ...accountForm, account_number: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Moeda</Label>
+                <Select value={accountForm.currency} onValueChange={v => setAccountForm({ ...accountForm, currency: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                    <SelectItem value="BRL">BRL (R$)</SelectItem>
+                    <SelectItem value="EUR">EUR (€)</SelectItem>
+                    <SelectItem value="GBP">GBP (£)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowAccountDialog(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : 'Cadastrar'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
