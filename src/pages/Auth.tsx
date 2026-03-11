@@ -117,12 +117,12 @@ export default function Auth() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[hsl(0,0%,5%)] p-4">
       <div className="w-full max-w-md animate-fade-in">
-        <div className="text-center mb-8 flex flex-col items-center">
-          <img src={logoAglomerado} alt="Aglomerado" className="h-10 object-contain mb-4" />
-          <p className="text-muted-foreground mt-1">Sistema Financeiro Empresarial</p>
+        <div className="text-center mb-10 flex flex-col items-center">
+          <img src={logoAglomerado} alt="Aglomerado" className="h-8 object-contain mb-3" />
+          <p className="text-[hsl(0,0%,50%)] text-sm tracking-wide">Sistema Financeiro Empresarial</p>
         </div>
 
-        <Card className="border-border shadow-soft">
+        <Card className="border-[hsl(0,0%,15%)] bg-[hsl(0,0%,8%)] shadow-2xl shadow-black/40">
           <CardHeader className="space-y-1">
             <CardTitle className="text-xl text-center">Acesse sua conta</CardTitle>
             <CardDescription className="text-center">
