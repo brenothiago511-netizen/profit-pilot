@@ -484,6 +484,7 @@ export default function Expenses() {
 
   const resetForm = () => {
     setEditingExpense(null);
+    setSelectedBankAccount('');
     setFormData({
       store_id: '',
       date: format(new Date(), 'yyyy-MM-dd'),
