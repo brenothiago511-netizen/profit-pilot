@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, Pencil, Trash2, Plus, DollarSign, Clock, TrendingUp } from 'lucide-react';
+import { Loader2, Check, Pencil, Trash2, Plus, DollarSign, Clock, TrendingUp, Zap } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
