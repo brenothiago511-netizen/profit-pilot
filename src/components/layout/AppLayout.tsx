@@ -80,7 +80,7 @@ const navigationSections = [
   {
     title: 'Administração',
     items: [
-      { name: 'Folha de Pagamento', href: '/payroll', icon: Wallet, permissions: ['manage_users'], adminOnly: true },
+      { name: 'Folha de Pagamento', href: '/payroll', icon: Wallet },
     ],
   },
   {
