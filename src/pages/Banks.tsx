@@ -361,7 +361,7 @@ export default function Banks() {
                         <Building2 className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-semibold text-foreground">{account.bank_name}</p>
+                        <p className="font-semibold text-foreground">{account.account_holder} - {account.bank_name}</p>
                         <p className="text-xs text-muted-foreground">{(account as any).stores?.name}</p>
                       </div>
                     </div>
