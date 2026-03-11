@@ -581,27 +581,25 @@ export default function Stores() {
                     <span className="text-sm text-muted-foreground">
                       {format(new Date(store.created_at), 'dd/MM/yyyy')}
                     </span>
-                    {!isSocio && (
-                      <div className="flex gap-2 flex-wrap">
-                        <Button variant="outline" size="sm" onClick={() => openGoalDialog(store)}>
-                          <Target className="w-4 h-4 mr-1" />
-                          Meta
+                    <div className="flex gap-2 flex-wrap">
+                      <Button variant="outline" size="sm" onClick={() => openGoalDialog(store)}>
+                        <Target className="w-4 h-4 mr-1" />
+                        Meta
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => openBankDialog(store)}>
+                        <CreditCard className="w-4 h-4 mr-1" />
+                        Banco
+                      </Button>
+                      {isAdmin && (
+                        <Button variant="outline" size="sm" onClick={() => openPartnerDialog(store)}>
+                          <Users className="w-4 h-4 mr-1" />
+                          Sócios
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => openBankDialog(store)}>
-                          <CreditCard className="w-4 h-4 mr-1" />
-                          Banco
-                        </Button>
-                        {isAdmin && (
-                          <Button variant="outline" size="sm" onClick={() => openPartnerDialog(store)}>
-                            <Users className="w-4 h-4 mr-1" />
-                            Sócios
-                          </Button>
-                        )}
-                        <Button variant="outline" size="sm" onClick={() => toggleStatus(store.id, store.status)}>
-                          {store.status === 'active' ? 'Desativar' : 'Ativar'}
-                        </Button>
-                      </div>
-                    )}
+                      )}
+                      <Button variant="outline" size="sm" onClick={() => toggleStatus(store.id, store.status)}>
+                        {store.status === 'active' ? 'Desativar' : 'Ativar'}
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
