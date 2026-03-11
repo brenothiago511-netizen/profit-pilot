@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Loader2, Plus, Building2, TrendingUp, TrendingDown, ArrowRightLeft,
-  Wallet, CreditCard, Star, DollarSign, BarChart3, ArrowUpRight, ArrowDownRight,
+  Wallet, CreditCard, Star, DollarSign, BarChart3, ArrowUpRight, ArrowDownRight, Pencil, Trash2,
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -70,6 +70,8 @@ export default function Banks() {
   const [selectedAccount, setSelectedAccount] = useState<string>('all');
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
   const [showAccountDialog, setShowAccountDialog] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [accountForm, setAccountForm] = useState({
@@ -77,6 +79,11 @@ export default function Banks() {
     store_id: '',
     account_holder: '',
     account_number: '',
+    currency: 'USD',
+  });
+  const [editForm, setEditForm] = useState({
+    bank_name: '',
+    account_holder: '',
     currency: 'USD',
   });
   const [txForm, setTxForm] = useState({
@@ -245,6 +252,49 @@ export default function Banks() {
     }
   };
 
+  const handleOpenEdit = (account: BankAccount) => {
+    setEditingAccount(account);
+    setEditForm({
+      bank_name: account.bank_name,
+      account_holder: account.account_holder,
+      currency: account.currency,
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleEditAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAccount || !editForm.bank_name || !editForm.account_holder) {
+      toast({ title: 'Erro', description: 'Preencha os campos obrigatórios', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from('bank_accounts').update({
+      bank_name: editForm.bank_name,
+      account_holder: editForm.account_holder,
+      currency: editForm.currency,
+    }).eq('id', editingAccount.id);
+    setSaving(false);
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Sucesso', description: 'Conta atualizada' });
+      setShowEditDialog(false);
+      setEditingAccount(null);
+      fetchData();
+    }
+  };
+
+  const handleDeleteAccount = async (id: string) => {
+    const { error } = await supabase.from('bank_accounts').delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Removido', description: 'Conta bancária removida' });
+      fetchData();
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -364,16 +414,21 @@ export default function Banks() {
                       <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                         <Building2 className="w-5 h-5 text-primary" />
                       </div>
-                      <div>
-                        <p className="font-semibold text-foreground">{account.account_holder} - {account.bank_name}</p>
-                        
-                      </div>
+                      <p className="font-semibold text-foreground">{account.account_holder} - {account.bank_name}</p>
                     </div>
-                    {account.is_primary && (
-                      <Badge variant="default" className="text-xs">
-                        <Star className="w-3 h-3 mr-1" /> Principal
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {account.is_primary && (
+                        <Badge variant="default" className="text-xs">
+                          <Star className="w-3 h-3 mr-1" /> Principal
+                        </Badge>
+                      )}
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(account)}>
+                        <Pencil className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteAccount(account.id)}>
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
                   <div className="mt-4">
                     <p className="text-xs text-muted-foreground">Saldo Atual</p>
@@ -694,12 +749,91 @@ export default function Banks() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label>Moeda</Label>
+              <Select value={accountForm.currency} onValueChange={v => setAccountForm({ ...accountForm, currency: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USD">USD ($)</SelectItem>
+                  <SelectItem value="BRL">BRL (R$)</SelectItem>
+                  <SelectItem value="EUR">EUR (€)</SelectItem>
+                  <SelectItem value="GBP">GBP (£)</SelectItem>
+                  <SelectItem value="CAD">CAD (C$)</SelectItem>
+                  <SelectItem value="AUD">AUD (A$)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setShowAccountDialog(false)}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={saving}>
                 {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : 'Cadastrar'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Bank Account Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5" />
+              Editar Banco
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditAccount} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Banco *</Label>
+              <Select value={editForm.bank_name} onValueChange={v => setEditForm({ ...editForm, bank_name: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BANK_OPTIONS.map(bank => (
+                    <SelectItem key={bank} value={bank}>{bank}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Titular da Conta *</Label>
+              <Input
+                placeholder="Nome do titular"
+                value={editForm.account_holder}
+                onChange={e => setEditForm({ ...editForm, account_holder: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Moeda</Label>
+              <Select value={editForm.currency} onValueChange={v => setEditForm({ ...editForm, currency: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USD">USD ($)</SelectItem>
+                  <SelectItem value="BRL">BRL (R$)</SelectItem>
+                  <SelectItem value="EUR">EUR (€)</SelectItem>
+                  <SelectItem value="GBP">GBP (£)</SelectItem>
+                  <SelectItem value="CAD">CAD (C$)</SelectItem>
+                  <SelectItem value="AUD">AUD (A$)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : 'Salvar'}
               </Button>
             </div>
           </form>
