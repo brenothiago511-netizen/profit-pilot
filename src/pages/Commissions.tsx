@@ -477,7 +477,7 @@ export default function Commissions() {
   // Chart data
   const chartData = useMemo(() => {
     const last30Days = dailyRecords
-      .filter(r => r.shopify_status === 'received')
+      .filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed')
       .slice(0, 30)
       .reverse();
     
