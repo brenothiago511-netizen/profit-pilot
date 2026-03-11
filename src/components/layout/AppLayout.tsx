@@ -80,7 +80,7 @@ const navigationSections = [
   {
     title: 'Administração',
     items: [
-      { name: 'Folha de Pagamento', href: '/payroll', icon: Wallet, permissions: ['manage_users'], adminOnly: true },
+      { name: 'Folha de Pagamento', href: '/payroll', icon: Wallet },
     ],
   },
   {
@@ -116,7 +116,9 @@ export default function AppLayout() {
           if ((item as any).adminOnly && !isAdmin) {
             return false;
           }
-          return item.permissions.some((perm) => hasPermission(perm));
+          const perms = (item as any).permissions;
+          if (!perms || perms.length === 0) return true;
+          return perms.some((perm: string) => hasPermission(perm));
         }),
       }))
       .filter((section) => section.items.length > 0);
