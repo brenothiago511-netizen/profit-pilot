@@ -115,11 +115,10 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-[hsl(0,0%,5%)] p-4">
       <div className="w-full max-w-md animate-fade-in">
-        <div className="text-center mb-8">
-          <img src={logoAglomerado} alt="Aglomerado" className="w-16 h-16 rounded-2xl mb-4" />
-          <h1 className="text-2xl font-bold text-foreground">Aglomerado</h1>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <img src={logoAglomerado} alt="Aglomerado" className="h-10 object-contain mb-4" />
           <p className="text-muted-foreground mt-1">Sistema Financeiro Empresarial</p>
         </div>
 
