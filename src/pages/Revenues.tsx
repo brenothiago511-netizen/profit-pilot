@@ -63,6 +63,8 @@ export default function Revenues() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [editingRevenue, setEditingRevenue] = useState<Revenue | null>(null);
+  const [bankAccounts, setBankAccounts] = useState<{ id: string; bank_name: string; account_holder: string }[]>([]);
+  const [selectedBankAccount, setSelectedBankAccount] = useState<string>('');
   const [formData, setFormData] = useState({
     store_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
