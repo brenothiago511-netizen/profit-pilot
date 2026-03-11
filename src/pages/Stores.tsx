@@ -200,7 +200,7 @@ export default function Stores() {
         toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
       } else {
         // For sócio users, create a new partner record linked to this store
-        if (isSocio && user?.id && storeData?.id) {
+        if (isNonAdmin && user?.id && storeData?.id) {
           const { error: partnerError } = await supabase.from('partners').insert({
             user_id: user.id,
             store_id: storeData.id,
