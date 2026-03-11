@@ -498,6 +498,7 @@ export default function Expenses() {
   };
 
   const resetAiForm = () => {
+    setSelectedBankAccount('');
     setAiFormData({
       store_id: '',
       date: format(new Date(), 'yyyy-MM-dd'),
