@@ -70,6 +70,8 @@ export default function Banks() {
   const [selectedAccount, setSelectedAccount] = useState<string>('all');
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
   const [showAccountDialog, setShowAccountDialog] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [accountForm, setAccountForm] = useState({
@@ -77,6 +79,11 @@ export default function Banks() {
     store_id: '',
     account_holder: '',
     account_number: '',
+    currency: 'USD',
+  });
+  const [editForm, setEditForm] = useState({
+    bank_name: '',
+    account_holder: '',
     currency: 'USD',
   });
   const [txForm, setTxForm] = useState({
