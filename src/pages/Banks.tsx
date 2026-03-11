@@ -468,7 +468,7 @@ export default function Banks() {
                   <SelectContent>
                     <SelectItem value="all">Todas as contas</SelectItem>
                     {accounts.map(a => (
-                      <SelectItem key={a.id} value={a.id}>{a.account_holder} - {a.bank_name} ({(a as any).stores?.name})</SelectItem>
+                      <SelectItem key={a.id} value={a.id}>{a.account_holder} - {a.bank_name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -511,7 +511,7 @@ export default function Banks() {
                             </div>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {tx.bank_accounts?.bank_name} ({tx.bank_accounts?.stores?.name})
+                            {tx.bank_accounts?.bank_name}
                           </TableCell>
                           <TableCell>
                             <Badge variant={isDebit ? 'destructive' : 'default'} className="text-xs">
@@ -579,7 +579,7 @@ export default function Banks() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">{account.account_holder} - {account.bank_name}</span>
-                            <span className="text-xs text-muted-foreground">({(account as any).stores?.name})</span>
+                            <span className="text-xs text-muted-foreground">({account.currency})</span>
                           </div>
                           <span className={`text-sm font-bold ${balance >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
                             {formatCurrency(balance, account.currency)}
@@ -623,7 +623,7 @@ export default function Banks() {
                 <SelectContent>
                   {accounts.map(a => (
                     <SelectItem key={a.id} value={a.id}>
-                      {a.account_holder} - {a.bank_name} ({(a as any).stores?.name}) • {formatCurrency(Number(a.balance), a.currency)}
+                      {a.account_holder} - {a.bank_name} • {formatCurrency(Number(a.balance), a.currency)}
                     </SelectItem>
                   ))}
                 </SelectContent>
