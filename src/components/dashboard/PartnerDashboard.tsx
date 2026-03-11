@@ -119,7 +119,7 @@ export default function PartnerDashboard() {
 
   // Calculate partner's share from daily_records (30% fixed) - only when Shopify confirmed received
   const totalPartnerShare = dailyRecords
-    .filter(r => r.shopify_status === 'received')
+    .filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed')
     .reduce((sum, r) => sum + ((r.daily_profit || 0) * (PARTNER_PERCENTAGE / 100)), 0);
 
   // Pending confirmations
