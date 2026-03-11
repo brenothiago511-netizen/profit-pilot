@@ -216,7 +216,7 @@ export default function Banks() {
 
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!accountForm.bank_name || !accountForm.store_id || !accountForm.account_holder || !accountForm.account_number) {
+    if (!accountForm.bank_name || !accountForm.store_id || !accountForm.account_holder) {
       toast({ title: 'Erro', description: 'Preencha os campos obrigatórios', variant: 'destructive' });
       return;
     }
