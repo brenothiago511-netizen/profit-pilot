@@ -519,7 +519,7 @@ export default function Banks() {
                       <div key={account.id} className="space-y-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{account.bank_name}</span>
+                            <span className="text-sm font-medium">{account.account_holder} - {account.bank_name}</span>
                             <span className="text-xs text-muted-foreground">({(account as any).stores?.name})</span>
                           </div>
                           <span className={`text-sm font-bold ${balance >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
