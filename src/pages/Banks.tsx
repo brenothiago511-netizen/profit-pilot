@@ -703,31 +703,6 @@ export default function Banks() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Número da Conta *</Label>
-                <Input
-                  placeholder="Ex: 123456789"
-                  value={accountForm.account_number}
-                  onChange={e => setAccountForm({ ...accountForm, account_number: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Moeda</Label>
-                <Select value={accountForm.currency} onValueChange={v => setAccountForm({ ...accountForm, currency: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USD">USD ($)</SelectItem>
-                    <SelectItem value="BRL">BRL (R$)</SelectItem>
-                    <SelectItem value="EUR">EUR (€)</SelectItem>
-                    <SelectItem value="GBP">GBP (£)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setShowAccountDialog(false)}>
                 Cancelar
