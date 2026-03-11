@@ -416,7 +416,44 @@ const ShopifyWithdrawals = () => {
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                {/* Bank account info for selected store */}
+                {form.store_name && storeBankAccounts.length > 0 && (
+                  <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <Building2 className="h-4 w-4 text-primary" />
+                      <span>Conta bancária destino</span>
+                    </div>
+                    {storeBankAccounts.map((bank) => (
+                      <div key={bank.id} className="flex items-center justify-between text-sm">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-foreground">{bank.bank_name}</span>
+                          <span className="text-muted-foreground text-xs">
+                            {bank.account_holder} • {bank.account_type === 'checking' ? 'Corrente' : 'Poupança'} • {bank.account_number}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{bank.currency} ({bank.country})</span>
+                          {bank.is_primary && (
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                              Principal
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {form.store_name && storeBankAccounts.length === 0 && (
+                  <div className="rounded-lg border border-border bg-muted/50 p-3">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <AlertTriangle className="h-4 w-4" />
+                      <span>Nenhuma conta bancária cadastrada para esta loja</span>
+                    </div>
+                  </div>
+                )}
+
+
                   <div className="space-y-2">
                     <Label htmlFor="sale_dates">Datas das Vendas</Label>
                     <Popover>
