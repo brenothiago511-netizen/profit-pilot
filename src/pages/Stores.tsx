@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Store, Loader2, Building2, CreditCard, Pencil, Target, Trash2, Users } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -502,111 +503,131 @@ export default function Stores() {
         </Dialog>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {loading ? (
-          <div className="col-span-full flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        ) : stores.length === 0 ? (
-          <div className="col-span-full">
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Store className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Nenhuma loja cadastrada</p>
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
-          stores.map((store) => {
-            const goal = getStoreGoal(store.id);
-            const revenue = getStoreRevenue(store.id);
-            const progress = goal ? Math.min((revenue / goal.goal_amount_original) * 100, 100) : 0;
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <Tabs defaultValue="active" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="active">
+              Ativas ({stores.filter(s => s.status === 'active').length})
+            </TabsTrigger>
+            <TabsTrigger value="inactive">
+              Inativas ({stores.filter(s => s.status !== 'active').length})
+            </TabsTrigger>
+          </TabsList>
 
+          {(['active', 'inactive'] as const).map((tabStatus) => {
+            const filtered = stores.filter(s => tabStatus === 'active' ? s.status === 'active' : s.status !== 'active');
             return (
-              <Card key={store.id} className="hover:shadow-card-hover transition-shadow">
-                <CardHeader className="flex flex-row items-start justify-between pb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
-                      <Building2 className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{store.name}</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {store.country} • {store.currency}
+              <TabsContent key={tabStatus} value={tabStatus}>
+                {filtered.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      <Store className="w-12 h-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">
+                        {tabStatus === 'active' ? 'Nenhuma loja ativa' : 'Nenhuma loja inativa'}
                       </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(store)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    {isAdmin && (
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteStore(store)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                    <Badge variant={store.status === 'active' ? 'default' : 'secondary'}>
-                      {store.status === 'active' ? 'Ativa' : 'Inativa'}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Goal Progress */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Target className="w-4 h-4" />
-                        Meta do mês
-                      </span>
-                      {goal ? (
-                        <span className="font-medium">{progress.toFixed(0)}%</span>
-                      ) : (
-                        <Button variant="link" size="sm" className="h-auto p-0" onClick={() => openGoalDialog(store)}>
-                          Definir meta
-                        </Button>
-                      )}
-                    </div>
-                    {goal && (
-                      <>
-                        <Progress value={progress} className="h-2" />
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>{formatCurrency(revenue, store.currency)}</span>
-                          <span>{formatCurrency(goal.goal_amount_original, store.currency)}</span>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {filtered.map((store) => {
+                      const goal = getStoreGoal(store.id);
+                      const revenue = getStoreRevenue(store.id);
+                      const progress = goal ? Math.min((revenue / goal.goal_amount_original) * 100, 100) : 0;
 
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <span className="text-sm text-muted-foreground">
-                      {format(new Date(store.created_at), 'dd/MM/yyyy')}
-                    </span>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button variant="outline" size="sm" onClick={() => openGoalDialog(store)}>
-                        <Target className="w-4 h-4 mr-1" />
-                        Meta
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => openBankDialog(store)}>
-                        <CreditCard className="w-4 h-4 mr-1" />
-                        Banco
-                      </Button>
-                      {isAdmin && (
-                        <Button variant="outline" size="sm" onClick={() => openPartnerDialog(store)}>
-                          <Users className="w-4 h-4 mr-1" />
-                          Sócios
-                        </Button>
-                      )}
-                      <Button variant="outline" size="sm" onClick={() => toggleStatus(store.id, store.status)}>
-                        {store.status === 'active' ? 'Desativar' : 'Ativar'}
-                      </Button>
-                    </div>
+                      return (
+                        <Card key={store.id} className="hover:shadow-card-hover transition-shadow">
+                          <CardHeader className="flex flex-row items-start justify-between pb-2">
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
+                                <Building2 className="w-5 h-5 text-primary" />
+                              </div>
+                              <div>
+                                <CardTitle className="text-lg">{store.name}</CardTitle>
+                                <p className="text-sm text-muted-foreground">
+                                  {store.country} • {store.currency}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(store)}>
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              {isAdmin && (
+                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteStore(store)}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                              <Badge variant={store.status === 'active' ? 'default' : 'secondary'}>
+                                {store.status === 'active' ? 'Ativa' : 'Inativa'}
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            {/* Goal Progress */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground flex items-center gap-1">
+                                  <Target className="w-4 h-4" />
+                                  Meta do mês
+                                </span>
+                                {goal ? (
+                                  <span className="font-medium">{progress.toFixed(0)}%</span>
+                                ) : (
+                                  <Button variant="link" size="sm" className="h-auto p-0" onClick={() => openGoalDialog(store)}>
+                                    Definir meta
+                                  </Button>
+                                )}
+                              </div>
+                              {goal && (
+                                <>
+                                  <Progress value={progress} className="h-2" />
+                                  <div className="flex justify-between text-xs text-muted-foreground">
+                                    <span>{formatCurrency(revenue, store.currency)}</span>
+                                    <span>{formatCurrency(goal.goal_amount_original, store.currency)}</span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2 border-t">
+                              <span className="text-sm text-muted-foreground">
+                                {format(new Date(store.created_at), 'dd/MM/yyyy')}
+                              </span>
+                              <div className="flex gap-2 flex-wrap">
+                                <Button variant="outline" size="sm" onClick={() => openGoalDialog(store)}>
+                                  <Target className="w-4 h-4 mr-1" />
+                                  Meta
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => openBankDialog(store)}>
+                                  <CreditCard className="w-4 h-4 mr-1" />
+                                  Banco
+                                </Button>
+                                {isAdmin && (
+                                  <Button variant="outline" size="sm" onClick={() => openPartnerDialog(store)}>
+                                    <Users className="w-4 h-4 mr-1" />
+                                    Sócios
+                                  </Button>
+                                )}
+                                <Button variant="outline" size="sm" onClick={() => toggleStatus(store.id, store.status)}>
+                                  {store.status === 'active' ? 'Desativar' : 'Ativar'}
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
-                </CardContent>
-              </Card>
+                )}
+              </TabsContent>
             );
-          })
-        )}
-      </div>
+          })}
+        </Tabs>
+      )}
 
       {selectedStore && (
         <>
