@@ -249,6 +249,9 @@ export default function AppLayout() {
           >
             <Menu className="w-5 h-5" />
           </button>
+          <div className="ml-auto">
+            <NotificationBell />
+          </div>
         </header>
 
         {/* Page content */}

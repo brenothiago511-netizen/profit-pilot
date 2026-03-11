@@ -392,6 +392,17 @@ export default function Payroll() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Payments History Dialog */}
+      {selectedPayroll && (
+        <PayrollPaymentsDialog
+          open={paymentsDialogOpen}
+          onOpenChange={setPaymentsDialogOpen}
+          payrollId={selectedPayroll.id}
+          employeeName={selectedPayroll.employee_name}
+          expectedAmount={selectedPayroll.amount}
+        />
+      )}
     </div>
   );
 }
