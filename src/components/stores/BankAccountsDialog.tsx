@@ -28,6 +28,17 @@ interface BankAccount {
   status: string;
 }
 
+interface ExistingBank {
+  bank_name: string;
+  account_holder: string;
+  account_type: string;
+  routing_number: string | null;
+  swift_code: string | null;
+  iban: string | null;
+  currency: string;
+  country: string;
+}
+
 interface BankAccountsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -58,7 +69,9 @@ export default function BankAccountsDialog({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
+  const [existingBanks, setExistingBanks] = useState<ExistingBank[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [selectedExistingBank, setSelectedExistingBank] = useState<string>('');
   const [formData, setFormData] = useState({
     bank_name: '',
     account_holder: '',
