@@ -537,15 +537,13 @@ export default function Stores() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {!isSocio && (
-                      <>
-                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(store)}>
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteStore(store)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </>
+                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(store)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    {isAdmin && (
+                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteStore(store)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     )}
                     <Badge variant={store.status === 'active' ? 'default' : 'secondary'}>
                       {store.status === 'active' ? 'Ativa' : 'Inativa'}
