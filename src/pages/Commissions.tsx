@@ -741,7 +741,7 @@ export default function Commissions() {
       ) : (
         Object.entries(recordsByUser).map(([userId, userRecords]) => {
           const userName = isAdmin ? (userRecords[0]?.user_name || 'Desconhecido') : '';
-          const userReceived = userRecords.filter(r => r.shopify_status === 'received').reduce((sum, r) => sum + r.daily_profit, 0);
+          const userReceived = userRecords.filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed').reduce((sum, r) => sum + r.daily_profit, 0);
           const userPending = userRecords.filter(r => r.shopify_status === 'pending').reduce((sum, r) => sum + r.daily_profit, 0);
 
           return (
