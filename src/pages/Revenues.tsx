@@ -456,7 +456,25 @@ export default function Revenues() {
               </div>
 
               <div className="space-y-2">
-                <Label>Comprovante (opcional)</Label>
+                <Label>Banco (entrada)</Label>
+                <Select
+                  value={selectedBankAccount || '__none__'}
+                  onValueChange={(v) => setSelectedBankAccount(v === '__none__' ? '' : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o banco (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Nenhum (não creditar)</SelectItem>
+                    {bankAccounts.map((ba) => (
+                      <SelectItem key={ba.id} value={ba.id}>
+                        {ba.account_holder} - {ba.bank_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
                 {imagePreview ? (
                   <div className="relative">
                     <img 
