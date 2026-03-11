@@ -129,6 +129,7 @@ export default function BankAccountsDialog({
   };
 
   const resetForm = () => {
+    setSelectedExistingBank('');
     setFormData({
       bank_name: '',
       account_holder: '',
@@ -142,6 +143,38 @@ export default function BankAccountsDialog({
       notes: '',
       is_primary: accounts.length === 0,
     });
+  };
+
+  const handleSelectExistingBank = (value: string) => {
+    setSelectedExistingBank(value);
+    if (value === '__new__') {
+      setFormData(prev => ({
+        ...prev,
+        bank_name: '',
+        account_holder: '',
+        account_type: 'checking',
+        routing_number: '',
+        swift_code: '',
+        iban: '',
+        currency: 'USD',
+        country: 'US',
+      }));
+      return;
+    }
+    const bank = existingBanks[parseInt(value)];
+    if (bank) {
+      setFormData(prev => ({
+        ...prev,
+        bank_name: bank.bank_name,
+        account_holder: bank.account_holder,
+        account_type: bank.account_type,
+        routing_number: bank.routing_number || '',
+        swift_code: bank.swift_code || '',
+        iban: bank.iban || '',
+        currency: bank.currency,
+        country: bank.country,
+      }));
+    }
   };
 
   const handleCountryChange = (countryCode: string) => {
