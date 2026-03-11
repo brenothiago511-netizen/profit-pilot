@@ -366,7 +366,7 @@ export default function Banks() {
                       </div>
                       <div>
                         <p className="font-semibold text-foreground">{account.account_holder} - {account.bank_name}</p>
-                        <p className="text-xs text-muted-foreground">{(account as any).stores?.name}</p>
+                        
                       </div>
                     </div>
                     {account.is_primary && (
