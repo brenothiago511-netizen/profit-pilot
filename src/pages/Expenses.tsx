@@ -113,8 +113,20 @@ export default function Expenses() {
     fetchStores();
     fetchCategories();
     fetchExpenses();
+    fetchBankAccounts();
     if (isAdmin) fetchProfileNames();
   }, []);
+
+  const fetchBankAccounts = async () => {
+    const { data } = await supabase
+      .from('bank_accounts')
+      .select('id, bank_name, stores(name)')
+      .eq('status', 'active')
+      .order('bank_name');
+    if (data) {
+      setBankAccounts(data.map((a: any) => ({ id: a.id, bank_name: a.bank_name, store_name: a.stores?.name })));
+    }
+  };
 
   const fetchProfileNames = async () => {
     const { data } = await supabase.from('profiles').select('id, name');
