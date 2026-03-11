@@ -8,85 +8,85 @@
 
 @layer base {
   :root {
-    /* Background & Surfaces - Dark by default */
-    --background: 0 0% 4%;
-    --foreground: 0 0% 95%;
+    /* Background & Surfaces - Light mode */
+    --background: 0 0% 97%;
+    --foreground: 0 0% 8%;
 
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 95%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
 
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 8%;
 
     /* Primary - Neon Green */
-    --primary: 142 71% 45%;
-    --primary-foreground: 0 0% 2%;
+    --primary: 142 71% 35%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Dark Gray */
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 90%;
+    /* Secondary - Light Gray */
+    --secondary: 0 0% 95%;
+    --secondary-foreground: 0 0% 20%;
 
     /* Muted */
-    --muted: 0 0% 12%;
-    --muted-foreground: 0 0% 55%;
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 45%;
 
-    /* Accent - Neon Green Subtle */
-    --accent: 142 50% 10%;
-    --accent-foreground: 142 71% 45%;
+    /* Accent - Green Subtle */
+    --accent: 142 40% 95%;
+    --accent-foreground: 142 71% 30%;
 
     /* Semantic Colors */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Success - Bright Green */
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 2%;
-    --success-light: 142 50% 10%;
+    /* Success */
+    --success: 142 71% 35%;
+    --success-foreground: 0 0% 100%;
+    --success-light: 142 50% 95%;
 
-    /* Warning - Amber */
+    /* Warning */
     --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 2%;
-    --warning-light: 38 60% 10%;
+    --warning-foreground: 0 0% 100%;
+    --warning-light: 38 90% 95%;
 
-    /* Info - Cyan */
-    --info: 185 80% 50%;
-    --info-foreground: 0 0% 2%;
-    --info-light: 185 50% 10%;
+    /* Info */
+    --info: 185 80% 40%;
+    --info-foreground: 0 0% 100%;
+    --info-light: 185 50% 95%;
 
-    /* Danger - Red */
+    /* Danger */
     --danger: 0 72% 51%;
     --danger-foreground: 0 0% 100%;
-    --danger-light: 0 50% 10%;
+    --danger-light: 0 72% 96%;
 
     /* Border & Input */
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 142 71% 45%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 142 71% 35%;
 
     --radius: 0.75rem;
 
-    /* Sidebar - Pure Black */
-    --sidebar-background: 0 0% 2%;
-    --sidebar-foreground: 0 0% 80%;
+    /* Sidebar - Dark Black */
+    --sidebar-background: 0 0% 6%;
+    --sidebar-foreground: 0 0% 85%;
     --sidebar-primary: 142 71% 45%;
     --sidebar-primary-foreground: 0 0% 2%;
-    --sidebar-accent: 0 0% 8%;
+    --sidebar-accent: 0 0% 12%;
     --sidebar-accent-foreground: 142 71% 45%;
-    --sidebar-border: 0 0% 12%;
+    --sidebar-border: 0 0% 14%;
     --sidebar-ring: 142 71% 45%;
 
     /* Chart Colors */
-    --chart-1: 142 71% 45%;
-    --chart-2: 185 80% 50%;
+    --chart-1: 142 71% 35%;
+    --chart-2: 185 80% 40%;
     --chart-3: 38 92% 50%;
     --chart-4: 0 72% 51%;
     --chart-5: 280 65% 60%;
 
-    /* Custom Shadows - Green glow */
-    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
-    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
-    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.4), 0 4px 6px -4px hsl(0 0% 0% / 0.3);
-    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.4), 0 8px 10px -6px hsl(0 0% 0% / 0.3);
+    /* Custom Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.08), 0 2px 4px -2px hsl(0 0% 0% / 0.06);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.08), 0 4px 6px -4px hsl(0 0% 0% / 0.06);
+    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.08), 0 8px 10px -6px hsl(0 0% 0% / 0.06);
   }
 
   .dark {
