@@ -132,7 +132,7 @@ const App = () => (
               <Route
                 path="/my-dashboard"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'socio']}>
+                  <ProtectedRoute allowedRoles={['admin']}>
                     <PartnerDashboardPage />
                   </ProtectedRoute>
                 }
