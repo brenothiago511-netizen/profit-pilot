@@ -216,7 +216,7 @@ export default function Banks() {
 
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!accountForm.bank_name || !accountForm.store_id || !accountForm.account_holder || !accountForm.account_number) {
+    if (!accountForm.bank_name || !accountForm.store_id || !accountForm.account_holder) {
       toast({ title: 'Erro', description: 'Preencha os campos obrigatórios', variant: 'destructive' });
       return;
     }
@@ -225,8 +225,8 @@ export default function Banks() {
       bank_name: accountForm.bank_name,
       store_id: accountForm.store_id,
       account_holder: accountForm.account_holder,
-      account_number: accountForm.account_number,
-      currency: accountForm.currency,
+      account_number: accountForm.account_holder,
+      currency: 'USD',
       country: 'US',
       is_primary: accounts.length === 0,
     });
@@ -701,31 +701,6 @@ export default function Banks() {
                 value={accountForm.account_holder}
                 onChange={e => setAccountForm({ ...accountForm, account_holder: e.target.value })}
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Número da Conta *</Label>
-                <Input
-                  placeholder="Ex: 123456789"
-                  value={accountForm.account_number}
-                  onChange={e => setAccountForm({ ...accountForm, account_number: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Moeda</Label>
-                <Select value={accountForm.currency} onValueChange={v => setAccountForm({ ...accountForm, currency: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USD">USD ($)</SelectItem>
-                    <SelectItem value="BRL">BRL (R$)</SelectItem>
-                    <SelectItem value="EUR">EUR (€)</SelectItem>
-                    <SelectItem value="GBP">GBP (£)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
