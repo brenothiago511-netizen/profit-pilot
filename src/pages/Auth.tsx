@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, Loader2, Mail, Lock, User } from 'lucide-react';
+import { Loader2, Mail, Lock, User } from 'lucide-react';
+import logoAglomerado from '@/assets/logo-aglomerado.png';
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -117,10 +118,8 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl gradient-primary mb-4">
-            <Building2 className="w-8 h-8 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">FinControl</h1>
+          <img src={logoAglomerado} alt="Aglomerado" className="w-16 h-16 rounded-2xl mb-4" />
+          <h1 className="text-2xl font-bold text-foreground">Aglomerado</h1>
           <p className="text-muted-foreground mt-1">Sistema Financeiro Empresarial</p>
         </div>
 
