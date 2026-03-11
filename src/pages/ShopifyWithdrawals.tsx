@@ -66,6 +66,7 @@ const ShopifyWithdrawals = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingWithdrawal, setEditingWithdrawal] = useState<ShopifyWithdrawal | null>(null);
+  const [storeBankAccounts, setStoreBankAccounts] = useState<BankAccount[]>([]);
   const [saving, setSaving] = useState(false);
   
   // Filters
