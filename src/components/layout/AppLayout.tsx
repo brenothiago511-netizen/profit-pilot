@@ -36,6 +36,7 @@ import {
   Landmark,
 } from 'lucide-react';
 import logoAglomerado from '@/assets/logo-aglomerado.png';
+import NotificationBell from '@/components/notifications/NotificationBell';
 
 // Navigation sections with items
 const navigationSections = [
