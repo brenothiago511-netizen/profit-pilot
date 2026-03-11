@@ -273,10 +273,10 @@ export default function PartnerDashboardPage() {
           const storeRecords = (dailyRecords || []).filter(d => d.store_id === p.store_id);
           const profitRegistered = storeRecords.reduce((sum, d) => sum + Number(d.daily_profit), 0);
           const profitConfirmed = storeRecords
-            .filter(d => d.shopify_status === 'received')
+            .filter(d => d.shopify_status === 'received' || d.shopify_status === 'confirmed')
             .reduce((sum, d) => sum + Number(d.daily_profit), 0);
           const profitPending = storeRecords
-            .filter(d => d.shopify_status !== 'received')
+            .filter(d => d.shopify_status !== 'received' && d.shopify_status !== 'confirmed')
             .reduce((sum, d) => sum + Number(d.daily_profit), 0);
 
           return {
