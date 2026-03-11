@@ -722,6 +722,7 @@ export default function Commissions() {
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="received">Recebido (Shopify)</SelectItem>
+              <SelectItem value="confirmed">Confirmado Auto (Saque)</SelectItem>
               <SelectItem value="pending">Aguardando Shopify</SelectItem>
             </SelectContent>
           </Select>
