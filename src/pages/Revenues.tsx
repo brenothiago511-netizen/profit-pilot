@@ -475,6 +475,8 @@ export default function Revenues() {
                 </Select>
               </div>
 
+              <div className="space-y-2">
+                <Label>Comprovante (opcional)</Label>
                 {imagePreview ? (
                   <div className="relative">
                     <img 
