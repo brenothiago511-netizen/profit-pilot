@@ -749,12 +749,91 @@ export default function Banks() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label>Moeda</Label>
+              <Select value={accountForm.currency} onValueChange={v => setAccountForm({ ...accountForm, currency: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USD">USD ($)</SelectItem>
+                  <SelectItem value="BRL">BRL (R$)</SelectItem>
+                  <SelectItem value="EUR">EUR (€)</SelectItem>
+                  <SelectItem value="GBP">GBP (£)</SelectItem>
+                  <SelectItem value="CAD">CAD (C$)</SelectItem>
+                  <SelectItem value="AUD">AUD (A$)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setShowAccountDialog(false)}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={saving}>
                 {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : 'Cadastrar'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Bank Account Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5" />
+              Editar Banco
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditAccount} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Banco *</Label>
+              <Select value={editForm.bank_name} onValueChange={v => setEditForm({ ...editForm, bank_name: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BANK_OPTIONS.map(bank => (
+                    <SelectItem key={bank} value={bank}>{bank}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Titular da Conta *</Label>
+              <Input
+                placeholder="Nome do titular"
+                value={editForm.account_holder}
+                onChange={e => setEditForm({ ...editForm, account_holder: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Moeda</Label>
+              <Select value={editForm.currency} onValueChange={v => setEditForm({ ...editForm, currency: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USD">USD ($)</SelectItem>
+                  <SelectItem value="BRL">BRL (R$)</SelectItem>
+                  <SelectItem value="EUR">EUR (€)</SelectItem>
+                  <SelectItem value="GBP">GBP (£)</SelectItem>
+                  <SelectItem value="CAD">CAD (C$)</SelectItem>
+                  <SelectItem value="AUD">AUD (A$)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : 'Salvar'}
               </Button>
             </div>
           </form>
