@@ -579,7 +579,7 @@ export default function Banks() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">{account.account_holder} - {account.bank_name}</span>
-                            <span className="text-xs text-muted-foreground">({(account as any).stores?.name})</span>
+                            <span className="text-xs text-muted-foreground">({account.currency})</span>
                           </div>
                           <span className={`text-sm font-bold ${balance >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
                             {formatCurrency(balance, account.currency)}
