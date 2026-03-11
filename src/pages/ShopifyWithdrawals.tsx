@@ -90,6 +90,29 @@ const ShopifyWithdrawals = () => {
     if (isAdmin) fetchProfileNames();
   }, []);
 
+  // Fetch bank accounts when store is selected in the form
+  useEffect(() => {
+    const fetchBankAccounts = async () => {
+      if (!form.store_name) {
+        setStoreBankAccounts([]);
+        return;
+      }
+      const selectedStore = stores.find(s => s.name === form.store_name);
+      if (!selectedStore) {
+        setStoreBankAccounts([]);
+        return;
+      }
+      const { data } = await supabase
+        .from('bank_accounts')
+        .select('id, bank_name, account_holder, account_number, account_type, currency, country, is_primary, status')
+        .eq('store_id', selectedStore.id)
+        .eq('status', 'active')
+        .order('is_primary', { ascending: false });
+      setStoreBankAccounts(data || []);
+    };
+    fetchBankAccounts();
+  }, [form.store_name, stores]);
+
   const fetchStores = async () => {
     const { data, error } = await supabase
       .from('stores')
