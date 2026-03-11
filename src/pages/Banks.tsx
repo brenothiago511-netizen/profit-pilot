@@ -92,13 +92,18 @@ export default function Banks() {
 
   useEffect(() => {
     fetchData();
-    // Realtime subscription
+    fetchStores();
     const channel = supabase
       .channel('bank-transactions-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bank_transactions' }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
+
+  const fetchStores = async () => {
+    const { data } = await supabase.from('stores').select('id, name').eq('status', 'active').order('name');
+    if (data) setStores(data);
+  };
 
   const fetchData = async () => {
     setLoading(true);
