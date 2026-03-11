@@ -459,8 +459,9 @@ export default function Commissions() {
 
   // Stats
   const stats = useMemo(() => {
-    const received = dailyRecords.filter(r => r.shopify_status === 'received');
+    const received = dailyRecords.filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed');
     const pending = dailyRecords.filter(r => r.shopify_status === 'pending');
+    const confirmed = dailyRecords.filter(r => r.shopify_status === 'confirmed');
     const totalReceived = received.reduce((sum, r) => sum + r.daily_profit, 0);
     const totalPending = pending.reduce((sum, r) => sum + r.daily_profit, 0);
     
@@ -469,6 +470,7 @@ export default function Commissions() {
       totalPending,
       receivedCount: received.length,
       pendingCount: pending.length,
+      confirmedCount: confirmed.length,
     };
   }, [dailyRecords]);
 
