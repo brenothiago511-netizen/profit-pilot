@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Plus, CalendarIcon, Pencil, Trash2, ArrowDownCircle, Check, Clock, Filter, X, AlertTriangle } from 'lucide-react';
+import { Plus, CalendarIcon, Pencil, Trash2, ArrowDownCircle, Check, Clock, Filter, X, AlertTriangle, Building2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -40,6 +40,18 @@ interface Store {
   name: string;
 }
 
+interface BankAccount {
+  id: string;
+  bank_name: string;
+  account_holder: string;
+  account_number: string;
+  account_type: string;
+  currency: string;
+  country: string;
+  is_primary: boolean;
+  status: string;
+}
+
 interface ProfileMap {
   [userId: string]: string;
 }
@@ -54,6 +66,7 @@ const ShopifyWithdrawals = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingWithdrawal, setEditingWithdrawal] = useState<ShopifyWithdrawal | null>(null);
+  const [storeBankAccounts, setStoreBankAccounts] = useState<BankAccount[]>([]);
   const [saving, setSaving] = useState(false);
   
   // Filters
@@ -76,6 +89,29 @@ const ShopifyWithdrawals = () => {
     fetchStores();
     if (isAdmin) fetchProfileNames();
   }, []);
+
+  // Fetch bank accounts when store is selected in the form
+  useEffect(() => {
+    const fetchBankAccounts = async () => {
+      if (!form.store_name) {
+        setStoreBankAccounts([]);
+        return;
+      }
+      const selectedStore = stores.find(s => s.name === form.store_name);
+      if (!selectedStore) {
+        setStoreBankAccounts([]);
+        return;
+      }
+      const { data } = await supabase
+        .from('bank_accounts')
+        .select('id, bank_name, account_holder, account_number, account_type, currency, country, is_primary, status')
+        .eq('store_id', selectedStore.id)
+        .eq('status', 'active')
+        .order('is_primary', { ascending: false });
+      setStoreBankAccounts(data || []);
+    };
+    fetchBankAccounts();
+  }, [form.store_name, stores]);
 
   const fetchStores = async () => {
     const { data, error } = await supabase
@@ -379,6 +415,43 @@ const ShopifyWithdrawals = () => {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Bank account info for selected store */}
+                {form.store_name && storeBankAccounts.length > 0 && (
+                  <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <Building2 className="h-4 w-4 text-primary" />
+                      <span>Conta bancária destino</span>
+                    </div>
+                    {storeBankAccounts.map((bank) => (
+                      <div key={bank.id} className="flex items-center justify-between text-sm">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-foreground">{bank.bank_name}</span>
+                          <span className="text-muted-foreground text-xs">
+                            {bank.account_holder} • {bank.account_type === 'checking' ? 'Corrente' : 'Poupança'} • {bank.account_number}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{bank.currency} ({bank.country})</span>
+                          {bank.is_primary && (
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                              Principal
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {form.store_name && storeBankAccounts.length === 0 && (
+                  <div className="rounded-lg border border-border bg-muted/50 p-3">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <AlertTriangle className="h-4 w-4" />
+                      <span>Nenhuma conta bancária cadastrada para esta loja</span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
