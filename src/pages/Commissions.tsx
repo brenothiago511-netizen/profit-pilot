@@ -811,7 +811,7 @@ export default function Commissions() {
                                 >
                                   <Pencil className="w-4 h-4" />
                                 </Button>
-                                {record.shopify_status === 'received' ? (
+                                {(record.shopify_status === 'received' || record.shopify_status === 'confirmed') ? (
                                   <Button
                                     variant="ghost"
                                     size="sm"
