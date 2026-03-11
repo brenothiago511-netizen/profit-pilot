@@ -40,6 +40,18 @@ interface Store {
   name: string;
 }
 
+interface BankAccount {
+  id: string;
+  bank_name: string;
+  account_holder: string;
+  account_number: string;
+  account_type: string;
+  currency: string;
+  country: string;
+  is_primary: boolean;
+  status: string;
+}
+
 interface ProfileMap {
   [userId: string]: string;
 }
