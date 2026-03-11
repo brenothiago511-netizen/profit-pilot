@@ -300,14 +300,19 @@
 
   /* Gradient backgrounds */
   .gradient-primary {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(152 55% 30%) 100%);
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(142 71% 55%) 100%);
   }
 
   .gradient-gold {
-    background: linear-gradient(135deg, hsl(43 75% 55%) 0%, hsl(43 85% 45%) 100%);
+    background: linear-gradient(135deg, hsl(38 92% 50%) 0%, hsl(38 85% 40%) 100%);
   }
 
   .gradient-success {
-    background: linear-gradient(135deg, hsl(var(--success)) 0%, hsl(152 69% 40%) 100%);
+    background: linear-gradient(135deg, hsl(var(--success)) 0%, hsl(142 71% 55%) 100%);
+  }
+
+  /* Neon glow utility */
+  .glow-green {
+    box-shadow: 0 0 15px hsl(142 71% 45% / 0.15), 0 0 30px hsl(142 71% 45% / 0.05);
   }
 }
