@@ -322,6 +322,39 @@ const ShopifyWithdrawals = () => {
       } else {
         toast.success('Saque recebido e receita registrada automaticamente!');
       }
+
+      // Auto-confirm daily records (profits) matching the sale dates and store
+      if (matchedStore && withdrawal.sale_date) {
+        const saleDates = withdrawal.sale_date.split(',').map(d => d.trim());
+        
+        if (saleDates.length > 0) {
+          const { data: matchingRecords, error: fetchError } = await supabase
+            .from('daily_records')
+            .select('id')
+            .eq('store_id', matchedStore.id)
+            .in('date', saleDates)
+            .eq('shopify_status', 'pending');
+
+          if (!fetchError && matchingRecords && matchingRecords.length > 0) {
+            const recordIds = matchingRecords.map(r => r.id);
+            const { error: updateError } = await supabase
+              .from('daily_records')
+              .update({ 
+                shopify_status: 'confirmed',
+                updated_at: new Date().toISOString()
+              })
+              .in('id', recordIds);
+
+            if (updateError) {
+              console.error('Error confirming daily records:', updateError);
+              toast.error('Erro ao confirmar lucros diários automaticamente');
+            } else {
+              toast.success(`${matchingRecords.length} registro(s) de lucro confirmado(s) automaticamente!`);
+            }
+          }
+        }
+      }
+
       fetchWithdrawals();
       return;
     }
