@@ -123,17 +123,17 @@ export default function Auth() {
         </div>
 
         <Card className="border-[hsl(0,0%,15%)] bg-[hsl(0,0%,8%)] shadow-2xl shadow-black/40">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-xl text-center">Acesse sua conta</CardTitle>
-            <CardDescription className="text-center">
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle className="text-xl text-center text-[hsl(0,0%,90%)]">Acesse sua conta</CardTitle>
+            <CardDescription className="text-center text-[hsl(0,0%,45%)]">
               Entre com suas credenciais ou crie uma nova conta
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="login">Entrar</TabsTrigger>
-                <TabsTrigger value="signup">Cadastrar</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2 mb-6 bg-[hsl(0,0%,12%)]">
+                <TabsTrigger value="login" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-[hsl(0,0%,50%)]">Entrar</TabsTrigger>
+                <TabsTrigger value="signup" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-[hsl(0,0%,50%)]">Cadastrar</TabsTrigger>
               </TabsList>
 
               <TabsContent value="login">
