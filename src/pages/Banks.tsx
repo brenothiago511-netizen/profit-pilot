@@ -409,7 +409,7 @@ export default function Banks() {
                   <SelectContent>
                     <SelectItem value="all">Todas as contas</SelectItem>
                     {accounts.map(a => (
-                      <SelectItem key={a.id} value={a.id}>{a.bank_name} - {(a as any).stores?.name}</SelectItem>
+                      <SelectItem key={a.id} value={a.id}>{a.account_holder} - {a.bank_name} ({(a as any).stores?.name})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
