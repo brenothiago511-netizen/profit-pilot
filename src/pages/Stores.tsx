@@ -435,7 +435,7 @@ export default function Stores() {
         <div>
           <h1 className="page-title">Lojas</h1>
           <p className="page-description">
-            {isSocio ? 'Suas lojas vinculadas' : 'Gerencie as unidades'} • {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+            {isNonAdmin ? 'Suas lojas vinculadas' : 'Gerencie as unidades'} • {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
           </p>
         </div>
 
