@@ -214,6 +214,33 @@ export default function Banks() {
     fetchData();
   };
 
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accountForm.bank_name || !accountForm.store_id || !accountForm.account_holder || !accountForm.account_number) {
+      toast({ title: 'Erro', description: 'Preencha os campos obrigatórios', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from('bank_accounts').insert({
+      bank_name: accountForm.bank_name,
+      store_id: accountForm.store_id,
+      account_holder: accountForm.account_holder,
+      account_number: accountForm.account_number,
+      currency: accountForm.currency,
+      country: 'US',
+      is_primary: accounts.length === 0,
+    });
+    setSaving(false);
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Sucesso', description: 'Conta bancária cadastrada' });
+      setShowAccountDialog(false);
+      setAccountForm({ bank_name: '', store_id: '', account_holder: '', account_number: '', currency: 'USD' });
+      fetchData();
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -230,10 +257,16 @@ export default function Banks() {
           <h1 className="text-2xl font-bold text-foreground">Bancos</h1>
           <p className="text-muted-foreground">Gerencie suas contas bancárias e movimentações</p>
         </div>
-        <Button onClick={() => setShowTransactionDialog(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Movimentação
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowAccountDialog(true)}>
+            <Building2 className="w-4 h-4 mr-2" />
+            Cadastrar Banco
+          </Button>
+          <Button onClick={() => setShowTransactionDialog(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Movimentação
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
