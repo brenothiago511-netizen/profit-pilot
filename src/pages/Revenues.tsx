@@ -63,6 +63,8 @@ export default function Revenues() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [editingRevenue, setEditingRevenue] = useState<Revenue | null>(null);
+  const [bankAccounts, setBankAccounts] = useState<{ id: string; bank_name: string; account_holder: string }[]>([]);
+  const [selectedBankAccount, setSelectedBankAccount] = useState<string>('');
   const [formData, setFormData] = useState({
     store_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -86,6 +88,7 @@ export default function Revenues() {
     setImageFile(null);
     setImagePreview(null);
     setEditingRevenue(null);
+    setSelectedBankAccount('');
   };
 
   const openEditDialog = (revenue: Revenue) => {
@@ -106,8 +109,18 @@ export default function Revenues() {
   useEffect(() => {
     fetchStores();
     fetchRevenues();
+    fetchBankAccounts();
     if (isAdmin) fetchProfileNames();
   }, []);
+
+  const fetchBankAccounts = async () => {
+    const { data } = await supabase
+      .from('bank_accounts')
+      .select('id, bank_name, account_holder')
+      .eq('status', 'active')
+      .order('bank_name');
+    if (data) setBankAccounts(data);
+  };
 
   const fetchProfileNames = async () => {
     const { data } = await supabase.from('profiles').select('id, name');
@@ -282,6 +295,38 @@ export default function Revenues() {
         variant: 'destructive',
       });
     } else {
+      // If a bank account was selected, create a bank transaction (credit)
+      if (selectedBankAccount && !editingRevenue) {
+        try {
+          const { data: bankData } = await supabase
+            .from('bank_accounts')
+            .select('balance')
+            .eq('id', selectedBankAccount)
+            .single();
+          
+          const currentBalance = Number(bankData?.balance || 0);
+          const newBalance = currentBalance + convertedAmount;
+
+          await supabase.from('bank_transactions').insert({
+            bank_account_id: selectedBankAccount,
+            type: 'entrada',
+            amount: convertedAmount,
+            balance_after: newBalance,
+            date: formData.date,
+            description: `Receita: ${formData.source || 'Sem origem'}`,
+            reference_type: 'revenue',
+            created_by: user?.id,
+          });
+
+          await supabase
+            .from('bank_accounts')
+            .update({ balance: newBalance })
+            .eq('id', selectedBankAccount);
+        } catch (err) {
+          console.error('Error creating bank transaction:', err);
+        }
+      }
+
       const currencyInfo = CURRENCIES.find(c => c.code === formData.currency);
       const actionText = editingRevenue ? 'atualizada' : 'cadastrada';
       const message = formData.currency !== 'BRL' 
@@ -440,6 +485,26 @@ export default function Revenues() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Banco (entrada)</Label>
+                <Select
+                  value={selectedBankAccount || '__none__'}
+                  onValueChange={(v) => setSelectedBankAccount(v === '__none__' ? '' : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o banco (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Nenhum (não creditar)</SelectItem>
+                    {bankAccounts.map((ba) => (
+                      <SelectItem key={ba.id} value={ba.id}>
+                        {ba.account_holder} - {ba.bank_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
