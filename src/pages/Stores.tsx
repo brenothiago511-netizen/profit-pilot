@@ -98,7 +98,7 @@ export default function Stores() {
     let storeIds: string[] | null = null;
     
     // For sócios, first get their linked stores
-    if (isSocio && user?.id) {
+    if (isNonAdmin && user?.id) {
       const { data: partnerData } = await supabase
         .from('partners')
         .select('store_id')
