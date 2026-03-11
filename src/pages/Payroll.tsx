@@ -53,6 +53,8 @@ export default function Payroll() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PayrollEntry | null>(null);
   const [saving, setSaving] = useState(false);
+  const [paymentsDialogOpen, setPaymentsDialogOpen] = useState(false);
+  const [selectedPayroll, setSelectedPayroll] = useState<PayrollEntry | null>(null);
 
   const [formData, setFormData] = useState({
     employee_name: '',
