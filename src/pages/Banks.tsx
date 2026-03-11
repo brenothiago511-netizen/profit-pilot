@@ -511,7 +511,7 @@ export default function Banks() {
                             </div>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {tx.bank_accounts?.bank_name} ({tx.bank_accounts?.stores?.name})
+                            {tx.bank_accounts?.bank_name}
                           </TableCell>
                           <TableCell>
                             <Badge variant={isDebit ? 'destructive' : 'default'} className="text-xs">
