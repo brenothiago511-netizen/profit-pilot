@@ -252,7 +252,49 @@ export default function Banks() {
     }
   };
 
-  if (loading) {
+  const handleOpenEdit = (account: BankAccount) => {
+    setEditingAccount(account);
+    setEditForm({
+      bank_name: account.bank_name,
+      account_holder: account.account_holder,
+      currency: account.currency,
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleEditAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAccount || !editForm.bank_name || !editForm.account_holder) {
+      toast({ title: 'Erro', description: 'Preencha os campos obrigatórios', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from('bank_accounts').update({
+      bank_name: editForm.bank_name,
+      account_holder: editForm.account_holder,
+      currency: editForm.currency,
+    }).eq('id', editingAccount.id);
+    setSaving(false);
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Sucesso', description: 'Conta atualizada' });
+      setShowEditDialog(false);
+      setEditingAccount(null);
+      fetchData();
+    }
+  };
+
+  const handleDeleteAccount = async (id: string) => {
+    const { error } = await supabase.from('bank_accounts').delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Removido', description: 'Conta bancária removida' });
+      fetchData();
+    }
+  };
+
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
