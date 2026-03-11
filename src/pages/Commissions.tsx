@@ -786,7 +786,11 @@ export default function Commissions() {
                           <td>{record.store_name}</td>
                           <td className="text-right font-medium">{formatCurrency(record.daily_profit)}</td>
                           <td>
-                            {record.shopify_status === 'received' ? (
+                            {record.shopify_status === 'confirmed' ? (
+                              <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
+                                <Zap className="w-3 h-3 mr-1" />Confirmado Auto
+                              </Badge>
+                            ) : record.shopify_status === 'received' ? (
                               <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                                 <Check className="w-3 h-3 mr-1" />Recebido
                               </Badge>
