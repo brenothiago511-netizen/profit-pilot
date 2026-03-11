@@ -1068,6 +1068,26 @@ export default function Expenses() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label>Banco (saída)</Label>
+                  <Select
+                    value={selectedBankAccount || '__none__'}
+                    onValueChange={(v) => setSelectedBankAccount(v === '__none__' ? '' : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o banco (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Nenhum (não debitar)</SelectItem>
+                      {bankAccounts.map((ba) => (
+                        <SelectItem key={ba.id} value={ba.id}>
+                          {ba.bank_name} {ba.store_name ? `- ${ba.store_name}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
                   <Label>Forma de Pagamento</Label>
                   <Select
                     value={formData.payment_method}
