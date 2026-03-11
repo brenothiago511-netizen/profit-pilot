@@ -33,6 +33,7 @@ import {
   ClipboardList,
   DollarSign,
   Wallet,
+  Landmark,
 } from 'lucide-react';
 import logoAglomerado from '@/assets/logo-aglomerado.png';
 

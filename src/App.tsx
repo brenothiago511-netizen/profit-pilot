@@ -21,6 +21,7 @@ import ExecutiveReport from "./pages/ExecutiveReport";
 import PartnerDashboardPage from "./pages/PartnerDashboardPage";
 import Payroll from "./pages/Payroll";
 import ShopifyWithdrawals from "./pages/ShopifyWithdrawals";
+import Banks from "./pages/Banks";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
