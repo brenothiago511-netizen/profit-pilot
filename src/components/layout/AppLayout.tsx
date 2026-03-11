@@ -36,6 +36,7 @@ import {
   Landmark,
 } from 'lucide-react';
 import logoAglomerado from '@/assets/logo-aglomerado.png';
+import NotificationBell from '@/components/notifications/NotificationBell';
 
 // Navigation sections with items
 const navigationSections = [
@@ -248,6 +249,9 @@ export default function AppLayout() {
           >
             <Menu className="w-5 h-5" />
           </button>
+          <div className="ml-auto">
+            <NotificationBell />
+          </div>
         </header>
 
         {/* Page content */}

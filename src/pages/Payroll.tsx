@@ -30,7 +30,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, DollarSign, Users, Calendar } from 'lucide-react';
+import { Plus, Pencil, Trash2, DollarSign, Users, Calendar, Receipt } from 'lucide-react';
+import PayrollPaymentsDialog from '@/components/payroll/PayrollPaymentsDialog';
 
 interface PayrollEntry {
   id: string;
@@ -52,6 +53,8 @@ export default function Payroll() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PayrollEntry | null>(null);
   const [saving, setSaving] = useState(false);
+  const [paymentsDialogOpen, setPaymentsDialogOpen] = useState(false);
+  const [selectedPayroll, setSelectedPayroll] = useState<PayrollEntry | null>(null);
 
   const [formData, setFormData] = useState({
     employee_name: '',
@@ -271,6 +274,14 @@ export default function Payroll() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Histórico de pagamentos"
+                          onClick={() => { setSelectedPayroll(entry); setPaymentsDialogOpen(true); }}
+                        >
+                          <Receipt className="w-4 h-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(entry)}>
                           <Pencil className="w-4 h-4" />
                         </Button>
@@ -381,6 +392,17 @@ export default function Payroll() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Payments History Dialog */}
+      {selectedPayroll && (
+        <PayrollPaymentsDialog
+          open={paymentsDialogOpen}
+          onOpenChange={setPaymentsDialogOpen}
+          payrollId={selectedPayroll.id}
+          employeeName={selectedPayroll.employee_name}
+          expectedAmount={selectedPayroll.amount}
+        />
+      )}
     </div>
   );
 }
