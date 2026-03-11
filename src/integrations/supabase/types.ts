@@ -49,6 +49,7 @@ export type Database = {
           account_holder: string
           account_number: string
           account_type: string
+          balance: number
           bank_name: string
           country: string
           created_at: string
@@ -67,6 +68,7 @@ export type Database = {
           account_holder: string
           account_number: string
           account_type?: string
+          balance?: number
           bank_name: string
           country?: string
           created_at?: string
@@ -85,6 +87,7 @@ export type Database = {
           account_holder?: string
           account_number?: string
           account_type?: string
+          balance?: number
           bank_name?: string
           country?: string
           created_at?: string
@@ -105,6 +108,65 @@ export type Database = {
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_transactions: {
+        Row: {
+          amount: number
+          balance_after: number | null
+          bank_account_id: string
+          category: string | null
+          created_at: string
+          created_by: string | null
+          date: string
+          description: string
+          id: string
+          notes: string | null
+          reference_id: string | null
+          reference_type: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          balance_after?: number | null
+          bank_account_id: string
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description: string
+          id?: string
+          notes?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number | null
+          bank_account_id?: string
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string
+          id?: string
+          notes?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
         ]
