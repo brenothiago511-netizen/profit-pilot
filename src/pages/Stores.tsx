@@ -57,7 +57,7 @@ export default function Stores() {
   const { can } = usePermissions();
   const { isAdmin, user, profile } = useAuth();
   const { toast } = useToast();
-  const isSocio = profile?.role === 'socio';
+  const isNonAdmin = !isAdmin;
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreData[]>([]);
   const [goals, setGoals] = useState<GoalData[]>([]);
@@ -98,7 +98,7 @@ export default function Stores() {
     let storeIds: string[] | null = null;
     
     // For sócios, first get their linked stores
-    if (isSocio && user?.id) {
+    if (isNonAdmin && user?.id) {
       const { data: partnerData } = await supabase
         .from('partners')
         .select('store_id')
@@ -200,7 +200,7 @@ export default function Stores() {
         toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
       } else {
         // For sócio users, create a new partner record linked to this store
-        if (isSocio && user?.id && storeData?.id) {
+        if (isNonAdmin && user?.id && storeData?.id) {
           const { error: partnerError } = await supabase.from('partners').insert({
             user_id: user.id,
             store_id: storeData.id,
@@ -435,7 +435,7 @@ export default function Stores() {
         <div>
           <h1 className="page-title">Lojas</h1>
           <p className="page-description">
-            {isSocio ? 'Suas lojas vinculadas' : 'Gerencie as unidades'} • {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+            {isNonAdmin ? 'Suas lojas vinculadas' : 'Gerencie as unidades'} • {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
           </p>
         </div>
 
@@ -537,15 +537,13 @@ export default function Stores() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {!isSocio && (
-                      <>
-                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(store)}>
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteStore(store)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </>
+                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(store)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    {isAdmin && (
+                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteStore(store)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     )}
                     <Badge variant={store.status === 'active' ? 'default' : 'secondary'}>
                       {store.status === 'active' ? 'Ativa' : 'Inativa'}
@@ -583,27 +581,25 @@ export default function Stores() {
                     <span className="text-sm text-muted-foreground">
                       {format(new Date(store.created_at), 'dd/MM/yyyy')}
                     </span>
-                    {!isSocio && (
-                      <div className="flex gap-2 flex-wrap">
-                        <Button variant="outline" size="sm" onClick={() => openGoalDialog(store)}>
-                          <Target className="w-4 h-4 mr-1" />
-                          Meta
+                    <div className="flex gap-2 flex-wrap">
+                      <Button variant="outline" size="sm" onClick={() => openGoalDialog(store)}>
+                        <Target className="w-4 h-4 mr-1" />
+                        Meta
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => openBankDialog(store)}>
+                        <CreditCard className="w-4 h-4 mr-1" />
+                        Banco
+                      </Button>
+                      {isAdmin && (
+                        <Button variant="outline" size="sm" onClick={() => openPartnerDialog(store)}>
+                          <Users className="w-4 h-4 mr-1" />
+                          Sócios
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => openBankDialog(store)}>
-                          <CreditCard className="w-4 h-4 mr-1" />
-                          Banco
-                        </Button>
-                        {isAdmin && (
-                          <Button variant="outline" size="sm" onClick={() => openPartnerDialog(store)}>
-                            <Users className="w-4 h-4 mr-1" />
-                            Sócios
-                          </Button>
-                        )}
-                        <Button variant="outline" size="sm" onClick={() => toggleStatus(store.id, store.status)}>
-                          {store.status === 'active' ? 'Desativar' : 'Ativar'}
-                        </Button>
-                      </div>
-                    )}
+                      )}
+                      <Button variant="outline" size="sm" onClick={() => toggleStatus(store.id, store.status)}>
+                        {store.status === 'active' ? 'Desativar' : 'Ativar'}
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
