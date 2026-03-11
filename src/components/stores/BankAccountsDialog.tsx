@@ -28,6 +28,17 @@ interface BankAccount {
   status: string;
 }
 
+interface ExistingBank {
+  bank_name: string;
+  account_holder: string;
+  account_type: string;
+  routing_number: string | null;
+  swift_code: string | null;
+  iban: string | null;
+  currency: string;
+  country: string;
+}
+
 interface BankAccountsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -58,7 +69,9 @@ export default function BankAccountsDialog({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
+  const [existingBanks, setExistingBanks] = useState<ExistingBank[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [selectedExistingBank, setSelectedExistingBank] = useState<string>('');
   const [formData, setFormData] = useState({
     bank_name: '',
     account_holder: '',
@@ -76,6 +89,7 @@ export default function BankAccountsDialog({
   useEffect(() => {
     if (open && storeId) {
       fetchAccounts();
+      fetchExistingBanks();
     }
   }, [open, storeId]);
 
@@ -95,7 +109,27 @@ export default function BankAccountsDialog({
     setLoading(false);
   };
 
+  const fetchExistingBanks = async () => {
+    const { data } = await supabase
+      .from('bank_accounts')
+      .select('bank_name, account_holder, account_type, routing_number, swift_code, iban, currency, country')
+      .order('bank_name');
+
+    if (data) {
+      // Deduplicate by bank_name + account_holder
+      const unique = data.reduce((acc: ExistingBank[], curr) => {
+        const key = `${curr.bank_name}-${curr.account_holder}`;
+        if (!acc.find(b => `${b.bank_name}-${b.account_holder}` === key)) {
+          acc.push(curr);
+        }
+        return acc;
+      }, []);
+      setExistingBanks(unique);
+    }
+  };
+
   const resetForm = () => {
+    setSelectedExistingBank('');
     setFormData({
       bank_name: '',
       account_holder: '',
@@ -109,6 +143,38 @@ export default function BankAccountsDialog({
       notes: '',
       is_primary: accounts.length === 0,
     });
+  };
+
+  const handleSelectExistingBank = (value: string) => {
+    setSelectedExistingBank(value);
+    if (value === '__new__') {
+      setFormData(prev => ({
+        ...prev,
+        bank_name: '',
+        account_holder: '',
+        account_type: 'checking',
+        routing_number: '',
+        swift_code: '',
+        iban: '',
+        currency: 'USD',
+        country: 'US',
+      }));
+      return;
+    }
+    const bank = existingBanks[parseInt(value)];
+    if (bank) {
+      setFormData(prev => ({
+        ...prev,
+        bank_name: bank.bank_name,
+        account_holder: bank.account_holder,
+        account_type: bank.account_type,
+        routing_number: bank.routing_number || '',
+        swift_code: bank.swift_code || '',
+        iban: bank.iban || '',
+        currency: bank.currency,
+        country: bank.country,
+      }));
+    }
   };
 
   const handleCountryChange = (countryCode: string) => {
@@ -342,131 +408,173 @@ export default function BankAccountsDialog({
               <Card>
                 <CardContent className="p-4">
                   <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>País *</Label>
-                        <Select
-                          value={formData.country}
-                          onValueChange={handleCountryChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {COUNTRIES.map((country) => (
-                              <SelectItem key={country.code} value={country.code}>
-                                {country.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Moeda</Label>
-                        <Select
-                          value={formData.currency}
-                          onValueChange={(v) => setFormData({ ...formData, currency: v })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="USD">USD ($)</SelectItem>
-                            <SelectItem value="BRL">BRL (R$)</SelectItem>
-                            <SelectItem value="EUR">EUR (€)</SelectItem>
-                            <SelectItem value="GBP">GBP (£)</SelectItem>
-                            <SelectItem value="CAD">CAD ($)</SelectItem>
-                            <SelectItem value="AUD">AUD ($)</SelectItem>
-                            <SelectItem value="JPY">JPY (¥)</SelectItem>
-                            <SelectItem value="CNY">CNY (¥)</SelectItem>
-                            <SelectItem value="MXN">MXN ($)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
+                    {/* Select existing bank or create new */}
                     <div className="space-y-2">
-                      <Label>Nome do Banco *</Label>
-                      <Input
-                        placeholder="Ex: Bank of America, Itaú, Santander"
-                        value={formData.bank_name}
-                        onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-                      />
+                      <Label>Banco *</Label>
+                      <Select
+                        value={selectedExistingBank}
+                        onValueChange={handleSelectExistingBank}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um banco cadastrado..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {existingBanks.map((bank, idx) => (
+                            <SelectItem key={idx} value={String(idx)}>
+                              {bank.account_holder} - {bank.bank_name} ({bank.currency})
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="__new__">
+                            + Cadastrar novo banco
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Titular da Conta *</Label>
-                      <Input
-                        placeholder="Nome completo do titular"
-                        value={formData.account_holder}
-                        onChange={(e) => setFormData({ ...formData, account_holder: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Tipo de Conta</Label>
-                        <Select
-                          value={formData.account_type}
-                          onValueChange={(v) => setFormData({ ...formData, account_type: v })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="checking">Corrente</SelectItem>
-                            <SelectItem value="savings">Poupança</SelectItem>
-                            <SelectItem value="business">Empresarial</SelectItem>
-                          </SelectContent>
-                        </Select>
+                    {/* Show selected bank info */}
+                    {selectedExistingBank && selectedExistingBank !== '__new__' && (
+                      <div className="rounded-lg border bg-muted/50 p-3 text-sm space-y-1">
+                        <p><span className="text-muted-foreground">Banco:</span> {formData.bank_name}</p>
+                        <p><span className="text-muted-foreground">Titular:</span> {formData.account_holder}</p>
+                        <p><span className="text-muted-foreground">País:</span> {getCountryName(formData.country)} ({formData.currency})</p>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Routing Number</Label>
-                        <Input
-                          placeholder="Ex: 021000021"
-                          value={formData.routing_number}
-                          onChange={(e) => setFormData({ ...formData, routing_number: e.target.value })}
-                        />
-                      </div>
-                    </div>
+                    )}
 
-                    <div className="space-y-2">
-                      <Label>Account Number *</Label>
-                      <Input
-                        placeholder="Ex: 123456789"
-                        value={formData.account_number}
-                        onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
-                      />
-                    </div>
+                    {/* Full form for new bank */}
+                    {selectedExistingBank === '__new__' && (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>País *</Label>
+                            <Select
+                              value={formData.country}
+                              onValueChange={handleCountryChange}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {COUNTRIES.map((country) => (
+                                  <SelectItem key={country.code} value={country.code}>
+                                    {country.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Moeda</Label>
+                            <Select
+                              value={formData.currency}
+                              onValueChange={(v) => setFormData({ ...formData, currency: v })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="USD">USD ($)</SelectItem>
+                                <SelectItem value="BRL">BRL (R$)</SelectItem>
+                                <SelectItem value="EUR">EUR (€)</SelectItem>
+                                <SelectItem value="GBP">GBP (£)</SelectItem>
+                                <SelectItem value="CAD">CAD ($)</SelectItem>
+                                <SelectItem value="AUD">AUD ($)</SelectItem>
+                                <SelectItem value="JPY">JPY (¥)</SelectItem>
+                                <SelectItem value="CNY">CNY (¥)</SelectItem>
+                                <SelectItem value="MXN">MXN ($)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>SWIFT/BIC Code</Label>
-                        <Input
-                          placeholder="Ex: BOFAUS3N"
-                          value={formData.swift_code}
-                          onChange={(e) => setFormData({ ...formData, swift_code: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>IBAN</Label>
-                        <Input
-                          placeholder="Ex: DE89370400440532013000"
-                          value={formData.iban}
-                          onChange={(e) => setFormData({ ...formData, iban: e.target.value })}
-                        />
-                      </div>
-                    </div>
+                        <div className="space-y-2">
+                          <Label>Nome do Banco *</Label>
+                          <Input
+                            placeholder="Ex: Bank of America, Itaú, Santander"
+                            value={formData.bank_name}
+                            onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
+                          />
+                        </div>
 
-                    <div className="space-y-2">
-                      <Label>Observações</Label>
-                      <Textarea
-                        placeholder="Informações adicionais..."
-                        value={formData.notes}
-                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        rows={2}
-                      />
-                    </div>
+                        <div className="space-y-2">
+                          <Label>Titular da Conta *</Label>
+                          <Input
+                            placeholder="Nome completo do titular"
+                            value={formData.account_holder}
+                            onChange={(e) => setFormData({ ...formData, account_holder: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Tipo de Conta</Label>
+                            <Select
+                              value={formData.account_type}
+                              onValueChange={(v) => setFormData({ ...formData, account_type: v })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="checking">Corrente</SelectItem>
+                                <SelectItem value="savings">Poupança</SelectItem>
+                                <SelectItem value="business">Empresarial</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Routing Number</Label>
+                            <Input
+                              placeholder="Ex: 021000021"
+                              value={formData.routing_number}
+                              onChange={(e) => setFormData({ ...formData, routing_number: e.target.value })}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>SWIFT/BIC Code</Label>
+                            <Input
+                              placeholder="Ex: BOFAUS3N"
+                              value={formData.swift_code}
+                              onChange={(e) => setFormData({ ...formData, swift_code: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>IBAN</Label>
+                            <Input
+                              placeholder="Ex: DE89370400440532013000"
+                              value={formData.iban}
+                              onChange={(e) => setFormData({ ...formData, iban: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Account number - always visible when a bank is selected */}
+                    {selectedExistingBank && (
+                      <>
+                        <div className="space-y-2">
+                          <Label>Número da Conta *</Label>
+                          <Input
+                            placeholder="Ex: 123456789"
+                            value={formData.account_number}
+                            onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Observações</Label>
+                          <Textarea
+                            placeholder="Informações adicionais..."
+                            value={formData.notes}
+                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                            rows={2}
+                          />
+                        </div>
+                      </>
+                    )}
 
                     <div className="flex justify-end gap-3 pt-2">
                       <Button
@@ -476,7 +584,7 @@ export default function BankAccountsDialog({
                       >
                         Cancelar
                       </Button>
-                      <Button type="submit" disabled={saving}>
+                      <Button type="submit" disabled={saving || !selectedExistingBank}>
                         {saving ? (
                           <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
