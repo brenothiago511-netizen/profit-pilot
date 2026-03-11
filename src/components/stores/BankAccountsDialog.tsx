@@ -89,6 +89,7 @@ export default function BankAccountsDialog({
   useEffect(() => {
     if (open && storeId) {
       fetchAccounts();
+      fetchExistingBanks();
     }
   }, [open, storeId]);
 
@@ -106,6 +107,25 @@ export default function BankAccountsDialog({
       setAccounts(data || []);
     }
     setLoading(false);
+  };
+
+  const fetchExistingBanks = async () => {
+    const { data } = await supabase
+      .from('bank_accounts')
+      .select('bank_name, account_holder, account_type, routing_number, swift_code, iban, currency, country')
+      .order('bank_name');
+
+    if (data) {
+      // Deduplicate by bank_name + account_holder
+      const unique = data.reduce((acc: ExistingBank[], curr) => {
+        const key = `${curr.bank_name}-${curr.account_holder}`;
+        if (!acc.find(b => `${b.bank_name}-${b.account_holder}` === key)) {
+          acc.push(curr);
+        }
+        return acc;
+      }, []);
+      setExistingBanks(unique);
+    }
   };
 
   const resetForm = () => {
