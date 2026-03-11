@@ -208,7 +208,7 @@ export default function Goals() {
           .in('store_id', storeIds as string[])
           .gte('date', currentMonthStart)
           .lte('date', currentMonthEnd)
-          .eq('shopify_status', 'received');
+          .in('shopify_status', ['received', 'confirmed']);
 
         // Map gross profits to users (sum of all their partner stores - without percentage)
         const profitMap: Record<string, number> = {};

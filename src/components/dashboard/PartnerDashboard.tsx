@@ -229,7 +229,7 @@ export default function PartnerDashboard() {
           .from('daily_records')
           .select('daily_profit')
           .eq('store_id', partnership.store_id)
-          .eq('shopify_status', 'received')
+          .in('shopify_status', ['received', 'confirmed'])
           .gte('date', periodStart)
           .lte('date', periodEnd);
 
