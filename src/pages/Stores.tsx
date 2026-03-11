@@ -10,13 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Store, Loader2, Building2, CreditCard, Pencil, Target, Trash2, Users } from 'lucide-react';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { Plus, Store, Loader2, Building2, CreditCard, Pencil, Trash2, Users, ArrowRightLeft } from 'lucide-react';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import BankAccountsDialog from '@/components/stores/BankAccountsDialog';
+
 interface StoreData {
   id: string;
   name: string;
@@ -24,20 +24,6 @@ interface StoreData {
   currency: string;
   status: string;
   created_at: string;
-}
-
-interface GoalData {
-  id: string;
-  store_id: string;
-  goal_amount_original: number;
-  goal_currency: string;
-  period_start: string;
-  period_end: string;
-}
-
-interface RevenueTotal {
-  store_id: string;
-  total: number;
 }
 
 interface PartnerUser {
@@ -61,33 +47,26 @@ export default function Stores() {
   const isNonAdmin = !isAdmin;
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreData[]>([]);
-  const [goals, setGoals] = useState<GoalData[]>([]);
-  const [revenues, setRevenues] = useState<RevenueTotal[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [bankDialogOpen, setBankDialogOpen] = useState(false);
-  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [partnerDialogOpen, setPartnerDialogOpen] = useState(false);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [selectedStore, setSelectedStore] = useState<StoreData | null>(null);
   const [editingStore, setEditingStore] = useState<StoreData | null>(null);
   const [availablePartners, setAvailablePartners] = useState<PartnerUser[]>([]);
   const [storePartners, setStorePartners] = useState<StorePartner[]>([]);
+  const [allUsers, setAllUsers] = useState<PartnerUser[]>([]);
+  const [transferUserId, setTransferUserId] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     country: 'Brasil',
     currency: 'BRL',
   });
-  const [goalFormData, setGoalFormData] = useState({
-    goal_amount: '',
-  });
   const [partnerFormData, setPartnerFormData] = useState({
     user_id: '',
     capital_percentage: '',
   });
-
-  const currentMonth = new Date();
-  const periodStart = format(startOfMonth(currentMonth), 'yyyy-MM-dd');
-  const periodEnd = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
 
   useEffect(() => {
     fetchData();
@@ -98,7 +77,6 @@ export default function Stores() {
     
     let storeIds: string[] | null = null;
     
-    // For sócios, first get their linked stores
     if (isNonAdmin && user?.id) {
       const { data: partnerData } = await supabase
         .from('partners')
@@ -110,55 +88,18 @@ export default function Stores() {
       
       if (storeIds.length === 0) {
         setStores([]);
-        setGoals([]);
-        setRevenues([]);
         setLoading(false);
         return;
       }
     }
 
-    // Build store query based on role
     let storesQuery = supabase.from('stores').select('*').order('name');
     if (storeIds && storeIds.length > 0) {
       storesQuery = storesQuery.in('id', storeIds);
     }
-    
-    // Build goals query
-    let goalsQuery = supabase.from('revenue_goals')
-      .select('*')
-      .gte('period_start', periodStart)
-      .lte('period_end', periodEnd);
-    if (storeIds && storeIds.length > 0) {
-      goalsQuery = goalsQuery.in('store_id', storeIds);
-    }
-    
-    // Build revenues query
-    let revenuesQuery = supabase.from('revenues')
-      .select('store_id, amount')
-      .gte('date', periodStart)
-      .lte('date', periodEnd);
-    if (storeIds && storeIds.length > 0) {
-      revenuesQuery = revenuesQuery.in('store_id', storeIds);
-    }
 
-    const [storesRes, goalsRes, revenuesRes] = await Promise.all([
-      storesQuery,
-      goalsQuery,
-      revenuesQuery,
-    ]);
-
-    if (storesRes.data) setStores(storesRes.data);
-    if (goalsRes.data) setGoals(goalsRes.data);
-    
-    // Calculate totals per store
-    if (revenuesRes.data) {
-      const totals: Record<string, number> = {};
-      revenuesRes.data.forEach((r) => {
-        totals[r.store_id] = (totals[r.store_id] || 0) + Number(r.amount);
-      });
-      setRevenues(Object.entries(totals).map(([store_id, total]) => ({ store_id, total })));
-    }
-
+    const { data } = await storesQuery;
+    if (data) setStores(data);
     setLoading(false);
   };
 
@@ -200,7 +141,6 @@ export default function Stores() {
       if (error) {
         toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
       } else {
-        // For sócio users, create a new partner record linked to this store
         if (isNonAdmin && user?.id && storeData?.id) {
           const { error: partnerError } = await supabase.from('partners').insert({
             user_id: user.id,
@@ -254,7 +194,6 @@ export default function Stores() {
       return;
     }
 
-    // Delete related data first
     await Promise.all([
       supabase.from('revenues').delete().eq('store_id', store.id),
       supabase.from('expenses').delete().eq('store_id', store.id),
@@ -283,61 +222,65 @@ export default function Stores() {
     setBankDialogOpen(true);
   };
 
-  const openGoalDialog = (store: StoreData) => {
+  // Transfer store functions
+  const openTransferDialog = async (store: StoreData) => {
     setSelectedStore(store);
-    const existingGoal = goals.find(g => g.store_id === store.id);
-    setGoalFormData({ goal_amount: existingGoal ? String(existingGoal.goal_amount_original) : '' });
-    setGoalDialogOpen(true);
+    setTransferUserId('');
+
+    // Fetch all active users except current partners of this store
+    const [usersRes, partnersRes] = await Promise.all([
+      supabase.from('profiles').select('id, name, email').eq('status', 'active'),
+      supabase.from('partners').select('user_id').eq('store_id', store.id).eq('status', 'active'),
+    ]);
+
+    const existingPartnerIds = (partnersRes.data || []).map(p => p.user_id);
+    const available = (usersRes.data || []).filter(u => !existingPartnerIds.includes(u.id));
+    setAllUsers(available);
+    setTransferDialogOpen(true);
   };
 
-  const handleGoalSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedStore || !goalFormData.goal_amount) {
-      toast({ title: 'Erro', description: 'Informe o valor da meta', variant: 'destructive' });
+  const handleTransfer = async () => {
+    if (!selectedStore || !transferUserId) {
+      toast({ title: 'Erro', description: 'Selecione um usuário', variant: 'destructive' });
+      return;
+    }
+
+    if (!confirm(`Tem certeza que deseja transferir a loja "${selectedStore.name}"? Todos os sócios atuais serão removidos e a loja será vinculada ao novo usuário.`)) {
       return;
     }
 
     setSaving(true);
-    const existingGoal = goals.find(g => g.store_id === selectedStore.id);
 
-    if (existingGoal) {
-      const { error } = await supabase
-        .from('revenue_goals')
-        .update({ goal_amount_original: parseFloat(goalFormData.goal_amount) })
-        .eq('id', existingGoal.id);
+    // Remove all current partners from this store
+    const { error: deleteError } = await supabase
+      .from('partners')
+      .delete()
+      .eq('store_id', selectedStore.id);
 
-      if (error) {
-        toast({ title: 'Erro', description: error.message, variant: 'destructive' });
-      } else {
-        toast({ title: 'Sucesso', description: 'Meta atualizada' });
-        setGoalDialogOpen(false);
-        fetchData();
-      }
-    } else {
-      const { error } = await supabase.from('revenue_goals').insert({
-        store_id: selectedStore.id,
-        goal_amount_original: parseFloat(goalFormData.goal_amount),
-        goal_currency: selectedStore.currency,
-        period_start: periodStart,
-        period_end: periodEnd,
-      });
-
-      if (error) {
-        toast({ title: 'Erro', description: error.message, variant: 'destructive' });
-      } else {
-        toast({ title: 'Sucesso', description: 'Meta cadastrada' });
-        setGoalDialogOpen(false);
-        fetchData();
-      }
+    if (deleteError) {
+      toast({ title: 'Erro', description: deleteError.message, variant: 'destructive' });
+      setSaving(false);
+      return;
     }
+
+    // Create new partner record for the target user
+    const { error: insertError } = await supabase.from('partners').insert({
+      user_id: transferUserId,
+      store_id: selectedStore.id,
+      capital_percentage: 100,
+      capital_amount: 0,
+      status: 'active',
+    });
+
     setSaving(false);
-  };
 
-  const getStoreGoal = (storeId: string) => goals.find(g => g.store_id === storeId);
-  const getStoreRevenue = (storeId: string) => revenues.find(r => r.store_id === storeId)?.total || 0;
-
-  const formatCurrency = (value: number, currency: string) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(value);
+    if (insertError) {
+      toast({ title: 'Erro', description: insertError.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Sucesso', description: 'Loja transferida com sucesso' });
+      setTransferDialogOpen(false);
+      fetchData();
+    }
   };
 
   // Partner management functions
@@ -345,7 +288,6 @@ export default function Stores() {
     setSelectedStore(store);
     setPartnerFormData({ user_id: '', capital_percentage: '' });
     
-    // Fetch available partners (socios not yet linked to this store)
     const [partnersRes, existingRes] = await Promise.all([
       supabase.from('profiles').select('id, name, email').eq('role', 'socio').eq('status', 'active'),
       supabase.from('partners').select('id, user_id, store_id, capital_percentage, profiles(name, email)').eq('store_id', store.id),
@@ -368,7 +310,6 @@ export default function Stores() {
 
     setSaving(true);
     
-    // Check if user already has a partner record (possibly without store)
     const { data: existingPartner } = await supabase
       .from('partners')
       .select('id, store_id')
@@ -379,7 +320,6 @@ export default function Stores() {
     let error;
     
     if (existingPartner && !existingPartner.store_id) {
-      // Update existing record that has no store
       const result = await supabase
         .from('partners')
         .update({
@@ -389,7 +329,6 @@ export default function Stores() {
         .eq('id', existingPartner.id);
       error = result.error;
     } else if (existingPartner && existingPartner.store_id === selectedStore.id) {
-      // Already linked to this store - update percentage
       const result = await supabase
         .from('partners')
         .update({
@@ -398,7 +337,6 @@ export default function Stores() {
         .eq('id', existingPartner.id);
       error = result.error;
     } else {
-      // Create new partner record
       const result = await supabase.from('partners').insert({
         user_id: partnerFormData.user_id,
         store_id: selectedStore.id,
@@ -414,7 +352,7 @@ export default function Stores() {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Sucesso', description: 'Sócio vinculado à loja' });
-      openPartnerDialog(selectedStore); // Refresh partners list
+      openPartnerDialog(selectedStore);
     }
   };
 
@@ -436,7 +374,7 @@ export default function Stores() {
         <div>
           <h1 className="page-title">Lojas</h1>
           <p className="page-description">
-            {isNonAdmin ? 'Suas lojas vinculadas' : 'Gerencie as unidades'} • {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+            {isNonAdmin ? 'Suas lojas vinculadas' : 'Gerencie as unidades'}
           </p>
         </div>
 
@@ -533,94 +471,62 @@ export default function Stores() {
                   </Card>
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {filtered.map((store) => {
-                      const goal = getStoreGoal(store.id);
-                      const revenue = getStoreRevenue(store.id);
-                      const progress = goal ? Math.min((revenue / goal.goal_amount_original) * 100, 100) : 0;
-
-                      return (
-                        <Card key={store.id} className="hover:shadow-card-hover transition-shadow">
-                          <CardHeader className="flex flex-row items-start justify-between pb-2">
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
-                                <Building2 className="w-5 h-5 text-primary" />
-                              </div>
-                              <div>
-                                <CardTitle className="text-lg">{store.name}</CardTitle>
-                                <p className="text-sm text-muted-foreground">
-                                  {store.country} • {store.currency}
-                                </p>
-                              </div>
+                    {filtered.map((store) => (
+                      <Card key={store.id} className="hover:shadow-card-hover transition-shadow">
+                        <CardHeader className="flex flex-row items-start justify-between pb-2">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
+                              <Building2 className="w-5 h-5 text-primary" />
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(store)}>
-                                <Pencil className="w-4 h-4" />
+                            <div>
+                              <CardTitle className="text-lg">{store.name}</CardTitle>
+                              <p className="text-sm text-muted-foreground">
+                                {store.country} • {store.currency}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(store)}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            {isAdmin && (
+                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteStore(store)}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                            <Badge variant={store.status === 'active' ? 'default' : 'secondary'}>
+                              {store.status === 'active' ? 'Ativa' : 'Inativa'}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <span className="text-sm text-muted-foreground">
+                              {format(new Date(store.created_at), 'dd/MM/yyyy')}
+                            </span>
+                            <div className="flex gap-2 flex-wrap">
+                              <Button variant="outline" size="sm" onClick={() => openBankDialog(store)}>
+                                <CreditCard className="w-4 h-4 mr-1" />
+                                Banco
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => openTransferDialog(store)}>
+                                <ArrowRightLeft className="w-4 h-4 mr-1" />
+                                Transferir
                               </Button>
                               {isAdmin && (
-                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => deleteStore(store)}>
-                                  <Trash2 className="w-4 h-4" />
+                                <Button variant="outline" size="sm" onClick={() => openPartnerDialog(store)}>
+                                  <Users className="w-4 h-4 mr-1" />
+                                  Sócios
                                 </Button>
                               )}
-                              <Badge variant={store.status === 'active' ? 'default' : 'secondary'}>
-                                {store.status === 'active' ? 'Ativa' : 'Inativa'}
-                              </Badge>
+                              <Button variant="outline" size="sm" onClick={() => toggleStatus(store.id, store.status)}>
+                                {store.status === 'active' ? 'Desativar' : 'Ativar'}
+                              </Button>
                             </div>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            {/* Goal Progress */}
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground flex items-center gap-1">
-                                  <Target className="w-4 h-4" />
-                                  Meta do mês
-                                </span>
-                                {goal ? (
-                                  <span className="font-medium">{progress.toFixed(0)}%</span>
-                                ) : (
-                                  <Button variant="link" size="sm" className="h-auto p-0" onClick={() => openGoalDialog(store)}>
-                                    Definir meta
-                                  </Button>
-                                )}
-                              </div>
-                              {goal && (
-                                <>
-                                  <Progress value={progress} className="h-2" />
-                                  <div className="flex justify-between text-xs text-muted-foreground">
-                                    <span>{formatCurrency(revenue, store.currency)}</span>
-                                    <span>{formatCurrency(goal.goal_amount_original, store.currency)}</span>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-
-                            <div className="flex items-center justify-between pt-2 border-t">
-                              <span className="text-sm text-muted-foreground">
-                                {format(new Date(store.created_at), 'dd/MM/yyyy')}
-                              </span>
-                              <div className="flex gap-2 flex-wrap">
-                                <Button variant="outline" size="sm" onClick={() => openGoalDialog(store)}>
-                                  <Target className="w-4 h-4 mr-1" />
-                                  Meta
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => openBankDialog(store)}>
-                                  <CreditCard className="w-4 h-4 mr-1" />
-                                  Banco
-                                </Button>
-                                {isAdmin && (
-                                  <Button variant="outline" size="sm" onClick={() => openPartnerDialog(store)}>
-                                    <Users className="w-4 h-4 mr-1" />
-                                    Sócios
-                                  </Button>
-                                )}
-                                <Button variant="outline" size="sm" onClick={() => toggleStatus(store.id, store.status)}>
-                                  {store.status === 'active' ? 'Desativar' : 'Ativar'}
-                                </Button>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
                 )}
               </TabsContent>
@@ -638,35 +544,47 @@ export default function Stores() {
             storeName={selectedStore.name}
           />
 
-          <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
+          {/* Transfer Dialog */}
+          <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Meta de Faturamento - {selectedStore.name}</DialogTitle>
+                <DialogTitle>Transferir Loja - {selectedStore.name}</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleGoalSubmit} className="space-y-4">
+              <div className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Período: {format(startOfMonth(currentMonth), 'dd/MM/yyyy')} a {format(endOfMonth(currentMonth), 'dd/MM/yyyy')}
+                  Ao transferir, todos os sócios atuais serão removidos e a loja será vinculada ao novo usuário com 100% de participação.
                 </p>
                 <div className="space-y-2">
-                  <Label>Valor da Meta ({selectedStore.currency}) *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="Ex: 50000"
-                    value={goalFormData.goal_amount}
-                    onChange={(e) => setGoalFormData({ goal_amount: e.target.value })}
-                  />
+                  <Label>Transferir para</Label>
+                  {allUsers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum usuário disponível para transferência</p>
+                  ) : (
+                    <Select value={transferUserId} onValueChange={setTransferUserId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um usuário" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allUsers.map((u) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.name} ({u.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setGoalDialogOpen(false)}>
+                  <Button type="button" variant="outline" onClick={() => setTransferDialogOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={saving}>
-                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                    Salvar Meta
-                  </Button>
+                  {transferUserId && (
+                    <Button onClick={handleTransfer} disabled={saving}>
+                      {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowRightLeft className="w-4 h-4 mr-2" />}
+                      Transferir
+                    </Button>
+                  )}
                 </div>
-              </form>
+              </div>
             </DialogContent>
           </Dialog>
 
@@ -677,7 +595,6 @@ export default function Stores() {
                 <DialogTitle>Sócios - {selectedStore.name}</DialogTitle>
               </DialogHeader>
               
-              {/* Existing Partners */}
               {storePartners.length > 0 && (
                 <div className="space-y-2">
                   <Label>Sócios Vinculados</Label>
@@ -700,7 +617,6 @@ export default function Stores() {
                 </div>
               )}
 
-              {/* Add New Partner */}
               <form onSubmit={handlePartnerSubmit} className="space-y-4 pt-4 border-t">
                 <div className="space-y-2">
                   <Label>Adicionar Sócio</Label>
