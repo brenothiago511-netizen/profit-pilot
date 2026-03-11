@@ -51,6 +51,7 @@ const navigationSections = [
     items: [
       { name: 'Receitas', href: '/revenues', icon: TrendingUp, permissions: ['create_revenue', 'edit_revenue'] },
       { name: 'Despesas', href: '/expenses', icon: TrendingDown, permissions: ['create_expense', 'edit_expense'] },
+      { name: 'Bancos', href: '/banks', icon: Landmark, permissions: ['create_revenue', 'edit_revenue', 'view_revenues'] },
       { name: 'Metas', href: '/goals', icon: Target, permissions: ['manage_goals', 'view_reports'] },
     ],
   },
