@@ -378,7 +378,7 @@ export default function Banks() {
                     </p>
                   </div>
                   <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{account.account_holder}</span>
+                    <span>{account.currency}</span>
                     <span>•••• {account.account_number.slice(-4)}</span>
                   </div>
                 </CardContent>
