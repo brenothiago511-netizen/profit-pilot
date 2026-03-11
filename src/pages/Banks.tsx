@@ -419,18 +419,19 @@ export default function Banks() {
                         
                       </div>
                     </div>
-                    {account.is_primary && (
-                      <Badge variant="default" className="text-xs">
-                        <Star className="w-3 h-3 mr-1" /> Principal
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="mt-4">
-                    <p className="text-xs text-muted-foreground">Saldo Atual</p>
-                    <p className={`text-xl font-bold ${Number(account.balance) >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
-                      {formatCurrency(Number(account.balance), account.currency)}
-                    </p>
-                  </div>
+                     <div className="flex items-center gap-1">
+                      {account.is_primary && (
+                        <Badge variant="default" className="text-xs">
+                          <Star className="w-3 h-3 mr-1" /> Principal
+                        </Badge>
+                      )}
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(account)}>
+                        <Pencil className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteAccount(account.id)}>
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
                   <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
                     <span>{account.currency}</span>
                     <span>•••• {account.account_number.slice(-4)}</span>
