@@ -59,6 +59,8 @@ function formatCurrency(amount: number, currency: string = 'BRL') {
   return `${symbol} ${amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+const BANK_OPTIONS = ['Airwallex', 'Mercury', 'Relay', 'Revolut'];
+
 export default function Banks() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -67,7 +69,16 @@ export default function Banks() {
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>('all');
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
+  const [showAccountDialog, setShowAccountDialog] = useState(false);
+  const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
+  const [accountForm, setAccountForm] = useState({
+    bank_name: '',
+    store_id: '',
+    account_holder: '',
+    account_number: '',
+    currency: 'USD',
+  });
   const [txForm, setTxForm] = useState({
     bank_account_id: '',
     type: 'entrada',
@@ -81,13 +92,18 @@ export default function Banks() {
 
   useEffect(() => {
     fetchData();
-    // Realtime subscription
+    fetchStores();
     const channel = supabase
       .channel('bank-transactions-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bank_transactions' }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
+
+  const fetchStores = async () => {
+    const { data } = await supabase.from('stores').select('id, name').eq('status', 'active').order('name');
+    if (data) setStores(data);
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -198,6 +214,33 @@ export default function Banks() {
     fetchData();
   };
 
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accountForm.bank_name || !accountForm.store_id || !accountForm.account_holder || !accountForm.account_number) {
+      toast({ title: 'Erro', description: 'Preencha os campos obrigatórios', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from('bank_accounts').insert({
+      bank_name: accountForm.bank_name,
+      store_id: accountForm.store_id,
+      account_holder: accountForm.account_holder,
+      account_number: accountForm.account_number,
+      currency: accountForm.currency,
+      country: 'US',
+      is_primary: accounts.length === 0,
+    });
+    setSaving(false);
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Sucesso', description: 'Conta bancária cadastrada' });
+      setShowAccountDialog(false);
+      setAccountForm({ bank_name: '', store_id: '', account_holder: '', account_number: '', currency: 'USD' });
+      fetchData();
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -214,10 +257,16 @@ export default function Banks() {
           <h1 className="text-2xl font-bold text-foreground">Bancos</h1>
           <p className="text-muted-foreground">Gerencie suas contas bancárias e movimentações</p>
         </div>
-        <Button onClick={() => setShowTransactionDialog(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Movimentação
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowAccountDialog(true)}>
+            <Building2 className="w-4 h-4 mr-2" />
+            Cadastrar Banco
+          </Button>
+          <Button onClick={() => setShowTransactionDialog(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Movimentação
+          </Button>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -601,6 +650,90 @@ export default function Banks() {
               </Button>
               <Button type="submit" disabled={saving}>
                 {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : 'Registrar'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Bank Account Dialog */}
+      <Dialog open={showAccountDialog} onOpenChange={setShowAccountDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5" />
+              Cadastrar Banco
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateAccount} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Banco *</Label>
+              <Select value={accountForm.bank_name} onValueChange={v => setAccountForm({ ...accountForm, bank_name: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o banco" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BANK_OPTIONS.map(bank => (
+                    <SelectItem key={bank} value={bank}>{bank}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Loja *</Label>
+              <Select value={accountForm.store_id} onValueChange={v => setAccountForm({ ...accountForm, store_id: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a loja" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stores.map(store => (
+                    <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Titular da Conta *</Label>
+              <Input
+                placeholder="Nome do titular"
+                value={accountForm.account_holder}
+                onChange={e => setAccountForm({ ...accountForm, account_holder: e.target.value })}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Número da Conta *</Label>
+                <Input
+                  placeholder="Ex: 123456789"
+                  value={accountForm.account_number}
+                  onChange={e => setAccountForm({ ...accountForm, account_number: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Moeda</Label>
+                <Select value={accountForm.currency} onValueChange={v => setAccountForm({ ...accountForm, currency: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                    <SelectItem value="BRL">BRL (R$)</SelectItem>
+                    <SelectItem value="EUR">EUR (€)</SelectItem>
+                    <SelectItem value="GBP">GBP (£)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowAccountDialog(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : 'Cadastrar'}
               </Button>
             </div>
           </form>

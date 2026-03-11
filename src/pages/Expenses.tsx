@@ -66,6 +66,8 @@ export default function Expenses() {
   const { toast } = useToast();
   const [profileNames, setProfileNames] = useState<ProfileMap>({});
   const isAdmin = profile?.role === 'admin';
+  const [bankAccounts, setBankAccounts] = useState<{ id: string; bank_name: string; store_name?: string }[]>([]);
+  const [selectedBankAccount, setSelectedBankAccount] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
@@ -111,8 +113,20 @@ export default function Expenses() {
     fetchStores();
     fetchCategories();
     fetchExpenses();
+    fetchBankAccounts();
     if (isAdmin) fetchProfileNames();
   }, []);
+
+  const fetchBankAccounts = async () => {
+    const { data } = await supabase
+      .from('bank_accounts')
+      .select('id, bank_name, stores(name)')
+      .eq('status', 'active')
+      .order('bank_name');
+    if (data) {
+      setBankAccounts(data.map((a: any) => ({ id: a.id, bank_name: a.bank_name, store_name: a.stores?.name })));
+    }
+  };
 
   const fetchProfileNames = async () => {
     const { data } = await supabase.from('profiles').select('id, name');
@@ -265,6 +279,39 @@ export default function Expenses() {
         variant: 'destructive',
       });
     } else {
+      // If a bank account was selected, create a bank transaction (debit)
+      if (selectedBankAccount && !editingExpense) {
+        try {
+          // Get current balance
+          const { data: bankData } = await supabase
+            .from('bank_accounts')
+            .select('balance')
+            .eq('id', selectedBankAccount)
+            .single();
+          
+          const currentBalance = Number(bankData?.balance || 0);
+          const newBalance = currentBalance - convertedAmount;
+
+          await supabase.from('bank_transactions').insert({
+            bank_account_id: selectedBankAccount,
+            type: 'saida',
+            amount: convertedAmount,
+            balance_after: newBalance,
+            date: formData.date,
+            description: `Despesa: ${formData.description}`,
+            reference_type: 'expense',
+            created_by: user?.id,
+          });
+
+          await supabase
+            .from('bank_accounts')
+            .update({ balance: newBalance })
+            .eq('id', selectedBankAccount);
+        } catch (err) {
+          console.error('Error creating bank transaction:', err);
+        }
+      }
+
       const currencyInfo = CURRENCIES.find(c => c.code === formData.currency);
       const actionText = editingExpense ? 'atualizada' : 'cadastrada';
       const message = formData.currency !== 'BRL' 
@@ -437,6 +484,7 @@ export default function Expenses() {
 
   const resetForm = () => {
     setEditingExpense(null);
+    setSelectedBankAccount('');
     setFormData({
       store_id: '',
       date: format(new Date(), 'yyyy-MM-dd'),
@@ -1051,6 +1099,26 @@ export default function Expenses() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Banco (saída)</Label>
+                  <Select
+                    value={selectedBankAccount || '__none__'}
+                    onValueChange={(v) => setSelectedBankAccount(v === '__none__' ? '' : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o banco (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Nenhum (não debitar)</SelectItem>
+                      {bankAccounts.map((ba) => (
+                        <SelectItem key={ba.id} value={ba.id}>
+                          {ba.bank_name} {ba.store_name ? `- ${ba.store_name}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
