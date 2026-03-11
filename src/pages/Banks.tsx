@@ -680,19 +680,6 @@ export default function Banks() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Loja *</Label>
-              <Select value={accountForm.store_id} onValueChange={v => setAccountForm({ ...accountForm, store_id: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a loja" />
-                </SelectTrigger>
-                <SelectContent>
-                  {stores.map(store => (
-                    <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
             <div className="space-y-2">
               <Label>Titular da Conta *</Label>
