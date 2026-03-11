@@ -216,14 +216,18 @@ export default function Banks() {
 
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!accountForm.bank_name || !accountForm.store_id || !accountForm.account_holder) {
+    if (!accountForm.bank_name || !accountForm.account_holder) {
       toast({ title: 'Erro', description: 'Preencha os campos obrigatórios', variant: 'destructive' });
+      return;
+    }
+    if (stores.length === 0) {
+      toast({ title: 'Erro', description: 'Cadastre uma loja antes de criar uma conta bancária', variant: 'destructive' });
       return;
     }
     setSaving(true);
     const { error } = await supabase.from('bank_accounts').insert({
       bank_name: accountForm.bank_name,
-      store_id: accountForm.store_id,
+      store_id: stores[0].id,
       account_holder: accountForm.account_holder,
       account_number: accountForm.account_holder,
       currency: 'USD',
