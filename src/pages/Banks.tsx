@@ -225,8 +225,8 @@ export default function Banks() {
       bank_name: accountForm.bank_name,
       store_id: accountForm.store_id,
       account_holder: accountForm.account_holder,
-      account_number: accountForm.account_number,
-      currency: accountForm.currency,
+      account_number: accountForm.account_holder,
+      currency: 'USD',
       country: 'US',
       is_primary: accounts.length === 0,
     });
