@@ -2,146 +2,146 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Profit-Driven Fintech — Emerald & Gold Design System */
+/* Terminal Finance — Black & Neon Green Design System */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @layer base {
   :root {
-    /* Background & Surfaces */
-    --background: 150 10% 97%;
-    --foreground: 160 30% 8%;
+    /* Background & Surfaces - Dark by default */
+    --background: 0 0% 4%;
+    --foreground: 0 0% 95%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 160 30% 8%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 160 30% 8%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 95%;
 
-    /* Primary - Rich Emerald Green */
-    --primary: 152 55% 22%;
-    --primary-foreground: 60 20% 97%;
+    /* Primary - Neon Green */
+    --primary: 142 71% 45%;
+    --primary-foreground: 0 0% 2%;
 
-    /* Secondary - Warm Gold */
-    --secondary: 43 55% 93%;
-    --secondary-foreground: 43 70% 25%;
+    /* Secondary - Dark Gray */
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 90%;
 
     /* Muted */
-    --muted: 150 10% 95%;
-    --muted-foreground: 150 5% 45%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 55%;
 
-    /* Accent - Soft Gold */
-    --accent: 43 60% 94%;
-    --accent-foreground: 152 55% 22%;
+    /* Accent - Neon Green Subtle */
+    --accent: 142 50% 10%;
+    --accent-foreground: 142 71% 45%;
 
     /* Semantic Colors */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Success - Bright Emerald */
-    --success: 152 69% 31%;
-    --success-foreground: 0 0% 100%;
-    --success-light: 152 50% 95%;
+    /* Success - Bright Green */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 2%;
+    --success-light: 142 50% 10%;
 
-    /* Warning - Warm Amber */
+    /* Warning - Amber */
     --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-    --warning-light: 38 90% 95%;
+    --warning-foreground: 0 0% 2%;
+    --warning-light: 38 60% 10%;
 
-    /* Info - Teal */
-    --info: 174 72% 40%;
-    --info-foreground: 0 0% 100%;
-    --info-light: 174 60% 95%;
+    /* Info - Cyan */
+    --info: 185 80% 50%;
+    --info-foreground: 0 0% 2%;
+    --info-light: 185 50% 10%;
 
-    /* Danger - Coral Red */
+    /* Danger - Red */
     --danger: 0 72% 51%;
     --danger-foreground: 0 0% 100%;
-    --danger-light: 0 72% 96%;
+    --danger-light: 0 50% 10%;
 
     /* Border & Input */
-    --border: 150 10% 90%;
-    --input: 150 10% 90%;
-    --ring: 152 55% 22%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 142 71% 45%;
 
     --radius: 0.75rem;
 
-    /* Sidebar - Deep Emerald Navigation */
-    --sidebar-background: 152 40% 10%;
-    --sidebar-foreground: 60 20% 95%;
-    --sidebar-primary: 43 75% 55%;
-    --sidebar-primary-foreground: 152 40% 10%;
-    --sidebar-accent: 152 35% 16%;
-    --sidebar-accent-foreground: 60 20% 95%;
-    --sidebar-border: 152 30% 18%;
-    --sidebar-ring: 43 75% 55%;
+    /* Sidebar - Pure Black */
+    --sidebar-background: 0 0% 2%;
+    --sidebar-foreground: 0 0% 80%;
+    --sidebar-primary: 142 71% 45%;
+    --sidebar-primary-foreground: 0 0% 2%;
+    --sidebar-accent: 0 0% 8%;
+    --sidebar-accent-foreground: 142 71% 45%;
+    --sidebar-border: 0 0% 12%;
+    --sidebar-ring: 142 71% 45%;
 
     /* Chart Colors */
-    --chart-1: 152 69% 31%;
-    --chart-2: 43 75% 55%;
-    --chart-3: 174 72% 40%;
+    --chart-1: 142 71% 45%;
+    --chart-2: 185 80% 50%;
+    --chart-3: 38 92% 50%;
     --chart-4: 0 72% 51%;
     --chart-5: 280 65% 60%;
 
-    /* Custom Shadows */
-    --shadow-sm: 0 1px 2px 0 hsl(150 20% 10% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(150 20% 10% / 0.1), 0 2px 4px -2px hsl(150 20% 10% / 0.1);
-    --shadow-lg: 0 10px 15px -3px hsl(150 20% 10% / 0.1), 0 4px 6px -4px hsl(150 20% 10% / 0.1);
-    --shadow-xl: 0 20px 25px -5px hsl(150 20% 10% / 0.1), 0 8px 10px -6px hsl(150 20% 10% / 0.1);
+    /* Custom Shadows - Green glow */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.4), 0 4px 6px -4px hsl(0 0% 0% / 0.3);
+    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.4), 0 8px 10px -6px hsl(0 0% 0% / 0.3);
   }
 
   .dark {
-    --background: 152 30% 5%;
-    --foreground: 60 20% 97%;
+    --background: 0 0% 3%;
+    --foreground: 0 0% 95%;
 
-    --card: 152 25% 8%;
-    --card-foreground: 60 20% 97%;
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 152 25% 8%;
-    --popover-foreground: 60 20% 97%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 152 60% 42%;
-    --primary-foreground: 152 40% 5%;
+    --primary: 142 71% 50%;
+    --primary-foreground: 0 0% 2%;
 
-    --secondary: 43 40% 15%;
-    --secondary-foreground: 43 60% 85%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 90%;
 
-    --muted: 152 20% 14%;
-    --muted-foreground: 150 10% 60%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 55%;
 
-    --accent: 43 35% 16%;
-    --accent-foreground: 43 60% 85%;
+    --accent: 142 50% 8%;
+    --accent-foreground: 142 71% 50%;
 
     --destructive: 0 62% 30%;
-    --destructive-foreground: 60 20% 97%;
+    --destructive-foreground: 0 0% 95%;
 
-    --success: 152 69% 40%;
-    --success-foreground: 0 0% 100%;
-    --success-light: 152 50% 15%;
+    --success: 142 71% 50%;
+    --success-foreground: 0 0% 2%;
+    --success-light: 142 50% 10%;
 
     --warning: 38 92% 45%;
-    --warning-foreground: 0 0% 100%;
-    --warning-light: 38 60% 15%;
+    --warning-foreground: 0 0% 2%;
+    --warning-light: 38 60% 10%;
 
-    --info: 174 72% 45%;
-    --info-foreground: 0 0% 100%;
-    --info-light: 174 50% 15%;
+    --info: 185 80% 50%;
+    --info-foreground: 0 0% 2%;
+    --info-light: 185 50% 10%;
 
     --danger: 0 72% 45%;
     --danger-foreground: 0 0% 100%;
-    --danger-light: 0 50% 15%;
+    --danger-light: 0 50% 10%;
 
-    --border: 152 20% 18%;
-    --input: 152 20% 18%;
-    --ring: 152 60% 42%;
+    --border: 0 0% 13%;
+    --input: 0 0% 13%;
+    --ring: 142 71% 50%;
 
-    --sidebar-background: 152 35% 4%;
-    --sidebar-foreground: 60 20% 95%;
-    --sidebar-primary: 43 75% 55%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 152 30% 12%;
-    --sidebar-accent-foreground: 60 20% 95%;
-    --sidebar-border: 152 25% 15%;
-    --sidebar-ring: 43 75% 55%;
+    --sidebar-background: 0 0% 2%;
+    --sidebar-foreground: 0 0% 80%;
+    --sidebar-primary: 142 71% 50%;
+    --sidebar-primary-foreground: 0 0% 2%;
+    --sidebar-accent: 0 0% 7%;
+    --sidebar-accent-foreground: 142 71% 50%;
+    --sidebar-border: 0 0% 10%;
+    --sidebar-ring: 142 71% 50%;
   }
 }
 
@@ -300,14 +300,19 @@
 
   /* Gradient backgrounds */
   .gradient-primary {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(152 55% 30%) 100%);
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(142 71% 55%) 100%);
   }
 
   .gradient-gold {
-    background: linear-gradient(135deg, hsl(43 75% 55%) 0%, hsl(43 85% 45%) 100%);
+    background: linear-gradient(135deg, hsl(38 92% 50%) 0%, hsl(38 85% 40%) 100%);
   }
 
   .gradient-success {
-    background: linear-gradient(135deg, hsl(var(--success)) 0%, hsl(152 69% 40%) 100%);
+    background: linear-gradient(135deg, hsl(var(--success)) 0%, hsl(142 71% 55%) 100%);
+  }
+
+  /* Neon glow utility */
+  .glow-green {
+    box-shadow: 0 0 15px hsl(142 71% 45% / 0.15), 0 0 30px hsl(142 71% 45% / 0.05);
   }
 }
