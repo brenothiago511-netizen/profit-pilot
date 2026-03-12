@@ -763,7 +763,7 @@ const ShopifyWithdrawals = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
-                {formatCurrency(totalLost, config.baseCurrency)}
+                {formatCurrency(totalLost, 'BRL')}
               </div>
               <p className="text-xs text-muted-foreground">
                 {lostWithdrawals.length} saques perdidos
