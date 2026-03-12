@@ -733,7 +733,7 @@ const ShopifyWithdrawals = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-amber-600">
-                {formatCurrency(totalPending, config.baseCurrency)}
+                {formatCurrency(totalPending, 'BRL')}
               </div>
               <p className="text-xs text-muted-foreground">
                 {pendingWithdrawals.length} saques aguardando
