@@ -718,7 +718,7 @@ const ShopifyWithdrawals = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {formatCurrency(totalConverted, config.baseCurrency)}
+                {formatCurrency(totalConverted, 'BRL')}
               </div>
               <p className="text-xs text-muted-foreground">
                 {filteredWithdrawals.length} saques {hasActiveFilters ? 'filtrados' : 'registrados'}
