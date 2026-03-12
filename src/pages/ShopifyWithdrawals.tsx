@@ -211,12 +211,19 @@ const ShopifyWithdrawals = () => {
     setSaving(true);
     const amount = parseFloat(form.amount);
     
-    // Convert to base currency (USD)
+    // Always convert to BRL
+    const TARGET_CURRENCY = 'BRL';
     let convertedAmount = amount;
     let exchangeRate = 1;
     
-    if (form.currency !== config.baseCurrency) {
-      exchangeRate = await getExchangeRate(form.currency, config.baseCurrency);
+    if (form.currency !== TARGET_CURRENCY) {
+      // Use DB function for accurate rate
+      const { data: rateData } = await supabase.rpc('get_exchange_rate', {
+        p_base_currency: form.currency,
+        p_target_currency: TARGET_CURRENCY,
+        p_date: format(form.date, 'yyyy-MM-dd'),
+      });
+      exchangeRate = rateData || getExchangeRate(form.currency, TARGET_CURRENCY);
       convertedAmount = amount * exchangeRate;
     }
 
@@ -711,7 +718,7 @@ const ShopifyWithdrawals = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {formatCurrency(totalConverted, config.baseCurrency)}
+                {formatCurrency(totalConverted, 'BRL')}
               </div>
               <p className="text-xs text-muted-foreground">
                 {filteredWithdrawals.length} saques {hasActiveFilters ? 'filtrados' : 'registrados'}
@@ -726,7 +733,7 @@ const ShopifyWithdrawals = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-amber-600">
-                {formatCurrency(totalPending, config.baseCurrency)}
+                {formatCurrency(totalPending, 'BRL')}
               </div>
               <p className="text-xs text-muted-foreground">
                 {pendingWithdrawals.length} saques aguardando
@@ -741,7 +748,7 @@ const ShopifyWithdrawals = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(totalReceived, config.baseCurrency)}
+                {formatCurrency(totalReceived, 'BRL')}
               </div>
               <p className="text-xs text-muted-foreground">
                 {receivedWithdrawals.length} saques recebidos
@@ -756,7 +763,7 @@ const ShopifyWithdrawals = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
-                {formatCurrency(totalLost, config.baseCurrency)}
+                {formatCurrency(totalLost, 'BRL')}
               </div>
               <p className="text-xs text-muted-foreground">
                 {lostWithdrawals.length} saques perdidos
@@ -796,9 +803,9 @@ const ShopifyWithdrawals = () => {
                     </CardTitle>
                     {isAdmin && (
                       <div className="flex gap-4 text-sm">
-                        <span className="text-muted-foreground">Total: <strong>{formatCurrency(userTotal, config.baseCurrency)}</strong></span>
-                        <span className="text-amber-600">Pendente: <strong>{formatCurrency(userPending, config.baseCurrency)}</strong></span>
-                        <span className="text-green-600">Recebido: <strong>{formatCurrency(userReceived, config.baseCurrency)}</strong></span>
+                        <span className="text-muted-foreground">Total: <strong>{formatCurrency(userTotal, 'BRL')}</strong></span>
+                        <span className="text-amber-600">Pendente: <strong>{formatCurrency(userPending, 'BRL')}</strong></span>
+                        <span className="text-green-600">Recebido: <strong>{formatCurrency(userReceived, 'BRL')}</strong></span>
                       </div>
                     )}
                   </div>
@@ -865,7 +872,7 @@ const ShopifyWithdrawals = () => {
                           </TableCell>
                           <TableCell className="text-right">
                             {w.converted_amount 
-                              ? formatCurrency(w.converted_amount, config.baseCurrency)
+                              ? formatCurrency(w.converted_amount, 'BRL')
                               : '-'}
                           </TableCell>
                           <TableCell className="max-w-[200px] truncate">
