@@ -814,7 +814,7 @@ const ShopifyWithdrawals = () => {
                         <TableHead className="text-right">Valor Original</TableHead>
                         <TableHead className="text-right">Valor Convertido</TableHead>
                         <TableHead>Observações</TableHead>
-                        {isAdmin && <TableHead className="text-right">Ações</TableHead>}
+                        <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
