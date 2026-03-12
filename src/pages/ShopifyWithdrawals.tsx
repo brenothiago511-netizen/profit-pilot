@@ -211,12 +211,19 @@ const ShopifyWithdrawals = () => {
     setSaving(true);
     const amount = parseFloat(form.amount);
     
-    // Convert to base currency (USD)
+    // Always convert to BRL
+    const TARGET_CURRENCY = 'BRL';
     let convertedAmount = amount;
     let exchangeRate = 1;
     
-    if (form.currency !== config.baseCurrency) {
-      exchangeRate = await getExchangeRate(form.currency, config.baseCurrency);
+    if (form.currency !== TARGET_CURRENCY) {
+      // Use DB function for accurate rate
+      const { data: rateData } = await supabase.rpc('get_exchange_rate', {
+        p_base_currency: form.currency,
+        p_target_currency: TARGET_CURRENCY,
+        p_date: format(form.date, 'yyyy-MM-dd'),
+      });
+      exchangeRate = rateData || getExchangeRate(form.currency, TARGET_CURRENCY);
       convertedAmount = amount * exchangeRate;
     }
 
