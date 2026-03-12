@@ -748,7 +748,7 @@ const ShopifyWithdrawals = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(totalReceived, config.baseCurrency)}
+                {formatCurrency(totalReceived, 'BRL')}
               </div>
               <p className="text-xs text-muted-foreground">
                 {receivedWithdrawals.length} saques recebidos
