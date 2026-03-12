@@ -872,7 +872,7 @@ const ShopifyWithdrawals = () => {
                           </TableCell>
                           <TableCell className="text-right">
                             {w.converted_amount 
-                              ? formatCurrency(w.converted_amount, config.baseCurrency)
+                              ? formatCurrency(w.converted_amount, 'BRL')
                               : '-'}
                           </TableCell>
                           <TableCell className="max-w-[200px] truncate">
