@@ -803,9 +803,9 @@ const ShopifyWithdrawals = () => {
                     </CardTitle>
                     {isAdmin && (
                       <div className="flex gap-4 text-sm">
-                        <span className="text-muted-foreground">Total: <strong>{formatCurrency(userTotal, config.baseCurrency)}</strong></span>
-                        <span className="text-amber-600">Pendente: <strong>{formatCurrency(userPending, config.baseCurrency)}</strong></span>
-                        <span className="text-green-600">Recebido: <strong>{formatCurrency(userReceived, config.baseCurrency)}</strong></span>
+                        <span className="text-muted-foreground">Total: <strong>{formatCurrency(userTotal, 'BRL')}</strong></span>
+                        <span className="text-amber-600">Pendente: <strong>{formatCurrency(userPending, 'BRL')}</strong></span>
+                        <span className="text-green-600">Recebido: <strong>{formatCurrency(userReceived, 'BRL')}</strong></span>
                       </div>
                     )}
                   </div>
