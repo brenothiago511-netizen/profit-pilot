@@ -708,14 +708,12 @@ export default function Expenses() {
     setReviewingCategories(true);
 
     try {
-      const expensePayload = expenses.map(e => ({
-        id: e.id,
-        description: e.description,
-        category_name: e.category_name || null,
-      }));
-
       const { data, error } = await supabase.functions.invoke('review-expense-categories', {
-        body: { expenses: expensePayload },
+        body: {
+          date_from: format(filterDateFrom, 'yyyy-MM-dd'),
+          date_to: format(filterDateTo, 'yyyy-MM-dd'),
+          user_id: filterUser,
+        },
       });
 
       if (error) throw error;
