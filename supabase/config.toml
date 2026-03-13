@@ -8,3 +8,6 @@ verify_jwt = true
 
 [functions.fetch-exchange-rates]
 verify_jwt = false
+
+[functions.review-expense-categories]
+verify_jwt = false

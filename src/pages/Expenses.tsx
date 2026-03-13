@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, TrendingDown, Loader2, Trash2, Camera, Sparkles, Upload, Pencil, Check, X, CalendarIcon, User } from 'lucide-react';
+import { Plus, TrendingDown, Loader2, Trash2, Camera, Sparkles, Upload, Pencil, Check, X, CalendarIcon, User, RefreshCw } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -84,6 +84,7 @@ export default function Expenses() {
   const [selectedTransactionIdx, setSelectedTransactionIdx] = useState(0);
   const [selectedForSave, setSelectedForSave] = useState<Set<number>>(new Set());
   const [showTransactionPreview, setShowTransactionPreview] = useState(true);
+  const [reviewingCategories, setReviewingCategories] = useState(false);
   
   const [filterDateFrom, setFilterDateFrom] = useState<Date>(startOfMonth(new Date()));
   const [filterDateTo, setFilterDateTo] = useState<Date>(endOfMonth(new Date()));
@@ -702,6 +703,48 @@ export default function Expenses() {
     }
   };
 
+  const handleReviewCategories = async () => {
+    if (expenses.length === 0) return;
+    setReviewingCategories(true);
+
+    try {
+      const expensePayload = expenses.map(e => ({
+        id: e.id,
+        description: e.description,
+        category_name: e.category_name || null,
+      }));
+
+      const { data, error } = await supabase.functions.invoke('review-expense-categories', {
+        body: { expenses: expensePayload },
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        toast({
+          title: 'Erro',
+          description: data.error,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Revisão concluída',
+          description: `${data.updated} categorias atualizadas de ${data.total} despesas`,
+        });
+        fetchExpenses();
+      }
+    } catch (err: any) {
+      console.error('Category review error:', err);
+      toast({
+        title: 'Erro na revisão',
+        description: err.message || 'Não foi possível revisar as categorias',
+        variant: 'destructive',
+      });
+    }
+
+    setReviewingCategories(false);
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -775,6 +818,20 @@ export default function Expenses() {
         </div>
 
         <div className="flex gap-2">
+          <PermissionGate permission="edit_expense">
+            <Button
+              variant="outline"
+              onClick={handleReviewCategories}
+              disabled={reviewingCategories || loading || expenses.length === 0}
+            >
+              {reviewingCategories ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              {reviewingCategories ? 'Revisando...' : 'Revisar Categorias'}
+            </Button>
+          </PermissionGate>
           <PermissionGate permission="create_expense">
             <Dialog open={aiDialogOpen} onOpenChange={(open) => {
               setAiDialogOpen(open);
