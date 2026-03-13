@@ -738,7 +738,7 @@ export default function Commissions() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 items-center">
+      <div className="flex flex-wrap gap-4 items-end">
         <div className="flex gap-2 items-center">
           <Label>Status:</Label>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -752,6 +752,53 @@ export default function Commissions() {
               <SelectItem value="pending">Aguardando Shopify</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        {isAdmin && userOptions.length > 0 && (
+          <div className="flex gap-2 items-center">
+            <Label>Usuário:</Label>
+            <Select value={filterUser} onValueChange={setFilterUser}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {userOptions.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <div className="flex gap-2 items-center">
+          <Label>De:</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("w-36 justify-start text-left font-normal", !filterDateFrom && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {filterDateFrom ? format(filterDateFrom, 'dd/MM/yyyy') : 'Início'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={filterDateFrom} onSelect={setFilterDateFrom} initialFocus className="p-3 pointer-events-auto" />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        <div className="flex gap-2 items-center">
+          <Label>Até:</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("w-36 justify-start text-left font-normal", !filterDateTo && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {filterDateTo ? format(filterDateTo, 'dd/MM/yyyy') : 'Fim'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={filterDateTo} onSelect={setFilterDateTo} initialFocus className="p-3 pointer-events-auto" />
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
