@@ -1281,6 +1281,17 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_admin_or_financeiro: { Args: { _user_id: string }; Returns: boolean }
       is_partner: { Args: { _user_id: string }; Returns: boolean }
+      sum_amounts: {
+        Args: {
+          p_date_end: string
+          p_date_start: string
+          p_include_null_store?: boolean
+          p_store_ids?: string[]
+          p_table: string
+          p_user_id?: string
+        }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "admin" | "financeiro" | "gestor" | "socio"
