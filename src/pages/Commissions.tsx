@@ -77,6 +77,9 @@ export default function Commissions() {
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterUser, setFilterUser] = useState<string>('all');
+  const [filterDateFrom, setFilterDateFrom] = useState<Date | undefined>(startOfMonth(new Date()));
+  const [filterDateTo, setFilterDateTo] = useState<Date | undefined>(endOfMonth(new Date()));
   
   // Dialog states
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
