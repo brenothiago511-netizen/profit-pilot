@@ -84,6 +84,7 @@ export default function Expenses() {
   const [selectedTransactionIdx, setSelectedTransactionIdx] = useState(0);
   const [selectedForSave, setSelectedForSave] = useState<Set<number>>(new Set());
   const [showTransactionPreview, setShowTransactionPreview] = useState(true);
+  const [reviewingCategories, setReviewingCategories] = useState(false);
   
   const [filterDateFrom, setFilterDateFrom] = useState<Date>(startOfMonth(new Date()));
   const [filterDateTo, setFilterDateTo] = useState<Date>(endOfMonth(new Date()));
