@@ -1237,7 +1237,10 @@ export default function Expenses() {
       {(() => {
         const fromStr = format(filterDateFrom, 'yyyy-MM-dd');
         const toStr = format(filterDateTo, 'yyyy-MM-dd');
-        const filteredExpenses = expenses.filter(e => e.date >= fromStr && e.date <= toStr);
+        let filteredExpenses = expenses.filter(e => e.date >= fromStr && e.date <= toStr);
+        if (filterUser !== 'all') {
+          filteredExpenses = filteredExpenses.filter(e => e.user_id === filterUser);
+        }
         
         const expensesByUser = isAdmin
           ? filteredExpenses.reduce((acc, e) => {
