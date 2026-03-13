@@ -483,11 +483,11 @@ export default function Commissions() {
     }, {} as Record<string, DailyRecord[]>);
   }, [filteredRecords, isAdmin]);
 
-  // Stats
+  // Stats - based on filtered records
   const stats = useMemo(() => {
-    const received = dailyRecords.filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed');
-    const pending = dailyRecords.filter(r => r.shopify_status === 'pending');
-    const confirmed = dailyRecords.filter(r => r.shopify_status === 'confirmed');
+    const received = filteredRecords.filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed');
+    const pending = filteredRecords.filter(r => r.shopify_status === 'pending');
+    const confirmed = filteredRecords.filter(r => r.shopify_status === 'confirmed');
     const totalReceived = received.reduce((sum, r) => sum + r.daily_profit, 0);
     const totalPending = pending.reduce((sum, r) => sum + r.daily_profit, 0);
     
@@ -498,7 +498,7 @@ export default function Commissions() {
       pendingCount: pending.length,
       confirmedCount: confirmed.length,
     };
-  }, [dailyRecords]);
+  }, [filteredRecords]);
 
   // Chart data
   const chartData = useMemo(() => {
