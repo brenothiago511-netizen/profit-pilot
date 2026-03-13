@@ -1241,6 +1241,17 @@ export default function Expenses() {
         if (filterUser !== 'all') {
           filteredExpenses = filteredExpenses.filter(e => e.user_id === filterUser);
         }
+
+        // Category summary
+        const categorySummary = filteredExpenses.reduce((acc, e) => {
+          const catName = e.category_name || 'Sem categoria';
+          if (!acc[catName]) acc[catName] = 0;
+          acc[catName] += e.amount;
+          return acc;
+        }, {} as Record<string, number>);
+
+        const sortedCategories = Object.entries(categorySummary).sort((a, b) => b[1] - a[1]);
+        const totalFiltered = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
         
         const expensesByUser = isAdmin
           ? filteredExpenses.reduce((acc, e) => {
@@ -1268,110 +1279,141 @@ export default function Expenses() {
             </CardContent>
           </Card>
         ) : (
-          Object.entries(expensesByUser).map(([userId, userExpenses]) => {
-            const userName = isAdmin ? (profileNames[userId] || 'Desconhecido') : '';
-            const userTotal = userExpenses.reduce((sum, e) => sum + e.amount, 0);
-
-            return (
-              <Card key={userId}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingDown className="w-5 h-5 text-danger" />
-                      {isAdmin ? `Despesas - ${userName}` : 'Despesas Recentes'}
-                    </CardTitle>
-                    {isAdmin && (
-                      <span className="text-sm text-muted-foreground">
-                        Total: <strong className="text-danger">{formatCurrency(userTotal)}</strong>
-                      </span>
-                    )}
-                  </div>
+          <>
+            {/* Category Summary */}
+            {sortedCategories.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Resumo por Categoria</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Data</th>
-                          <th>Loja</th>
-                          <th>Descrição</th>
-                          <th>Categoria</th>
-                          <th>Tipo</th>
-                          <th className="text-right">Valor Original</th>
-                          <th className="text-right">Valor (BRL)</th>
-                          {(can('edit_expense') || can('delete_expense')) && <th>Ações</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {userExpenses.map((expense) => {
-                          const currencyInfo = CURRENCIES.find(c => c.code === expense.original_currency);
-                          const showOriginal = expense.original_currency && expense.original_currency !== 'BRL' && expense.original_amount;
-                          
-                          return (
-                            <tr key={expense.id}>
-                              <td>{format(parseDate(expense.date), 'dd/MM/yyyy')}</td>
-                              <td>{expense.store_name || '-'}</td>
-                              <td>
-                                <div className="flex items-center gap-2">
-                                  {expense.description}
-                                  {expense.ai_extracted && (
-                                    <Badge variant="outline" className="text-xs">
-                                      <Sparkles className="w-3 h-3 mr-1" />
-                                      IA
-                                    </Badge>
-                                  )}
-                                </div>
-                              </td>
-                              <td>{expense.category_name || '-'}</td>
-                              <td>
-                                <Badge variant={expense.type === 'fixa' ? 'default' : 'secondary'}>
-                                  {expense.type === 'fixa' ? 'Fixa' : 'Variável'}
-                                </Badge>
-                              </td>
-                              <td className="text-right font-medium">
-                                {showOriginal 
-                                  ? `${currencyInfo?.symbol || ''}${expense.original_amount?.toFixed(2)}`
-                                  : '-'
-                                }
-                              </td>
-                              <td className="text-right font-medium text-danger">
-                                {formatCurrency(expense.amount)}
-                              </td>
-                              {(can('edit_expense') || can('delete_expense')) && (
-                                <td>
-                                  <div className="flex items-center gap-1">
-                                    {can('edit_expense') && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => openEditDialog(expense)}
-                                      >
-                                        <Pencil className="w-4 h-4" />
-                                      </Button>
-                                    )}
-                                    {can('delete_expense') && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-destructive hover:text-destructive"
-                                        onClick={() => handleDelete(expense.id)}
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                </td>
-                              )}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    {sortedCategories.map(([catName, total]) => {
+                      const percentage = totalFiltered > 0 ? (total / totalFiltered) * 100 : 0;
+                      return (
+                        <div key={catName} className="rounded-lg border bg-card p-3 space-y-1">
+                          <p className="text-xs text-muted-foreground truncate" title={catName}>{catName}</p>
+                          <p className="text-sm font-semibold text-destructive">{formatCurrency(total)}</p>
+                          <div className="w-full bg-muted rounded-full h-1.5">
+                            <div
+                              className="bg-destructive h-1.5 rounded-full transition-all"
+                              style={{ width: `${Math.min(percentage, 100)}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
-            );
-          })
+            )}
+
+            {Object.entries(expensesByUser).map(([userId, userExpenses]) => {
+              const userName = isAdmin ? (profileNames[userId] || 'Desconhecido') : '';
+              const userTotal = userExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+              return (
+                <Card key={userId}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <TrendingDown className="w-5 h-5 text-danger" />
+                        {isAdmin ? `Despesas - ${userName}` : 'Despesas Recentes'}
+                      </CardTitle>
+                      {isAdmin && (
+                        <span className="text-sm text-muted-foreground">
+                          Total: <strong className="text-danger">{formatCurrency(userTotal)}</strong>
+                        </span>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Data</th>
+                            <th>Loja</th>
+                            <th>Descrição</th>
+                            <th>Categoria</th>
+                            <th>Tipo</th>
+                            <th className="text-right">Valor Original</th>
+                            <th className="text-right">Valor (BRL)</th>
+                            {(can('edit_expense') || can('delete_expense')) && <th>Ações</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {userExpenses.map((expense) => {
+                            const currencyInfo = CURRENCIES.find(c => c.code === expense.original_currency);
+                            const showOriginal = expense.original_currency && expense.original_currency !== 'BRL' && expense.original_amount;
+                            
+                            return (
+                              <tr key={expense.id}>
+                                <td>{format(parseDate(expense.date), 'dd/MM/yyyy')}</td>
+                                <td>{expense.store_name || '-'}</td>
+                                <td>
+                                  <div className="flex items-center gap-2">
+                                    {expense.description}
+                                    {expense.ai_extracted && (
+                                      <Badge variant="outline" className="text-xs">
+                                        <Sparkles className="w-3 h-3 mr-1" />
+                                        IA
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </td>
+                                <td>{expense.category_name || '-'}</td>
+                                <td>
+                                  <Badge variant={expense.type === 'fixa' ? 'default' : 'secondary'}>
+                                    {expense.type === 'fixa' ? 'Fixa' : 'Variável'}
+                                  </Badge>
+                                </td>
+                                <td className="text-right font-medium">
+                                  {showOriginal 
+                                    ? `${currencyInfo?.symbol || ''}${expense.original_amount?.toFixed(2)}`
+                                    : '-'
+                                  }
+                                </td>
+                                <td className="text-right font-medium text-danger">
+                                  {formatCurrency(expense.amount)}
+                                </td>
+                                {(can('edit_expense') || can('delete_expense')) && (
+                                  <td>
+                                    <div className="flex items-center gap-1">
+                                      {can('edit_expense') && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => openEditDialog(expense)}
+                                        >
+                                          <Pencil className="w-4 h-4" />
+                                        </Button>
+                                      )}
+                                      {can('delete_expense') && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-destructive hover:text-destructive"
+                                          onClick={() => handleDelete(expense.id)}
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </>
         );
       })()}
     </div>
