@@ -86,6 +86,7 @@ export default function Expenses() {
   
   const [filterDateFrom, setFilterDateFrom] = useState<Date>(startOfMonth(new Date()));
   const [filterDateTo, setFilterDateTo] = useState<Date>(endOfMonth(new Date()));
+  const [filterUser, setFilterUser] = useState<string>('all');
   
   const [formData, setFormData] = useState({
     store_id: '',
