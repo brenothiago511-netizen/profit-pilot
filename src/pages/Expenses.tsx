@@ -162,32 +162,57 @@ export default function Expenses() {
 
   const fetchExpenses = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('expenses')
-      .select('*, stores(name), expense_categories(name)')
-      .order('date', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching expenses:', error);
-    } else {
-      const enrichedExpenses: Expense[] = (data || []).map((e: any) => ({
-        id: e.id,
-        store_id: e.store_id,
-        user_id: e.user_id,
-        date: e.date,
-        amount: e.amount,
-        description: e.description,
-        category_id: e.category_id,
-        type: e.type,
-        payment_method: e.payment_method,
-        ai_extracted: e.ai_extracted,
-        original_currency: e.original_currency,
-        original_amount: e.original_amount,
-        store_name: e.stores?.name,
-        category_name: e.expense_categories?.name,
-      }));
-      setExpenses(enrichedExpenses);
+    const fromStr = format(filterDateFrom, 'yyyy-MM-dd');
+    const toStr = format(filterDateTo, 'yyyy-MM-dd');
+
+    // Fetch all expenses in the date range using pagination to bypass 1000-row limit
+    let allData: any[] = [];
+    let from = 0;
+    const PAGE_SIZE = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      let query = supabase
+        .from('expenses')
+        .select('*, stores(name), expense_categories(name)')
+        .gte('date', fromStr)
+        .lte('date', toStr)
+        .order('date', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (filterUser !== 'all') {
+        query = query.eq('user_id', filterUser);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching expenses:', error);
+        hasMore = false;
+      } else {
+        allData = allData.concat(data || []);
+        hasMore = (data?.length || 0) === PAGE_SIZE;
+        from += PAGE_SIZE;
+      }
     }
+
+    const enrichedExpenses: Expense[] = allData.map((e: any) => ({
+      id: e.id,
+      store_id: e.store_id,
+      user_id: e.user_id,
+      date: e.date,
+      amount: e.amount,
+      description: e.description,
+      category_id: e.category_id,
+      type: e.type,
+      payment_method: e.payment_method,
+      ai_extracted: e.ai_extracted,
+      original_currency: e.original_currency,
+      original_amount: e.original_amount,
+      store_name: e.stores?.name,
+      category_name: e.expense_categories?.name,
+    }));
+    setExpenses(enrichedExpenses);
     setLoading(false);
   };
 
