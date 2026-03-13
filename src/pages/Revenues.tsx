@@ -114,10 +114,14 @@ export default function Revenues() {
 
   useEffect(() => {
     fetchStores();
-    fetchRevenues();
     fetchBankAccounts();
     if (isAdmin) fetchProfileNames();
   }, []);
+
+  // Re-fetch revenues when date filters or user filter change
+  useEffect(() => {
+    fetchRevenues();
+  }, [filterDateFrom, filterDateTo, filterUser]);
 
   const fetchBankAccounts = async () => {
     const { data } = await supabase
@@ -149,17 +153,40 @@ export default function Revenues() {
 
   const fetchRevenues = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('revenues')
-      .select('*, stores(name)')
-      .order('date', { ascending: false })
-      .limit(100);
-    
-    if (error) {
-      console.error('Error fetching revenues:', error);
-    } else {
-      setRevenues(data || []);
+    const fromStr = format(filterDateFrom, 'yyyy-MM-dd');
+    const toStr = format(filterDateTo, 'yyyy-MM-dd');
+
+    let allData: any[] = [];
+    let from = 0;
+    const PAGE_SIZE = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      let query = supabase
+        .from('revenues')
+        .select('*, stores(name)')
+        .gte('date', fromStr)
+        .lte('date', toStr)
+        .order('date', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (filterUser !== 'all') {
+        query = query.eq('user_id', filterUser);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching revenues:', error);
+        hasMore = false;
+      } else {
+        allData = allData.concat(data || []);
+        hasMore = (data?.length || 0) === PAGE_SIZE;
+        from += PAGE_SIZE;
+      }
     }
+
+    setRevenues(allData);
     setLoading(false);
   };
 
