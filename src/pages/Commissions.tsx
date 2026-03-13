@@ -443,14 +443,34 @@ export default function Commissions() {
     }).format(value);
   };
 
-  // Filtered records based on status
+  // Unique users for filter
+  const userOptions = useMemo(() => {
+    const users = new Map<string, string>();
+    dailyRecords.forEach(r => {
+      if (r.user_id && r.user_name && r.user_name !== '-') {
+        users.set(r.user_id, r.user_name);
+      }
+    });
+    return Array.from(users.entries()).map(([id, name]) => ({ id, name }));
+  }, [dailyRecords]);
+
+  // Filtered records based on status, user, and date
   const filteredRecords = useMemo(() => {
     let records = dailyRecords;
     if (filterStatus === 'received') records = records.filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed');
     if (filterStatus === 'confirmed') records = records.filter(r => r.shopify_status === 'confirmed');
     if (filterStatus === 'pending') records = records.filter(r => r.shopify_status === 'pending');
+    if (filterUser !== 'all') records = records.filter(r => r.user_id === filterUser);
+    if (filterDateFrom) {
+      const fromStr = format(filterDateFrom, 'yyyy-MM-dd');
+      records = records.filter(r => r.date >= fromStr);
+    }
+    if (filterDateTo) {
+      const toStr = format(filterDateTo, 'yyyy-MM-dd');
+      records = records.filter(r => r.date <= toStr);
+    }
     return records;
-  }, [dailyRecords, filterStatus]);
+  }, [dailyRecords, filterStatus, filterUser, filterDateFrom, filterDateTo]);
 
   // Group by user for admin view
   const recordsByUser = useMemo(() => {
