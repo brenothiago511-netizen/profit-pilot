@@ -818,6 +818,20 @@ export default function Expenses() {
         </div>
 
         <div className="flex gap-2">
+          <PermissionGate permission="edit_expense">
+            <Button
+              variant="outline"
+              onClick={handleReviewCategories}
+              disabled={reviewingCategories || loading || expenses.length === 0}
+            >
+              {reviewingCategories ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              {reviewingCategories ? 'Revisando...' : 'Revisar Categorias'}
+            </Button>
+          </PermissionGate>
           <PermissionGate permission="create_expense">
             <Dialog open={aiDialogOpen} onOpenChange={(open) => {
               setAiDialogOpen(open);
