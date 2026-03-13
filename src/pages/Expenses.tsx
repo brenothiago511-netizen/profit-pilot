@@ -1265,12 +1265,8 @@ export default function Expenses() {
       </div>
 
       {(() => {
-        const fromStr = format(filterDateFrom, 'yyyy-MM-dd');
-        const toStr = format(filterDateTo, 'yyyy-MM-dd');
-        let filteredExpenses = expenses.filter(e => e.date >= fromStr && e.date <= toStr);
-        if (filterUser !== 'all') {
-          filteredExpenses = filteredExpenses.filter(e => e.user_id === filterUser);
-        }
+        // Data already filtered server-side by date and user
+        const filteredExpenses = expenses;
 
         // Category summary
         const categorySummary = filteredExpenses.reduce((acc, e) => {
