@@ -703,6 +703,48 @@ export default function Expenses() {
     }
   };
 
+  const handleReviewCategories = async () => {
+    if (expenses.length === 0) return;
+    setReviewingCategories(true);
+
+    try {
+      const expensePayload = expenses.map(e => ({
+        id: e.id,
+        description: e.description,
+        category_name: e.category_name || null,
+      }));
+
+      const { data, error } = await supabase.functions.invoke('review-expense-categories', {
+        body: { expenses: expensePayload },
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        toast({
+          title: 'Erro',
+          description: data.error,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Revisão concluída',
+          description: `${data.updated} categorias atualizadas de ${data.total} despesas`,
+        });
+        fetchExpenses();
+      }
+    } catch (err: any) {
+      console.error('Category review error:', err);
+      toast({
+        title: 'Erro na revisão',
+        description: err.message || 'Não foi possível revisar as categorias',
+        variant: 'destructive',
+      });
+    }
+
+    setReviewingCategories(false);
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
