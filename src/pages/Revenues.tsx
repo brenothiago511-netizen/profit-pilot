@@ -11,11 +11,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, TrendingUp, Loader2, Trash2, Upload, X, Image, Pencil } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, TrendingUp, Loader2, Trash2, Upload, X, Image, Pencil, CalendarIcon, User } from 'lucide-react';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { parseDate } from '@/lib/dateUtils';
 import { DialogDescription } from '@/components/ui/dialog';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 interface Revenue {
   id: string;
@@ -65,6 +68,9 @@ export default function Revenues() {
   const [editingRevenue, setEditingRevenue] = useState<Revenue | null>(null);
   const [bankAccounts, setBankAccounts] = useState<{ id: string; bank_name: string; account_holder: string }[]>([]);
   const [selectedBankAccount, setSelectedBankAccount] = useState<string>('');
+  const [filterDateFrom, setFilterDateFrom] = useState<Date>(startOfMonth(new Date()));
+  const [filterDateTo, setFilterDateTo] = useState<Date>(endOfMonth(new Date()));
+  const [filterUser, setFilterUser] = useState<string>('all');
   const [formData, setFormData] = useState({
     store_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -108,10 +114,14 @@ export default function Revenues() {
 
   useEffect(() => {
     fetchStores();
-    fetchRevenues();
     fetchBankAccounts();
     if (isAdmin) fetchProfileNames();
   }, []);
+
+  // Re-fetch revenues when date filters or user filter change
+  useEffect(() => {
+    fetchRevenues();
+  }, [filterDateFrom, filterDateTo, filterUser]);
 
   const fetchBankAccounts = async () => {
     const { data } = await supabase
@@ -143,17 +153,40 @@ export default function Revenues() {
 
   const fetchRevenues = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('revenues')
-      .select('*, stores(name)')
-      .order('date', { ascending: false })
-      .limit(100);
-    
-    if (error) {
-      console.error('Error fetching revenues:', error);
-    } else {
-      setRevenues(data || []);
+    const fromStr = format(filterDateFrom, 'yyyy-MM-dd');
+    const toStr = format(filterDateTo, 'yyyy-MM-dd');
+
+    let allData: any[] = [];
+    let from = 0;
+    const PAGE_SIZE = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      let query = supabase
+        .from('revenues')
+        .select('*, stores(name)')
+        .gte('date', fromStr)
+        .lte('date', toStr)
+        .order('date', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (filterUser !== 'all') {
+        query = query.eq('user_id', filterUser);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching revenues:', error);
+        hasMore = false;
+      } else {
+        allData = allData.concat(data || []);
+        hasMore = (data?.length || 0) === PAGE_SIZE;
+        from += PAGE_SIZE;
+      }
     }
+
+    setRevenues(allData);
     setLoading(false);
   };
 
@@ -376,6 +409,63 @@ export default function Revenues() {
         <div>
           <h1 className="page-title">Receitas</h1>
           <p className="page-description">Gerencie as entradas financeiras</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* User filter - admin only */}
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-muted-foreground" />
+              <Select value={filterUser} onValueChange={setFilterUser}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {Object.entries(profileNames).map(([id, name]) => (
+                    <SelectItem key={id} value={id}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {/* Date filters */}
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(filterDateFrom, "dd/MM/yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={filterDateFrom}
+                  onSelect={(d) => d && setFilterDateFrom(d)}
+                  locale={ptBR}
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            <span className="text-sm text-muted-foreground">até</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(filterDateTo, "dd/MM/yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={filterDateTo}
+                  onSelect={(d) => d && setFilterDateTo(d)}
+                  locale={ptBR}
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
 
         <PermissionGate permission="create_revenue">
