@@ -11,9 +11,12 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, Pencil, Trash2, Plus, DollarSign, Clock, TrendingUp, Zap } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Loader2, Check, Pencil, Trash2, Plus, DollarSign, Clock, TrendingUp, Zap, CalendarIcon } from 'lucide-react';
+import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 // Função para parsear data ISO (YYYY-MM-DD) sem conversão de timezone
 const parseLocalDate = (dateString: string) => {
@@ -74,6 +77,9 @@ export default function Commissions() {
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterUser, setFilterUser] = useState<string>('all');
+  const [filterDateFrom, setFilterDateFrom] = useState<Date | undefined>(startOfMonth(new Date()));
+  const [filterDateTo, setFilterDateTo] = useState<Date | undefined>(endOfMonth(new Date()));
   
   // Dialog states
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
@@ -437,14 +443,34 @@ export default function Commissions() {
     }).format(value);
   };
 
-  // Filtered records based on status
+  // Unique users for filter
+  const userOptions = useMemo(() => {
+    const users = new Map<string, string>();
+    dailyRecords.forEach(r => {
+      if (r.user_id && r.user_name && r.user_name !== '-') {
+        users.set(r.user_id, r.user_name);
+      }
+    });
+    return Array.from(users.entries()).map(([id, name]) => ({ id, name }));
+  }, [dailyRecords]);
+
+  // Filtered records based on status, user, and date
   const filteredRecords = useMemo(() => {
     let records = dailyRecords;
     if (filterStatus === 'received') records = records.filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed');
     if (filterStatus === 'confirmed') records = records.filter(r => r.shopify_status === 'confirmed');
     if (filterStatus === 'pending') records = records.filter(r => r.shopify_status === 'pending');
+    if (filterUser !== 'all') records = records.filter(r => r.user_id === filterUser);
+    if (filterDateFrom) {
+      const fromStr = format(filterDateFrom, 'yyyy-MM-dd');
+      records = records.filter(r => r.date >= fromStr);
+    }
+    if (filterDateTo) {
+      const toStr = format(filterDateTo, 'yyyy-MM-dd');
+      records = records.filter(r => r.date <= toStr);
+    }
     return records;
-  }, [dailyRecords, filterStatus]);
+  }, [dailyRecords, filterStatus, filterUser, filterDateFrom, filterDateTo]);
 
   // Group by user for admin view
   const recordsByUser = useMemo(() => {
@@ -457,11 +483,11 @@ export default function Commissions() {
     }, {} as Record<string, DailyRecord[]>);
   }, [filteredRecords, isAdmin]);
 
-  // Stats
+  // Stats - based on filtered records
   const stats = useMemo(() => {
-    const received = dailyRecords.filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed');
-    const pending = dailyRecords.filter(r => r.shopify_status === 'pending');
-    const confirmed = dailyRecords.filter(r => r.shopify_status === 'confirmed');
+    const received = filteredRecords.filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed');
+    const pending = filteredRecords.filter(r => r.shopify_status === 'pending');
+    const confirmed = filteredRecords.filter(r => r.shopify_status === 'confirmed');
     const totalReceived = received.reduce((sum, r) => sum + r.daily_profit, 0);
     const totalPending = pending.reduce((sum, r) => sum + r.daily_profit, 0);
     
@@ -472,7 +498,7 @@ export default function Commissions() {
       pendingCount: pending.length,
       confirmedCount: confirmed.length,
     };
-  }, [dailyRecords]);
+  }, [filteredRecords]);
 
   // Chart data
   const chartData = useMemo(() => {
@@ -712,7 +738,7 @@ export default function Commissions() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 items-center">
+      <div className="flex flex-wrap gap-4 items-end">
         <div className="flex gap-2 items-center">
           <Label>Status:</Label>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -726,6 +752,53 @@ export default function Commissions() {
               <SelectItem value="pending">Aguardando Shopify</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        {isAdmin && userOptions.length > 0 && (
+          <div className="flex gap-2 items-center">
+            <Label>Usuário:</Label>
+            <Select value={filterUser} onValueChange={setFilterUser}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {userOptions.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <div className="flex gap-2 items-center">
+          <Label>De:</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("w-36 justify-start text-left font-normal", !filterDateFrom && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {filterDateFrom ? format(filterDateFrom, 'dd/MM/yyyy') : 'Início'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={filterDateFrom} onSelect={setFilterDateFrom} initialFocus className="p-3 pointer-events-auto" />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        <div className="flex gap-2 items-center">
+          <Label>Até:</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("w-36 justify-start text-left font-normal", !filterDateTo && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {filterDateTo ? format(filterDateTo, 'dd/MM/yyyy') : 'Fim'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={filterDateTo} onSelect={setFilterDateTo} initialFocus className="p-3 pointer-events-auto" />
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
