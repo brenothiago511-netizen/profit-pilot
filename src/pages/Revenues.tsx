@@ -68,6 +68,9 @@ export default function Revenues() {
   const [editingRevenue, setEditingRevenue] = useState<Revenue | null>(null);
   const [bankAccounts, setBankAccounts] = useState<{ id: string; bank_name: string; account_holder: string }[]>([]);
   const [selectedBankAccount, setSelectedBankAccount] = useState<string>('');
+  const [filterDateFrom, setFilterDateFrom] = useState<Date>(startOfMonth(new Date()));
+  const [filterDateTo, setFilterDateTo] = useState<Date>(endOfMonth(new Date()));
+  const [filterUser, setFilterUser] = useState<string>('all');
   const [formData, setFormData] = useState({
     store_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
