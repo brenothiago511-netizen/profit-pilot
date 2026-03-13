@@ -1281,34 +1281,90 @@ export default function Expenses() {
           </Card>
         ) : (
           <>
-            {/* Category Summary */}
-            {sortedCategories.length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Resumo por Categoria</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                    {sortedCategories.map(([catName, total]) => {
-                      const percentage = totalFiltered > 0 ? (total / totalFiltered) * 100 : 0;
-                      return (
-                        <div key={catName} className="rounded-lg border bg-card p-3 space-y-1">
-                          <p className="text-xs text-muted-foreground truncate" title={catName}>{catName}</p>
-                          <p className="text-sm font-semibold text-destructive">{formatCurrency(total)}</p>
-                          <div className="w-full bg-muted rounded-full h-1.5">
-                            <div
-                              className="bg-destructive h-1.5 rounded-full transition-all"
-                              style={{ width: `${Math.min(percentage, 100)}%` }}
+            {/* Category Summary with Donut Chart */}
+            {sortedCategories.length > 0 && (() => {
+              const COLORS = [
+                'hsl(0, 72%, 51%)', 'hsl(25, 95%, 53%)', 'hsl(45, 93%, 47%)',
+                'hsl(142, 71%, 45%)', 'hsl(199, 89%, 48%)', 'hsl(262, 83%, 58%)',
+                'hsl(330, 81%, 60%)', 'hsl(173, 80%, 40%)', 'hsl(280, 65%, 60%)',
+                'hsl(210, 40%, 50%)', 'hsl(16, 85%, 55%)', 'hsl(60, 70%, 45%)',
+                'hsl(190, 70%, 50%)',
+              ];
+              const chartData = sortedCategories.map(([name, value], i) => ({
+                name,
+                value,
+                color: COLORS[i % COLORS.length],
+              }));
+
+              return (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">Resumo por Categoria</CardTitle>
+                      <span className="text-sm text-muted-foreground">
+                        Total: <strong className="text-destructive">{formatCurrency(totalFiltered)}</strong>
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
+                      {/* Donut Chart */}
+                      <div className="h-[280px] flex items-center justify-center">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={chartData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={110}
+                              paddingAngle={2}
+                              dataKey="value"
+                              stroke="none"
+                            >
+                              {chartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              formatter={(value: number) => formatCurrency(value)}
+                              contentStyle={{
+                                backgroundColor: 'hsl(var(--card))',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '8px',
+                                fontSize: '13px',
+                              }}
                             />
-                          </div>
-                          <p className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      {/* Category List */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {sortedCategories.map(([catName, total], i) => {
+                          const percentage = totalFiltered > 0 ? (total / totalFiltered) * 100 : 0;
+                          return (
+                            <div key={catName} className="rounded-lg border bg-card p-3 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                <p className="text-xs text-muted-foreground truncate" title={catName}>{catName}</p>
+                              </div>
+                              <p className="text-sm font-semibold text-destructive">{formatCurrency(total)}</p>
+                              <div className="w-full bg-muted rounded-full h-1.5">
+                                <div
+                                  className="h-1.5 rounded-full transition-all"
+                                  style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: COLORS[i % COLORS.length] }}
+                                />
+                              </div>
+                              <p className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
 
             {Object.entries(expensesByUser).map(([userId, userExpenses]) => {
               const userName = isAdmin ? (profileNames[userId] || 'Desconhecido') : '';
