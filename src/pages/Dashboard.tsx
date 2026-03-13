@@ -192,40 +192,40 @@ export default function Dashboard() {
       const filterUserId = (isSocio && includeNullStore) ? user!.id : 
                            (isAdmin && selectedPartner !== 'all') ? selectedPartner : null;
       
-      // Fetch last 6 months of data
+      // Build all 12 RPC calls (6 months × 2 tables) in parallel
+      const monthMeta: { start: string; end: string; label: string }[] = [];
       for (let i = 5; i >= 0; i--) {
         const monthDate = subMonths(today, i);
         const start = format(startOfMonth(monthDate), 'yyyy-MM-dd');
         const end = format(endOfMonth(monthDate), 'yyyy-MM-dd');
-        const monthLabel = format(monthDate, 'MMM', { locale: ptBR });
+        const raw = format(monthDate, 'MMM', { locale: ptBR });
+        monthMeta.push({ start, end, label: raw.charAt(0).toUpperCase() + raw.slice(1) });
+      }
 
-        const [{ data: revSum }, { data: expSum }] = await Promise.all([
-          supabase.rpc('sum_amounts', {
-            p_table: 'revenues',
-            p_date_start: start,
-            p_date_end: end,
-            p_store_ids: storeIdsToFilter || null,
-            p_user_id: filterUserId,
-            p_include_null_store: includeNullStore || false,
-          }),
-          supabase.rpc('sum_amounts', {
-            p_table: 'expenses',
-            p_date_start: start,
-            p_date_end: end,
-            p_store_ids: storeIdsToFilter || null,
-            p_user_id: filterUserId,
-            p_include_null_store: includeNullStore || false,
-          }),
-        ]);
+      const rpcArgs = (table: string, s: string, e: string) => ({
+        p_table: table,
+        p_date_start: s,
+        p_date_end: e,
+        p_store_ids: storeIdsToFilter || null,
+        p_user_id: filterUserId,
+        p_include_null_store: includeNullStore || false,
+      });
 
-        const totalRevenue = Number(revSum) || 0;
-        const totalExpenses = Number(expSum) || 0;
+      const allCalls = monthMeta.flatMap(m => [
+        supabase.rpc('sum_amounts', rpcArgs('revenues', m.start, m.end)),
+        supabase.rpc('sum_amounts', rpcArgs('expenses', m.start, m.end)),
+      ]);
 
+      const results = await Promise.all(allCalls);
+
+      for (let i = 0; i < monthMeta.length; i++) {
+        const rev = Number(results[i * 2].data) || 0;
+        const exp = Number(results[i * 2 + 1].data) || 0;
         months.push({
-          month: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
-          receitas: totalRevenue,
-          despesas: totalExpenses,
-          lucro: totalRevenue - totalExpenses,
+          month: monthMeta[i].label,
+          receitas: rev,
+          despesas: exp,
+          lucro: rev - exp,
         });
       }
 
@@ -250,24 +250,21 @@ export default function Dashboard() {
       const filterUserId = (isSocio && includeNullStore) ? user!.id : 
                            (isAdmin && selectedPartner !== 'all') ? selectedPartner : null;
 
-      const { data: revSum } = await supabase.rpc('sum_amounts', {
-        p_table: 'revenues',
+      // Run revenue + expenses queries in parallel
+      const rpcParams = (table: string) => ({
+        p_table: table,
         p_date_start: dateStart,
         p_date_end: dateEnd,
         p_store_ids: storeIdsToFilter || null,
         p_user_id: filterUserId,
         p_include_null_store: includeNullStore || false,
       });
-      const totalRevenue = Number(revSum) || 0;
 
-      const { data: expSum } = await supabase.rpc('sum_amounts', {
-        p_table: 'expenses',
-        p_date_start: dateStart,
-        p_date_end: dateEnd,
-        p_store_ids: storeIdsToFilter || null,
-        p_user_id: filterUserId,
-        p_include_null_store: includeNullStore || false,
-      });
+      const [{ data: revSum }, { data: expSum }] = await Promise.all([
+        supabase.rpc('sum_amounts', rpcParams('revenues')),
+        supabase.rpc('sum_amounts', rpcParams('expenses')),
+      ]);
+      const totalRevenue = Number(revSum) || 0;
       const totalExpenses = Number(expSum) || 0;
 
       // Calculate net profit: revenue - expenses
