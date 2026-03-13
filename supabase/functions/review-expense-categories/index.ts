@@ -12,7 +12,6 @@ serve(async (req) => {
   }
 
   try {
-    // Validate auth
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Missing authorization' }), {
@@ -33,15 +32,50 @@ serve(async (req) => {
       });
     }
 
-    const { expenses } = await req.json();
+    const { date_from, date_to, user_id } = await req.json();
 
-    if (!expenses || !Array.isArray(expenses) || expenses.length === 0) {
-      return new Response(JSON.stringify({ error: 'No expenses provided' }), {
+    if (!date_from || !date_to) {
+      return new Response(JSON.stringify({ error: 'date_from and date_to are required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Fetch available categories
+    // Fetch expenses from DB (server-side, no 1000 limit issue with pagination)
+    let allExpenses: any[] = [];
+    let from = 0;
+    const PAGE_SIZE = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      let query = supabase
+        .from('expenses')
+        .select('id, description, category_id, expense_categories(name)')
+        .gte('date', date_from)
+        .lte('date', date_to)
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (user_id && user_id !== 'all') {
+        query = query.eq('user_id', user_id);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.error('Fetch error:', error);
+        hasMore = false;
+      } else {
+        allExpenses = allExpenses.concat(data || []);
+        hasMore = (data?.length || 0) === PAGE_SIZE;
+        from += PAGE_SIZE;
+      }
+    }
+
+    if (allExpenses.length === 0) {
+      return new Response(JSON.stringify({ updated: 0, errors: 0, total: 0 }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Fetch categories
     const { data: categories } = await supabase
       .from('expense_categories')
       .select('id, name');
@@ -60,15 +94,14 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    // Process in batches of 50 to avoid token limits
     const BATCH_SIZE = 50;
     const allResults: { id: string; category_id: string }[] = [];
 
-    for (let i = 0; i < expenses.length; i += BATCH_SIZE) {
-      const batch = expenses.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < allExpenses.length; i += BATCH_SIZE) {
+      const batch = allExpenses.slice(i, i + BATCH_SIZE);
 
       const expenseList = batch.map((e: any, idx: number) =>
-        `${idx}. [ID: ${e.id}] "${e.description}" (atual: ${e.category_name || 'Sem categoria'})`
+        `${idx}. [ID: ${e.id}] "${e.description}" (atual: ${e.expense_categories?.name || 'Sem categoria'})`
       ).join('\n');
 
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -128,7 +161,7 @@ Regras:
 - "contabilidade", "advocacia", "consultoria", "freelancer" → "Serviços Terceirizados"
 - "reparo", "manutenção", "conserto" → "Manutenção"
 - "papelaria", "material", "suprimento" → "Material de Escritório"
-- Se não se encaixar em nenhuma → "Outros"
+- Se não se encaixar → "Outros"
 
 IMPORTANTE: Use EXATAMENTE os nomes das categorias disponíveis.`
             },
@@ -146,22 +179,22 @@ IMPORTANTE: Use EXATAMENTE os nomes das categorias disponíveis.`
 
         if (response.status === 429) {
           return new Response(
-            JSON.stringify({ error: 'Limite de requisições excedido. Tente novamente em alguns minutos.', processed: allResults.length }),
+            JSON.stringify({ error: 'Limite de requisições excedido. Tente novamente em alguns minutos.', updated: allResults.length }),
             { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
         if (response.status === 402) {
           return new Response(
-            JSON.stringify({ error: 'Créditos de IA esgotados.', processed: allResults.length }),
+            JSON.stringify({ error: 'Créditos de IA esgotados.', updated: allResults.length }),
             { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-        throw new Error(`AI Gateway error: ${response.status}`);
+        // Skip this batch on error, continue with next
+        console.error(`Skipping batch starting at ${i}`);
+        continue;
       }
 
       const data = await response.json();
-
-      // Extract tool call result
       const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
       if (toolCall?.function?.arguments) {
         try {
@@ -179,9 +212,14 @@ IMPORTANTE: Use EXATAMENTE os nomes das categorias disponíveis.`
           console.error('Failed to parse tool call:', parseErr);
         }
       }
+
+      // Small delay between batches to avoid rate limiting
+      if (i + BATCH_SIZE < allExpenses.length) {
+        await new Promise(r => setTimeout(r, 500));
+      }
     }
 
-    // Update expenses in database
+    // Batch update using individual updates
     let updated = 0;
     let errors = 0;
 
@@ -192,17 +230,16 @@ IMPORTANTE: Use EXATAMENTE os nomes das categorias disponíveis.`
         .eq('id', result.id);
 
       if (error) {
-        console.error('Update error:', error);
         errors++;
       } else {
         updated++;
       }
     }
 
-    console.log(`Category review complete: ${updated} updated, ${errors} errors out of ${expenses.length} total`);
+    console.log(`Category review: ${updated} updated, ${errors} errors, ${allExpenses.length} total`);
 
     return new Response(
-      JSON.stringify({ updated, errors, total: expenses.length }),
+      JSON.stringify({ updated, errors, total: allExpenses.length }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: unknown) {
