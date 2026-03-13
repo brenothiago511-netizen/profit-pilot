@@ -114,10 +114,14 @@ export default function Expenses() {
   useEffect(() => {
     fetchStores();
     fetchCategories();
-    fetchExpenses();
     fetchBankAccounts();
     if (isAdmin) fetchProfileNames();
   }, []);
+
+  // Re-fetch expenses when date filters or user filter change
+  useEffect(() => {
+    fetchExpenses();
+  }, [filterDateFrom, filterDateTo, filterUser]);
 
   const fetchBankAccounts = async () => {
     const { data } = await supabase
