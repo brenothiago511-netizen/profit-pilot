@@ -250,24 +250,21 @@ export default function Dashboard() {
       const filterUserId = (isSocio && includeNullStore) ? user!.id : 
                            (isAdmin && selectedPartner !== 'all') ? selectedPartner : null;
 
-      const { data: revSum } = await supabase.rpc('sum_amounts', {
-        p_table: 'revenues',
+      // Run revenue + expenses queries in parallel
+      const rpcParams = (table: string) => ({
+        p_table: table,
         p_date_start: dateStart,
         p_date_end: dateEnd,
         p_store_ids: storeIdsToFilter || null,
         p_user_id: filterUserId,
         p_include_null_store: includeNullStore || false,
       });
-      const totalRevenue = Number(revSum) || 0;
 
-      const { data: expSum } = await supabase.rpc('sum_amounts', {
-        p_table: 'expenses',
-        p_date_start: dateStart,
-        p_date_end: dateEnd,
-        p_store_ids: storeIdsToFilter || null,
-        p_user_id: filterUserId,
-        p_include_null_store: includeNullStore || false,
-      });
+      const [{ data: revSum }, { data: expSum }] = await Promise.all([
+        supabase.rpc('sum_amounts', rpcParams('revenues')),
+        supabase.rpc('sum_amounts', rpcParams('expenses')),
+      ]);
+      const totalRevenue = Number(revSum) || 0;
       const totalExpenses = Number(expSum) || 0;
 
       // Calculate net profit: revenue - expenses
