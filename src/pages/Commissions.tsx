@@ -11,9 +11,12 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, Pencil, Trash2, Plus, DollarSign, Clock, TrendingUp, Zap } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { Loader2, Check, Pencil, Trash2, Plus, DollarSign, Clock, TrendingUp, Zap, CalendarIcon } from 'lucide-react';
+import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 // Função para parsear data ISO (YYYY-MM-DD) sem conversão de timezone
 const parseLocalDate = (dateString: string) => {
