@@ -188,6 +188,9 @@ export default function Dashboard() {
       const storeIdsToFilter = await getStoreIdsForQuery();
       const months: TrendData[] = [];
       const today = new Date();
+      const includeNullStore = isSocio && storeIdsToFilter && storeIdsToFilter.length > 0;
+      const filterUserId = (isSocio && includeNullStore) ? user!.id : 
+                           (isAdmin && selectedPartner !== 'all') ? selectedPartner : null;
       
       // Fetch last 6 months of data
       for (let i = 5; i >= 0; i--) {
@@ -196,43 +199,27 @@ export default function Dashboard() {
         const end = format(endOfMonth(monthDate), 'yyyy-MM-dd');
         const monthLabel = format(monthDate, 'MMM', { locale: ptBR });
 
-        // Fetch revenues for this month
-        let revenueQuery = supabase
-          .from('revenues')
-          .select('amount')
-          .gte('date', start)
-          .lte('date', end);
-        
-        if (isSocio && storeIdsToFilter && storeIdsToFilter.length > 0) {
-          revenueQuery = revenueQuery.or(`store_id.in.(${storeIdsToFilter.join(',')}),and(store_id.is.null,user_id.eq.${user!.id})`);
-        } else if (storeIdsToFilter && storeIdsToFilter.length > 0) {
-          revenueQuery = revenueQuery.in('store_id', storeIdsToFilter);
-        }
-        if (isAdmin && selectedPartner !== 'all') {
-          revenueQuery = revenueQuery.eq('user_id', selectedPartner);
-        }
-        
-        const { data: revenues } = await revenueQuery;
-        const totalRevenue = revenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
+        const [{ data: revSum }, { data: expSum }] = await Promise.all([
+          supabase.rpc('sum_amounts', {
+            p_table: 'revenues',
+            p_date_start: start,
+            p_date_end: end,
+            p_store_ids: storeIdsToFilter || null,
+            p_user_id: filterUserId,
+            p_include_null_store: includeNullStore || false,
+          }),
+          supabase.rpc('sum_amounts', {
+            p_table: 'expenses',
+            p_date_start: start,
+            p_date_end: end,
+            p_store_ids: storeIdsToFilter || null,
+            p_user_id: filterUserId,
+            p_include_null_store: includeNullStore || false,
+          }),
+        ]);
 
-        // Fetch expenses for this month
-        let expenseQuery = supabase
-          .from('expenses')
-          .select('amount')
-          .gte('date', start)
-          .lte('date', end);
-        
-        if (isSocio && storeIdsToFilter && storeIdsToFilter.length > 0) {
-          expenseQuery = expenseQuery.or(`store_id.in.(${storeIdsToFilter.join(',')}),and(store_id.is.null,user_id.eq.${user!.id})`);
-        } else if (storeIdsToFilter && storeIdsToFilter.length > 0) {
-          expenseQuery = expenseQuery.in('store_id', storeIdsToFilter);
-        }
-        if (isAdmin && selectedPartner !== 'all') {
-          expenseQuery = expenseQuery.eq('user_id', selectedPartner);
-        }
-        
-        const { data: expenses } = await expenseQuery;
-        const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+        const totalRevenue = Number(revSum) || 0;
+        const totalExpenses = Number(expSum) || 0;
 
         months.push({
           month: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
@@ -258,45 +245,30 @@ export default function Dashboard() {
         storeIdsToFilter = [selectedStore];
       }
 
-      // Fetch revenues
-      let revenueQuery = supabase
-        .from('revenues')
-        .select('amount')
-        .gte('date', dateStart)
-        .lte('date', dateEnd);
-      
-      if (isSocio && storeIdsToFilter && storeIdsToFilter.length > 0) {
-        // For socio: show revenues from their stores OR their own revenues without a store
-        revenueQuery = revenueQuery.or(`store_id.in.(${storeIdsToFilter.join(',')}),and(store_id.is.null,user_id.eq.${user!.id})`);
-      } else if (storeIdsToFilter && storeIdsToFilter.length > 0) {
-        revenueQuery = revenueQuery.in('store_id', storeIdsToFilter);
-      }
-      if (isAdmin && selectedPartner !== 'all') {
-        revenueQuery = revenueQuery.eq('user_id', selectedPartner);
-      }
-      
-      const { data: revenues } = await revenueQuery;
-      const totalRevenue = revenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
+      // Use server-side SUM to avoid 1000-row limit
+      const includeNullStore = isSocio && storeIdsToFilter && storeIdsToFilter.length > 0;
+      const filterUserId = (isSocio && includeNullStore) ? user!.id : 
+                           (isAdmin && selectedPartner !== 'all') ? selectedPartner : null;
 
-      // Fetch expenses
-      let expenseQuery = supabase
-        .from('expenses')
-        .select('amount')
-        .gte('date', dateStart)
-        .lte('date', dateEnd);
-      
-      if (isSocio && storeIdsToFilter && storeIdsToFilter.length > 0) {
-        // For socio: show expenses from their stores OR their own expenses without a store
-        expenseQuery = expenseQuery.or(`store_id.in.(${storeIdsToFilter.join(',')}),and(store_id.is.null,user_id.eq.${user!.id})`);
-      } else if (storeIdsToFilter && storeIdsToFilter.length > 0) {
-        expenseQuery = expenseQuery.in('store_id', storeIdsToFilter);
-      }
-      if (isAdmin && selectedPartner !== 'all') {
-        expenseQuery = expenseQuery.eq('user_id', selectedPartner);
-      }
-      
-      const { data: expenses } = await expenseQuery;
-      const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+      const { data: revSum } = await supabase.rpc('sum_amounts', {
+        p_table: 'revenues',
+        p_date_start: dateStart,
+        p_date_end: dateEnd,
+        p_store_ids: storeIdsToFilter || null,
+        p_user_id: filterUserId,
+        p_include_null_store: includeNullStore || false,
+      });
+      const totalRevenue = Number(revSum) || 0;
+
+      const { data: expSum } = await supabase.rpc('sum_amounts', {
+        p_table: 'expenses',
+        p_date_start: dateStart,
+        p_date_end: dateEnd,
+        p_store_ids: storeIdsToFilter || null,
+        p_user_id: filterUserId,
+        p_include_null_store: includeNullStore || false,
+      });
+      const totalExpenses = Number(expSum) || 0;
 
       // Calculate net profit: revenue - expenses
       const netProfit = totalRevenue - totalExpenses;
