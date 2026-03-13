@@ -687,6 +687,23 @@ export default function Expenses() {
           <p className="page-description">Gerencie as saídas financeiras</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          {/* User filter - admin only */}
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-muted-foreground" />
+              <Select value={filterUser} onValueChange={setFilterUser}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {Object.entries(profileNames).map(([id, name]) => (
+                    <SelectItem key={id} value={id}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {/* Date filters */}
           <div className="flex items-center gap-2">
             <Popover>
