@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, TrendingDown, Loader2, Trash2, Camera, Sparkles, Upload, Pencil, Check, X, CalendarIcon } from 'lucide-react';
+import { Plus, TrendingDown, Loader2, Trash2, Camera, Sparkles, Upload, Pencil, Check, X, CalendarIcon, User } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -86,6 +86,7 @@ export default function Expenses() {
   
   const [filterDateFrom, setFilterDateFrom] = useState<Date>(startOfMonth(new Date()));
   const [filterDateTo, setFilterDateTo] = useState<Date>(endOfMonth(new Date()));
+  const [filterUser, setFilterUser] = useState<string>('all');
   
   const [formData, setFormData] = useState({
     store_id: '',
@@ -686,6 +687,23 @@ export default function Expenses() {
           <p className="page-description">Gerencie as saídas financeiras</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          {/* User filter - admin only */}
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-muted-foreground" />
+              <Select value={filterUser} onValueChange={setFilterUser}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {Object.entries(profileNames).map(([id, name]) => (
+                    <SelectItem key={id} value={id}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {/* Date filters */}
           <div className="flex items-center gap-2">
             <Popover>
@@ -1219,7 +1237,10 @@ export default function Expenses() {
       {(() => {
         const fromStr = format(filterDateFrom, 'yyyy-MM-dd');
         const toStr = format(filterDateTo, 'yyyy-MM-dd');
-        const filteredExpenses = expenses.filter(e => e.date >= fromStr && e.date <= toStr);
+        let filteredExpenses = expenses.filter(e => e.date >= fromStr && e.date <= toStr);
+        if (filterUser !== 'all') {
+          filteredExpenses = filteredExpenses.filter(e => e.user_id === filterUser);
+        }
         
         const expensesByUser = isAdmin
           ? filteredExpenses.reduce((acc, e) => {
