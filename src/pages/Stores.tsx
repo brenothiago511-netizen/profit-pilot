@@ -53,6 +53,7 @@ export default function Stores() {
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreData[]>([]);
   const [filterUserId, setFilterUserId] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterUsers, setFilterUsers] = useState<FilterUser[]>([]);
   const [partnerStoreMap, setPartnerStoreMap] = useState<Record<string, string[]>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -139,9 +140,9 @@ export default function Stores() {
     setLoading(false);
   };
 
-  const filteredStores = filterUserId === 'all'
-    ? stores
-    : stores.filter(s => partnerStoreMap[filterUserId]?.includes(s.id));
+  const filteredStores = stores
+    .filter(s => filterUserId === 'all' || partnerStoreMap[filterUserId]?.includes(s.id))
+    .filter(s => !searchQuery || s.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -481,22 +482,28 @@ export default function Stores() {
         </Dialog>
       </div>
 
-      {isAdmin && (
-        <div className="flex items-center gap-3">
-          <Label className="text-sm text-muted-foreground whitespace-nowrap">Filtrar por sócio:</Label>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="relative w-full sm:w-[260px]">
+          <Input
+            placeholder="Buscar loja..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        {isAdmin && (
           <Select value={filterUserId} onValueChange={setFilterUserId}>
-            <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="Todos os usuários" />
+            <SelectTrigger className="w-full sm:w-[220px]">
+              <SelectValue placeholder="Todos os sócios" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">Todos os sócios</SelectItem>
               {filterUsers.map(u => (
                 <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-      )}
+        )}
+      </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
