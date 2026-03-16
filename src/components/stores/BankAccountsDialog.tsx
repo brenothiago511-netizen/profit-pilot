@@ -189,10 +189,11 @@ export default function BankAccountsDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.bank_name || !formData.account_holder || !formData.account_number) {
+    const hasIBAN = !!formData.iban;
+    if (!formData.bank_name || !formData.account_holder || (!formData.account_number && !hasIBAN)) {
       toast({
         title: 'Erro',
-        description: 'Preencha os campos obrigatórios',
+        description: hasIBAN ? 'Preencha os campos obrigatórios' : 'Preencha os campos obrigatórios (Account Number ou IBAN)',
         variant: 'destructive',
       });
       return;
@@ -214,7 +215,7 @@ export default function BankAccountsDialog({
       account_holder: formData.account_holder,
       account_type: formData.account_type,
       routing_number: formData.routing_number || null,
-      account_number: formData.account_number,
+      account_number: formData.account_number || formData.iban || '',
       swift_code: formData.swift_code || null,
       iban: formData.iban || null,
       currency: formData.currency,
