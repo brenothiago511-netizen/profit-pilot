@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import logoAglomerado from '@/assets/logo-aglomerado.png';
 import NotificationBell from '@/components/notifications/NotificationBell';
+import GlobalSearch from '@/components/search/GlobalSearch';
 
 // Navigation sections with items
 const navigationSections = [
@@ -249,7 +250,10 @@ export default function AppLayout() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="ml-auto">
+          <div className="flex-1 flex justify-center px-2">
+            <GlobalSearch />
+          </div>
+          <div className="flex items-center gap-2">
             <NotificationBell />
           </div>
         </header>
