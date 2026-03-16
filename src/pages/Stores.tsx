@@ -40,6 +40,11 @@ interface StorePartner {
   profiles?: { name: string; email: string };
 }
 
+interface FilterUser {
+  id: string;
+  name: string;
+}
+
 export default function Stores() {
   const { can } = usePermissions();
   const { isAdmin, user, profile } = useAuth();
@@ -47,6 +52,9 @@ export default function Stores() {
   const isNonAdmin = !isAdmin;
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreData[]>([]);
+  const [filterUserId, setFilterUserId] = useState<string>('all');
+  const [filterUsers, setFilterUsers] = useState<FilterUser[]>([]);
+  const [partnerStoreMap, setPartnerStoreMap] = useState<Record<string, string[]>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [bankDialogOpen, setBankDialogOpen] = useState(false);
@@ -70,7 +78,35 @@ export default function Stores() {
 
   useEffect(() => {
     fetchData();
+    if (isAdmin) fetchFilterUsers();
   }, []);
+
+  const fetchFilterUsers = async () => {
+    const { data: partnersData } = await supabase
+      .from('partners')
+      .select('user_id, store_id, profiles(name)')
+      .eq('status', 'active');
+
+    if (partnersData) {
+      const usersMap: Record<string, string> = {};
+      const storeMap: Record<string, string[]> = {};
+      
+      for (const p of partnersData) {
+        const uid = p.user_id;
+        const name = (p.profiles as any)?.name || 'Sem nome';
+        usersMap[uid] = name;
+        if (p.store_id) {
+          if (!storeMap[uid]) storeMap[uid] = [];
+          storeMap[uid].push(p.store_id);
+        }
+      }
+
+      setFilterUsers(
+        Object.entries(usersMap).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+      );
+      setPartnerStoreMap(storeMap);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -102,6 +138,10 @@ export default function Stores() {
     if (data) setStores(data);
     setLoading(false);
   };
+
+  const filteredStores = filterUserId === 'all'
+    ? stores
+    : stores.filter(s => partnerStoreMap[filterUserId]?.includes(s.id));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
