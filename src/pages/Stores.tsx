@@ -481,6 +481,23 @@ export default function Stores() {
         </Dialog>
       </div>
 
+      {isAdmin && (
+        <div className="flex items-center gap-3">
+          <Label className="text-sm text-muted-foreground whitespace-nowrap">Filtrar por sócio:</Label>
+          <Select value={filterUserId} onValueChange={setFilterUserId}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Todos os usuários" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {filterUsers.map(u => (
+                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -489,10 +506,10 @@ export default function Stores() {
         <Tabs defaultValue="active" className="space-y-4">
           <TabsList>
             <TabsTrigger value="active">
-              Ativas ({stores.filter(s => s.status === 'active').length})
+              Ativas ({filteredStores.filter(s => s.status === 'active').length})
             </TabsTrigger>
             <TabsTrigger value="inactive">
-              Inativas ({stores.filter(s => s.status !== 'active').length})
+              Inativas ({filteredStores.filter(s => s.status !== 'active').length})
             </TabsTrigger>
           </TabsList>
 
