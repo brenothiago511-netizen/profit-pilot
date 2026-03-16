@@ -437,12 +437,29 @@ export default function Banks() {
                           </Badge>
                         )}
                       </div>
-                      <div className="space-y-1.5 mt-4">
+                      {/* Saldo por moeda */}
+                      <div className="mt-4 space-y-1">
+                        {(() => {
+                          const byCurrency = groupAccounts.reduce((acc, a) => {
+                            acc[a.currency] = (acc[a.currency] || 0) + Number(a.balance);
+                            return acc;
+                          }, {} as Record<string, number>);
+                          return Object.entries(byCurrency).map(([currency, total]) => (
+                            <div key={currency} className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">{currency}</span>
+                              <span className={`text-lg font-bold ${total >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
+                                {formatCurrency(total, currency)}
+                              </span>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                      {/* Sub-contas */}
+                      <div className="space-y-1.5 mt-3 pt-3 border-t border-border">
                         {groupAccounts.map(account => (
-                          <div key={account.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                          <div key={account.id} className="flex items-center justify-between p-1.5 rounded-lg">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-foreground">{account.currency}</span>
-                              <span className="text-xs text-muted-foreground">•••• {account.account_number.slice(-4)}</span>
+                              <span className="text-xs text-muted-foreground">{account.currency} •••• {account.account_number.slice(-4)}</span>
                             </div>
                             <div className="flex items-center gap-1">
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenEdit(account)}>
