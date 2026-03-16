@@ -592,6 +592,11 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Bank Balance Evolution */}
+        <div className="grid gap-6 lg:grid-cols-1">
+          <BankBalanceChart />
+        </div>
       )}
     </div>
   );
