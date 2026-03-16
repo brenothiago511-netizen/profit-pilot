@@ -514,7 +514,7 @@ export default function Stores() {
           </TabsList>
 
           {(['active', 'inactive'] as const).map((tabStatus) => {
-            const filtered = stores.filter(s => tabStatus === 'active' ? s.status === 'active' : s.status !== 'active');
+            const filtered = filteredStores.filter(s => tabStatus === 'active' ? s.status === 'active' : s.status !== 'active');
             return (
               <TabsContent key={tabStatus} value={tabStatus}>
                 {filtered.length === 0 ? (
