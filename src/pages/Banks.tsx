@@ -59,6 +59,92 @@ function formatCurrency(amount: number, currency: string = 'BRL') {
   return `${symbol} ${amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+const CURRENCIES = ['USD', 'BRL', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CNY', 'MXN'];
+
+function BankBalanceWithConverter({ groupAccounts }: { groupAccounts: BankAccount[] }) {
+  const [convertTo, setConvertTo] = useState<string>('');
+  const [convertedValues, setConvertedValues] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(false);
+
+  const byCurrency = useMemo(() => {
+    return groupAccounts.reduce((acc, a) => {
+      acc[a.currency] = (acc[a.currency] || 0) + Number(a.balance);
+      return acc;
+    }, {} as Record<string, number>);
+  }, [groupAccounts]);
+
+  const currencies = Object.keys(byCurrency);
+
+  const handleConvert = async (targetCurrency: string) => {
+    if (!targetCurrency) {
+      setConvertTo('');
+      setConvertedValues({});
+      return;
+    }
+    setConvertTo(targetCurrency);
+    setLoading(true);
+    const results: Record<string, number> = {};
+    for (const [currency, total] of Object.entries(byCurrency)) {
+      if (currency === targetCurrency) {
+        results[currency] = total;
+      } else {
+        const { data } = await supabase.rpc('get_exchange_rate', {
+          p_base_currency: currency,
+          p_target_currency: targetCurrency,
+        });
+        results[currency] = total * (data || 1);
+      }
+    }
+    setConvertedValues(results);
+    setLoading(false);
+  };
+
+  const totalConverted = Object.values(convertedValues).reduce((s, v) => s + v, 0);
+
+  return (
+    <div className="mt-4 space-y-2">
+      {Object.entries(byCurrency).map(([currency, total]) => (
+        <div key={currency} className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">{currency}</span>
+          <span className={`text-lg font-bold ${total >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
+            {formatCurrency(total, currency)}
+          </span>
+        </div>
+      ))}
+      {currencies.length > 1 && (
+        <div className="pt-2 border-t border-border space-y-2">
+          <div className="flex items-center gap-2">
+            <ArrowRightLeft className="w-3.5 h-3.5 text-muted-foreground" />
+            <Select value={convertTo} onValueChange={handleConvert}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Converter saldo para..." />
+              </SelectTrigger>
+              <SelectContent>
+                {CURRENCIES.map(c => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {convertTo && !loading && (
+            <div className="flex items-center justify-between bg-muted/50 rounded-lg p-2">
+              <span className="text-xs text-muted-foreground">Total em {convertTo}</span>
+              <span className={`text-lg font-bold ${totalConverted >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
+                {formatCurrency(totalConverted, convertTo)}
+              </span>
+            </div>
+          )}
+          {loading && (
+            <div className="flex justify-center py-1">
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const BANK_OPTIONS = ['Airwallex', 'Mercury', 'Relay', 'Revolut'];
 
 export default function Banks() {
