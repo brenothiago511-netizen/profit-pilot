@@ -437,23 +437,8 @@ export default function Banks() {
                           </Badge>
                         )}
                       </div>
-                      {/* Saldo por moeda */}
-                      <div className="mt-4 space-y-1">
-                        {(() => {
-                          const byCurrency = groupAccounts.reduce((acc, a) => {
-                            acc[a.currency] = (acc[a.currency] || 0) + Number(a.balance);
-                            return acc;
-                          }, {} as Record<string, number>);
-                          return Object.entries(byCurrency).map(([currency, total]) => (
-                            <div key={currency} className="flex items-center justify-between">
-                              <span className="text-sm text-muted-foreground">{currency}</span>
-                              <span className={`text-lg font-bold ${total >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
-                                {formatCurrency(total, currency)}
-                              </span>
-                            </div>
-                          ));
-                        })()}
-                      </div>
+                      {/* Saldo por moeda + conversor */}
+                      <BankBalanceWithConverter groupAccounts={groupAccounts} />
                       {/* Sub-contas */}
                       <div className="space-y-1.5 mt-3 pt-3 border-t border-border">
                         {groupAccounts.map(account => (
