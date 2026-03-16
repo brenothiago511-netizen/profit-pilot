@@ -215,7 +215,7 @@ export default function BankAccountsDialog({
       account_holder: formData.account_holder,
       account_type: formData.account_type,
       routing_number: formData.routing_number || null,
-      account_number: formData.account_number,
+      account_number: formData.account_number || formData.iban || '',
       swift_code: formData.swift_code || null,
       iban: formData.iban || null,
       currency: formData.currency,
