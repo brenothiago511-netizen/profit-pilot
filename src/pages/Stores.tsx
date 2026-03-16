@@ -40,6 +40,11 @@ interface StorePartner {
   profiles?: { name: string; email: string };
 }
 
+interface FilterUser {
+  id: string;
+  name: string;
+}
+
 export default function Stores() {
   const { can } = usePermissions();
   const { isAdmin, user, profile } = useAuth();
@@ -47,6 +52,9 @@ export default function Stores() {
   const isNonAdmin = !isAdmin;
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreData[]>([]);
+  const [filterUserId, setFilterUserId] = useState<string>('all');
+  const [filterUsers, setFilterUsers] = useState<FilterUser[]>([]);
+  const [partnerStoreMap, setPartnerStoreMap] = useState<Record<string, string[]>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [bankDialogOpen, setBankDialogOpen] = useState(false);
@@ -70,7 +78,35 @@ export default function Stores() {
 
   useEffect(() => {
     fetchData();
+    if (isAdmin) fetchFilterUsers();
   }, []);
+
+  const fetchFilterUsers = async () => {
+    const { data: partnersData } = await supabase
+      .from('partners')
+      .select('user_id, store_id, profiles(name)')
+      .eq('status', 'active');
+
+    if (partnersData) {
+      const usersMap: Record<string, string> = {};
+      const storeMap: Record<string, string[]> = {};
+      
+      for (const p of partnersData) {
+        const uid = p.user_id;
+        const name = (p.profiles as any)?.name || 'Sem nome';
+        usersMap[uid] = name;
+        if (p.store_id) {
+          if (!storeMap[uid]) storeMap[uid] = [];
+          storeMap[uid].push(p.store_id);
+        }
+      }
+
+      setFilterUsers(
+        Object.entries(usersMap).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+      );
+      setPartnerStoreMap(storeMap);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -102,6 +138,10 @@ export default function Stores() {
     if (data) setStores(data);
     setLoading(false);
   };
+
+  const filteredStores = filterUserId === 'all'
+    ? stores
+    : stores.filter(s => partnerStoreMap[filterUserId]?.includes(s.id));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -441,6 +481,23 @@ export default function Stores() {
         </Dialog>
       </div>
 
+      {isAdmin && (
+        <div className="flex items-center gap-3">
+          <Label className="text-sm text-muted-foreground whitespace-nowrap">Filtrar por sócio:</Label>
+          <Select value={filterUserId} onValueChange={setFilterUserId}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Todos os usuários" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {filterUsers.map(u => (
+                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -449,15 +506,15 @@ export default function Stores() {
         <Tabs defaultValue="active" className="space-y-4">
           <TabsList>
             <TabsTrigger value="active">
-              Ativas ({stores.filter(s => s.status === 'active').length})
+              Ativas ({filteredStores.filter(s => s.status === 'active').length})
             </TabsTrigger>
             <TabsTrigger value="inactive">
-              Inativas ({stores.filter(s => s.status !== 'active').length})
+              Inativas ({filteredStores.filter(s => s.status !== 'active').length})
             </TabsTrigger>
           </TabsList>
 
           {(['active', 'inactive'] as const).map((tabStatus) => {
-            const filtered = stores.filter(s => tabStatus === 'active' ? s.status === 'active' : s.status !== 'active');
+            const filtered = filteredStores.filter(s => tabStatus === 'active' ? s.status === 'active' : s.status !== 'active');
             return (
               <TabsContent key={tabStatus} value={tabStatus}>
                 {filtered.length === 0 ? (
