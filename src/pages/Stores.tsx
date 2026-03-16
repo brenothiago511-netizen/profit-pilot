@@ -139,9 +139,9 @@ export default function Stores() {
     setLoading(false);
   };
 
-  const filteredStores = filterUserId === 'all'
-    ? stores
-    : stores.filter(s => partnerStoreMap[filterUserId]?.includes(s.id));
+  const filteredStores = stores
+    .filter(s => filterUserId === 'all' || partnerStoreMap[filterUserId]?.includes(s.id))
+    .filter(s => !searchQuery || s.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
