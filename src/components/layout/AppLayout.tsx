@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import logoAglomerado from '@/assets/logo-aglomerado.png';
 import NotificationBell from '@/components/notifications/NotificationBell';
+import GlobalSearch from '@/components/search/GlobalSearch';
 
 // Navigation sections with items
 const navigationSections = [
