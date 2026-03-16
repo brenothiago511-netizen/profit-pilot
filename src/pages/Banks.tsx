@@ -406,43 +406,63 @@ export default function Banks() {
         {/* Accounts Tab */}
         <TabsContent value="accounts">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {accounts.map(account => (
-              <Card key={account.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Building2 className="w-5 h-5 text-primary" />
+            {(() => {
+              // Group accounts by holder + bank
+              const grouped = accounts.reduce((acc, account) => {
+                const key = `${account.account_holder}|||${account.bank_name}`;
+                if (!acc[key]) acc[key] = [];
+                acc[key].push(account);
+                return acc;
+              }, {} as Record<string, BankAccount[]>);
+
+              return Object.entries(grouped).map(([key, groupAccounts]) => {
+                const [holder, bankName] = key.split('|||');
+                const hasPrimary = groupAccounts.some(a => a.is_primary);
+                return (
+                  <Card key={key} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Building2 className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">{holder}</p>
+                            <p className="text-sm text-muted-foreground">{bankName}</p>
+                          </div>
+                        </div>
+                        {hasPrimary && (
+                          <Badge variant="default" className="text-xs">
+                            <Star className="w-3 h-3 mr-1" /> Principal
+                          </Badge>
+                        )}
                       </div>
-                      <p className="font-semibold text-foreground">{account.account_holder} - {account.bank_name}</p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {account.is_primary && (
-                        <Badge variant="default" className="text-xs">
-                          <Star className="w-3 h-3 mr-1" /> Principal
-                        </Badge>
-                      )}
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(account)}>
-                        <Pencil className="w-4 h-4 text-muted-foreground" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteAccount(account.id)}>
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <p className="text-xs text-muted-foreground">Saldo Atual</p>
-                    <p className={`text-xl font-bold ${Number(account.balance) >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
-                      {formatCurrency(Number(account.balance), account.currency)}
-                    </p>
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{account.currency}</span>
-                    <span>•••• {account.account_number.slice(-4)}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      <div className="space-y-2 mt-4">
+                        {groupAccounts.map(account => (
+                          <div key={account.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                            <div>
+                              <p className="text-xs text-muted-foreground">{account.currency}</p>
+                              <p className={`text-lg font-bold ${Number(account.balance) >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
+                                {formatCurrency(Number(account.balance), account.currency)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-muted-foreground mr-2">•••• {account.account_number.slice(-4)}</span>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenEdit(account)}>
+                                <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDeleteAccount(account.id)}>
+                                <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              });
+            })()}
             {accounts.length === 0 && (
               <Card className="col-span-full">
                 <CardContent className="p-10 text-center">
