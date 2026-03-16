@@ -23,6 +23,7 @@ import {
 } from 'recharts';
 import { CurrencyToggle } from '@/components/currency/CurrencyToggle';
 import { useCurrency } from '@/hooks/useCurrency';
+import { BankBalanceChart } from '@/components/dashboard/BankBalanceChart';
 
 interface DashboardData {
   totalRevenue: number;
@@ -590,6 +591,11 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Bank Balance Evolution */}
+        <div className="grid gap-6 lg:grid-cols-1">
+          <BankBalanceChart />
         </div>
       )}
     </div>
