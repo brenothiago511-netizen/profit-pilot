@@ -52,6 +52,7 @@ export default function Stores() {
   const isNonAdmin = !isAdmin;
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreData[]>([]);
+  const [filterUserId, setFilterUserId] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterUsers, setFilterUsers] = useState<FilterUser[]>([]);
   const [partnerStoreMap, setPartnerStoreMap] = useState<Record<string, string[]>>({});
