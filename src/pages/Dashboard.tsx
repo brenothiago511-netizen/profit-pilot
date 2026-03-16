@@ -469,7 +469,7 @@ export default function Dashboard() {
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {metrics
             .filter((m) => m.show)
             .map((metric) => (
