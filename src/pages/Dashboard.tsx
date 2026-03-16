@@ -493,110 +493,110 @@ export default function Dashboard() {
 
       {/* Charts Section */}
       {!loading && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Revenue vs Expenses Area Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Receitas vs Despesas</CardTitle>
-              <p className="text-sm text-muted-foreground">Últimos 6 meses</p>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorReceitas" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorDespesas" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--danger))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--danger))" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
-                    <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                    <YAxis 
-                      className="text-xs" 
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                      labelStyle={{ color: 'hsl(var(--foreground))' }}
-                      formatter={(value: number) => [formatValue(value), '']}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="receitas"
-                      name="Receitas"
-                      stroke="hsl(var(--success))"
-                      fillOpacity={1}
-                      fill="url(#colorReceitas)"
-                      strokeWidth={2}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="despesas"
-                      name="Despesas"
-                      stroke="hsl(var(--danger))"
-                      fillOpacity={1}
-                      fill="url(#colorDespesas)"
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+        <>
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Revenue vs Expenses Area Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Receitas vs Despesas</CardTitle>
+                <p className="text-sm text-muted-foreground">Últimos 6 meses</p>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorReceitas" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="colorDespesas" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--danger))" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="hsl(var(--danger))" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+                      <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                      <YAxis 
+                        className="text-xs" 
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                        labelStyle={{ color: 'hsl(var(--foreground))' }}
+                        formatter={(value: number) => [formatValue(value), '']}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="receitas"
+                        name="Receitas"
+                        stroke="hsl(var(--success))"
+                        fillOpacity={1}
+                        fill="url(#colorReceitas)"
+                        strokeWidth={2}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="despesas"
+                        name="Despesas"
+                        stroke="hsl(var(--danger))"
+                        fillOpacity={1}
+                        fill="url(#colorDespesas)"
+                        strokeWidth={2}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Profit Bar Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Lucro Mensal</CardTitle>
-              <p className="text-sm text-muted-foreground">Últimos 6 meses</p>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
-                    <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                    <YAxis 
-                      className="text-xs" 
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                      labelStyle={{ color: 'hsl(var(--foreground))' }}
-                      formatter={(value: number) => [formatValue(value), '']}
-                    />
-                    <Bar
-                      dataKey="lucro"
-                      name="Lucro"
-                      fill="hsl(var(--primary))"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            {/* Profit Bar Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Lucro Mensal</CardTitle>
+                <p className="text-sm text-muted-foreground">Últimos 6 meses</p>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+                      <XAxis dataKey="month" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                      <YAxis 
+                        className="text-xs" 
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                        labelStyle={{ color: 'hsl(var(--foreground))' }}
+                        formatter={(value: number) => [formatValue(value), '']}
+                      />
+                      <Bar
+                        dataKey="lucro"
+                        name="Lucro"
+                        fill="hsl(var(--primary))"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-        {/* Bank Balance Evolution */}
-        <div className="grid gap-6 lg:grid-cols-1">
+          {/* Bank Balance Evolution */}
           <BankBalanceChart />
-        </div>
+        </>
       )}
     </div>
   );
