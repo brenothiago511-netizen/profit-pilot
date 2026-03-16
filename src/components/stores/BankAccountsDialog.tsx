@@ -408,6 +408,28 @@ export default function BankAccountsDialog({
               <Card>
                 <CardContent className="p-4">
                   <form onSubmit={handleSubmit} className="space-y-4">
+                    {existingBanks.length > 0 && (
+                      <div className="space-y-2">
+                        <Label>Usar banco existente</Label>
+                        <Select
+                          value={selectedExistingBank}
+                          onValueChange={handleSelectExistingBank}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione um banco já cadastrado ou crie novo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__new__">+ Novo banco</SelectItem>
+                            {existingBanks.map((bank, idx) => (
+                              <SelectItem key={idx} value={String(idx)}>
+                                {bank.account_holder} - {bank.bank_name} ({bank.currency})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>País *</Label>
