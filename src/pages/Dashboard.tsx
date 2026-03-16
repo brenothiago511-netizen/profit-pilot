@@ -23,6 +23,7 @@ import {
 } from 'recharts';
 import { CurrencyToggle } from '@/components/currency/CurrencyToggle';
 import { useCurrency } from '@/hooks/useCurrency';
+import { BankBalanceChart } from '@/components/dashboard/BankBalanceChart';
 
 interface DashboardData {
   totalRevenue: number;
