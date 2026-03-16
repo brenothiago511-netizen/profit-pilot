@@ -83,30 +83,34 @@ export default function Stores() {
   }, []);
 
   const fetchFilterUsers = async () => {
-    const { data: partnersData } = await supabase
-      .from('partners')
-      .select('user_id, store_id, profiles(name)')
-      .eq('status', 'active');
+    const [partnersRes, profilesRes] = await Promise.all([
+      supabase.from('partners').select('user_id, store_id').eq('status', 'active'),
+      supabase.from('profiles').select('id, name').eq('status', 'active'),
+    ]);
 
-    if (partnersData) {
-      const usersMap: Record<string, string> = {};
-      const storeMap: Record<string, string[]> = {};
-      
-      for (const p of partnersData) {
-        const uid = p.user_id;
-        const name = (p.profiles as any)?.name || 'Sem nome';
-        usersMap[uid] = name;
-        if (p.store_id) {
-          if (!storeMap[uid]) storeMap[uid] = [];
-          storeMap[uid].push(p.store_id);
-        }
-      }
-
-      setFilterUsers(
-        Object.entries(usersMap).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
-      );
-      setPartnerStoreMap(storeMap);
+    const partnersData = partnersRes.data || [];
+    const profilesData = profilesRes.data || [];
+    const profileMap: Record<string, string> = {};
+    for (const p of profilesData) {
+      profileMap[p.id] = p.name;
     }
+
+    const usersMap: Record<string, string> = {};
+    const storeMap: Record<string, string[]> = {};
+
+    for (const p of partnersData) {
+      const uid = p.user_id;
+      usersMap[uid] = profileMap[uid] || 'Sem nome';
+      if (p.store_id) {
+        if (!storeMap[uid]) storeMap[uid] = [];
+        storeMap[uid].push(p.store_id);
+      }
+    }
+
+    setFilterUsers(
+      Object.entries(usersMap).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+    );
+    setPartnerStoreMap(storeMap);
   };
 
   const fetchData = async () => {
