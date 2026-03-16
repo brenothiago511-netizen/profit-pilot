@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthStartOf } from 'date-fns';
+import { format, subMonths, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useCurrency } from '@/hooks/useCurrency';
 
