@@ -481,22 +481,28 @@ export default function Stores() {
         </Dialog>
       </div>
 
-      {isAdmin && (
-        <div className="flex items-center gap-3">
-          <Label className="text-sm text-muted-foreground whitespace-nowrap">Filtrar por sócio:</Label>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="relative w-full sm:w-[260px]">
+          <Input
+            placeholder="Buscar loja..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        {isAdmin && (
           <Select value={filterUserId} onValueChange={setFilterUserId}>
-            <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="Todos os usuários" />
+            <SelectTrigger className="w-full sm:w-[220px]">
+              <SelectValue placeholder="Todos os sócios" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">Todos os sócios</SelectItem>
               {filterUsers.map(u => (
                 <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-      )}
+        )}
+      </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
