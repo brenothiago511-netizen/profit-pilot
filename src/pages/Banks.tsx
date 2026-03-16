@@ -437,17 +437,14 @@ export default function Banks() {
                           </Badge>
                         )}
                       </div>
-                      <div className="space-y-2 mt-4">
+                      <div className="space-y-1.5 mt-4">
                         {groupAccounts.map(account => (
                           <div key={account.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
-                            <div>
-                              <p className="text-xs text-muted-foreground">{account.currency}</p>
-                              <p className={`text-lg font-bold ${Number(account.balance) >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
-                                {formatCurrency(Number(account.balance), account.currency)}
-                              </p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-foreground">{account.currency}</span>
+                              <span className="text-xs text-muted-foreground">•••• {account.account_number.slice(-4)}</span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <span className="text-xs text-muted-foreground mr-2">•••• {account.account_number.slice(-4)}</span>
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenEdit(account)}>
                                 <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                               </Button>
