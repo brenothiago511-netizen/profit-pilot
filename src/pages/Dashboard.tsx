@@ -345,14 +345,6 @@ export default function Dashboard() {
       iconColor: data.partnerShare >= 0 ? 'text-success' : 'text-danger',
       show: isSocio,
     },
-    {
-      title: 'Comissões',
-      value: data.totalCommissions,
-      icon: Percent,
-      className: 'metric-card-info',
-      iconColor: 'text-info',
-      show: !isSocio,
-    },
   ];
 
   return (
