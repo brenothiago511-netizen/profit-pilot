@@ -111,6 +111,18 @@ export default function BankAccountsDialog({
   const handleLink = async () => {
     if (!selectedBankId) return;
     setSaving(true);
+
+    // Update bank account details if any were filled
+    const updates: Record<string, any> = {};
+    if (linkForm.account_number) updates.account_number = linkForm.account_number;
+    if (linkForm.routing_number) updates.routing_number = linkForm.routing_number;
+    if (linkForm.iban) updates.iban = linkForm.iban;
+    if (linkForm.currency) updates.currency = linkForm.currency;
+
+    if (Object.keys(updates).length > 0) {
+      await supabase.from('bank_accounts').update(updates).eq('id', selectedBankId);
+    }
+
     const { error } = await supabase.from('store_bank_accounts').insert({
       store_id: storeId,
       bank_account_id: selectedBankId,
@@ -123,6 +135,7 @@ export default function BankAccountsDialog({
     } else {
       toast({ title: 'Sucesso', description: 'Banco vinculado à loja' });
       setSelectedBankId('');
+      setLinkForm({ account_number: '', routing_number: '', iban: '', currency: 'USD' });
       setShowLinkForm(false);
       fetchLinkedBanks();
       fetchAvailableBanks();
