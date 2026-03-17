@@ -66,6 +66,7 @@ export default function BankAccountsDialog({
   const [availableBanks, setAvailableBanks] = useState<AvailableBank[]>([]);
   const [showLinkForm, setShowLinkForm] = useState(false);
   const [selectedBankId, setSelectedBankId] = useState<string>('');
+  const [linkForm, setLinkForm] = useState({ account_number: '', routing_number: '', iban: '', currency: 'USD' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ account_number: '', routing_number: '', iban: '', currency: '' });
 
@@ -110,6 +111,18 @@ export default function BankAccountsDialog({
   const handleLink = async () => {
     if (!selectedBankId) return;
     setSaving(true);
+
+    // Update bank account details if any were filled
+    const updates: Record<string, any> = {};
+    if (linkForm.account_number) updates.account_number = linkForm.account_number;
+    if (linkForm.routing_number) updates.routing_number = linkForm.routing_number;
+    if (linkForm.iban) updates.iban = linkForm.iban;
+    if (linkForm.currency) updates.currency = linkForm.currency;
+
+    if (Object.keys(updates).length > 0) {
+      await supabase.from('bank_accounts').update(updates).eq('id', selectedBankId);
+    }
+
     const { error } = await supabase.from('store_bank_accounts').insert({
       store_id: storeId,
       bank_account_id: selectedBankId,
@@ -122,6 +135,7 @@ export default function BankAccountsDialog({
     } else {
       toast({ title: 'Sucesso', description: 'Banco vinculado à loja' });
       setSelectedBankId('');
+      setLinkForm({ account_number: '', routing_number: '', iban: '', currency: 'USD' });
       setShowLinkForm(false);
       fetchLinkedBanks();
       fetchAvailableBanks();
@@ -350,11 +364,62 @@ export default function BankAccountsDialog({
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {selectedBankId && (
+                    <div className="space-y-3 border-t pt-3">
+                      <p className="text-sm font-medium">Dados da conta bancária <span className="text-muted-foreground font-normal">(todos opcionais)</span></p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Moeda</Label>
+                          <Select value={linkForm.currency} onValueChange={(v) => setLinkForm(f => ({ ...f, currency: v }))}>
+                            <SelectTrigger className="h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CURRENCIES.map(c => (
+                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Account Number</Label>
+                          <Input
+                            className="h-9"
+                            value={linkForm.account_number}
+                            onChange={(e) => setLinkForm(f => ({ ...f, account_number: e.target.value }))}
+                            placeholder="Opcional"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Routing Number</Label>
+                          <Input
+                            className="h-9"
+                            value={linkForm.routing_number}
+                            onChange={(e) => setLinkForm(f => ({ ...f, routing_number: e.target.value }))}
+                            placeholder="Opcional"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">IBAN</Label>
+                          <Input
+                            className="h-9"
+                            value={linkForm.iban}
+                            onChange={(e) => setLinkForm(f => ({ ...f, iban: e.target.value }))}
+                            placeholder="Opcional"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <p className="text-xs text-muted-foreground">
                     Para cadastrar um novo banco, acesse a página de <strong>Bancos</strong> primeiro.
                   </p>
                   <div className="flex justify-end gap-3">
-                    <Button variant="outline" onClick={() => { setShowLinkForm(false); setSelectedBankId(''); }}>
+                    <Button variant="outline" onClick={() => { setShowLinkForm(false); setSelectedBankId(''); setLinkForm({ account_number: '', routing_number: '', iban: '', currency: 'USD' }); }}>
                       Cancelar
                     </Button>
                     <Button onClick={handleLink} disabled={saving || !selectedBankId}>
