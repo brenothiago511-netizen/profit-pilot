@@ -149,7 +149,7 @@ const BANK_OPTIONS = ['Airwallex', 'Mercury', 'Relay', 'Revolut'];
 
 export default function Banks() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isAdmin, profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
