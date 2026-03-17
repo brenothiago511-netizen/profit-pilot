@@ -263,7 +263,7 @@ export default function Payroll() {
                   <TableRow key={entry.id}>
                     <TableCell className="font-medium">{entry.employee_name}</TableCell>
                     <TableCell>{getOrdinal(entry.payment_day)}</TableCell>
-                    <TableCell>{formatCurrency(entry.amount)}</TableCell>
+                    <TableCell>{formatCurrency(entry.amount, 'BRL')}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {entry.description || '-'}
                     </TableCell>
