@@ -69,7 +69,7 @@ const navigationSections = [
     title: 'Lucros',
     items: [
       { name: 'Lucros', href: '/commissions', icon: DollarSign, permissions: ['view_profits', 'register_profits'] },
-      { name: 'Saques Shopify', href: '/shopify-withdrawals', icon: Wallet, permissions: ['view_profits', 'register_profits'] },
+      { name: 'Saques Shopify', href: '/shopify-withdrawals', icon: Wallet, permissions: ['view_profits', 'register_profits', 'view_shopify_withdrawals'] },
     ],
   },
   {
