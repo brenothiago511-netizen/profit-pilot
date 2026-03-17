@@ -1091,7 +1091,7 @@ export default function Expenses() {
                       <SelectItem value="__none__">Nenhum (não debitar)</SelectItem>
                       {bankAccounts.map((ba) => (
                         <SelectItem key={ba.id} value={ba.id}>
-                          {ba.bank_name} {ba.store_name ? `- ${ba.store_name}` : ''}
+                          {ba.account_holder} - {ba.bank_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
