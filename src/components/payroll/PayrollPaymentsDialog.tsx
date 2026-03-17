@@ -268,7 +268,7 @@ export default function PayrollPaymentsDialog({
               payments.map((payment) => (
                 <TableRow key={payment.id}>
                   <TableCell>{format(new Date(payment.date), 'dd/MM/yyyy')}</TableCell>
-                  <TableCell className="font-medium">{formatCurrency(payment.amount)}</TableCell>
+                  <TableCell className="font-medium">{formatCurrency(payment.amount, 'BRL')}</TableCell>
                   <TableCell className="text-muted-foreground">{payment.notes || '-'}</TableCell>
                   <TableCell>
                     {payment.receipt_url ? (
