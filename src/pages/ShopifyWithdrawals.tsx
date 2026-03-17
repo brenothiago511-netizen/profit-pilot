@@ -86,9 +86,14 @@ const ShopifyWithdrawals = () => {
 
   useEffect(() => {
     fetchWithdrawals();
-    fetchStores();
     if (isAdmin) fetchProfileNames();
   }, []);
+
+  useEffect(() => {
+    if (profile?.role && user?.id) {
+      fetchStores();
+    }
+  }, [profile?.role, user?.id]);
 
   // Fetch bank accounts when store is selected in the form
   useEffect(() => {
