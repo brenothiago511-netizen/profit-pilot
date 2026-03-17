@@ -169,15 +169,14 @@ export default function Dashboard() {
   };
 
   const getStoreIdsForQuery = async (): Promise<string[] | null> => {
-    // For admin filtering by partner - return null so we don't filter by store
-    // The user_id filter applied separately is sufficient
-    if (isAdmin && selectedPartner !== 'all') {
-      return null;
+    // For sócio - ALWAYS use their own stores (even if empty, to prevent data leakage)
+    if (isSocio) {
+      return partnerStoreIds && partnerStoreIds.length > 0 ? partnerStoreIds : ['00000000-0000-0000-0000-000000000000'];
     }
     
-    // For sócio - use their own stores
-    if (isSocio && partnerStoreIds && partnerStoreIds.length > 0) {
-      return partnerStoreIds;
+    // For admin filtering by partner - return null so we don't filter by store
+    if (isAdmin && selectedPartner !== 'all') {
+      return null;
     }
     
     // For admin/financeiro with no partner filter - ALL stores (no restriction)
