@@ -145,12 +145,27 @@ export default function Expenses() {
   };
 
   const fetchStores = async () => {
-    const { data } = await supabase
-      .from('stores')
-      .select('id, name')
-      .eq('status', 'active')
-      .order('name');
-    if (data) setStores(data);
+    if (isAdmin) {
+      const { data } = await supabase
+        .from('stores')
+        .select('id, name')
+        .eq('status', 'active')
+        .order('name');
+      if (data) setStores(data);
+    } else if (user) {
+      // Non-admin: only stores linked via partners
+      const { data: partnerData } = await supabase
+        .from('partners')
+        .select('store_id, stores(id, name)')
+        .eq('user_id', user.id)
+        .eq('status', 'active');
+      if (partnerData) {
+        const userStores = partnerData
+          .filter((p: any) => p.stores)
+          .map((p: any) => ({ id: p.stores.id, name: p.stores.name }));
+        setStores(userStores);
+      }
+    }
   };
 
   const fetchCategories = async () => {
