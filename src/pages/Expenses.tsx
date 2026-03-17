@@ -67,7 +67,7 @@ export default function Expenses() {
   const { toast } = useToast();
   const [profileNames, setProfileNames] = useState<ProfileMap>({});
   const isAdmin = profile?.role === 'admin';
-  const [bankAccounts, setBankAccounts] = useState<{ id: string; bank_name: string; store_name?: string }[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<{ id: string; bank_name: string; account_holder: string }[]>([]);
   const [selectedBankAccount, setSelectedBankAccount] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [expenses, setExpenses] = useState<Expense[]>([]);
