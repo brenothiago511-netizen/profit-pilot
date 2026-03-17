@@ -166,11 +166,11 @@ export default function PayrollPaymentsDialog({
         <div className="flex gap-4 text-sm">
           <div className="flex-1 p-3 rounded-lg bg-muted">
             <p className="text-muted-foreground">Salário</p>
-            <p className="font-bold text-foreground">{formatCurrency(expectedAmount)}</p>
+            <p className="font-bold text-foreground">{formatCurrency(expectedAmount, 'BRL')}</p>
           </div>
           <div className="flex-1 p-3 rounded-lg bg-muted">
             <p className="text-muted-foreground">Total Pago</p>
-            <p className="font-bold text-primary">{formatCurrency(totalPaid)}</p>
+            <p className="font-bold text-primary">{formatCurrency(totalPaid, 'BRL')}</p>
           </div>
           <div className="flex-1 p-3 rounded-lg bg-muted">
             <p className="text-muted-foreground">Pagamentos</p>
@@ -268,7 +268,7 @@ export default function PayrollPaymentsDialog({
               payments.map((payment) => (
                 <TableRow key={payment.id}>
                   <TableCell>{format(new Date(payment.date), 'dd/MM/yyyy')}</TableCell>
-                  <TableCell className="font-medium">{formatCurrency(payment.amount)}</TableCell>
+                  <TableCell className="font-medium">{formatCurrency(payment.amount, 'BRL')}</TableCell>
                   <TableCell className="text-muted-foreground">{payment.notes || '-'}</TableCell>
                   <TableCell>
                     {payment.receipt_url ? (

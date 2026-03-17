@@ -200,7 +200,7 @@ export default function Payroll() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">
-              {formatCurrency(totalPayroll)}
+              {formatCurrency(totalPayroll, 'BRL')}
             </div>
             <p className="text-xs text-muted-foreground">Soma de todos os salários ativos</p>
           </CardContent>
@@ -224,7 +224,7 @@ export default function Payroll() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {activeEmployees > 0 ? formatCurrency(totalPayroll / activeEmployees) : formatCurrency(0)}
+              {activeEmployees > 0 ? formatCurrency(totalPayroll / activeEmployees, 'BRL') : formatCurrency(0, 'BRL')}
             </div>
             <p className="text-xs text-muted-foreground">Média por funcionário</p>
           </CardContent>
@@ -263,7 +263,7 @@ export default function Payroll() {
                   <TableRow key={entry.id}>
                     <TableCell className="font-medium">{entry.employee_name}</TableCell>
                     <TableCell>{getOrdinal(entry.payment_day)}</TableCell>
-                    <TableCell>{formatCurrency(entry.amount)}</TableCell>
+                    <TableCell>{formatCurrency(entry.amount, 'BRL')}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {entry.description || '-'}
                     </TableCell>
