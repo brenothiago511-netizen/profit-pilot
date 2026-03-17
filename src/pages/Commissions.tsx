@@ -843,8 +843,7 @@ export default function Commissions() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Data</th>
-                        {!isAdmin && <th>Sócio</th>}
+                         <th>Data</th>
                         <th>Loja</th>
                         <th className="text-right">Lucro</th>
                         <th>Status Shopify</th>
@@ -855,7 +854,6 @@ export default function Commissions() {
                       {userRecords.map((record) => (
                         <tr key={record.id}>
                           <td>{format(parseLocalDate(record.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
-                          {!isAdmin && <td>{record.user_name}</td>}
                           <td>{record.store_name}</td>
                           <td className="text-right font-medium">{formatCurrency(record.daily_profit)}</td>
                           <td>
