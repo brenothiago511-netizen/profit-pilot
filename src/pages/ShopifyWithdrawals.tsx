@@ -107,12 +107,15 @@ const ShopifyWithdrawals = () => {
         setStoreBankAccounts([]);
         return;
       }
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('bank_accounts')
         .select('id, bank_name, account_holder, account_number, account_type, currency, country, is_primary, status')
         .eq('store_id', selectedStore.id)
         .eq('status', 'active')
         .order('is_primary', { ascending: false });
+      if (error) {
+        console.error('Error fetching bank accounts for store:', selectedStore.id, error);
+      }
       setStoreBankAccounts(data || []);
     };
     fetchBankAccounts();
