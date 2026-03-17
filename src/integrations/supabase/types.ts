@@ -1067,6 +1067,45 @@ export type Database = {
         }
         Relationships: []
       }
+      store_bank_accounts: {
+        Row: {
+          bank_account_id: string
+          created_at: string
+          id: string
+          is_primary: boolean
+          store_id: string
+        }
+        Insert: {
+          bank_account_id: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          store_id: string
+        }
+        Update: {
+          bank_account_id?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_bank_accounts_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_bank_accounts_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       store_roi_alerts: {
         Row: {
           created_at: string

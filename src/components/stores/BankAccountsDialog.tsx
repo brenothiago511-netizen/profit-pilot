@@ -1,42 +1,37 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Trash2, CreditCard, Star, Building } from 'lucide-react';
+import { Loader2, Plus, Trash2, CreditCard, Star, Building, Link2 } from 'lucide-react';
 
-interface BankAccount {
+interface LinkedBank {
   id: string;
-  store_id: string;
-  bank_name: string;
-  account_holder: string;
-  account_type: string;
-  routing_number: string | null;
-  account_number: string;
-  swift_code: string | null;
-  iban: string | null;
-  currency: string;
-  country: string;
-  notes: string | null;
+  bank_account_id: string;
   is_primary: boolean;
-  status: string;
+  bank_accounts: {
+    id: string;
+    bank_name: string;
+    account_holder: string;
+    currency: string;
+    country: string;
+    account_number: string;
+    routing_number: string | null;
+    swift_code: string | null;
+    iban: string | null;
+    balance: number;
+  };
 }
 
-interface ExistingBank {
+interface AvailableBank {
+  id: string;
   bank_name: string;
   account_holder: string;
-  account_type: string;
-  routing_number: string | null;
-  swift_code: string | null;
-  iban: string | null;
   currency: string;
-  country: string;
 }
 
 interface BankAccountsDialogProps {
@@ -46,18 +41,14 @@ interface BankAccountsDialogProps {
   storeName: string;
 }
 
-const COUNTRIES = [
-  { code: 'US', name: 'Estados Unidos', currency: 'USD' },
-  { code: 'BR', name: 'Brasil', currency: 'BRL' },
-  { code: 'GB', name: 'Reino Unido', currency: 'GBP' },
-  { code: 'EU', name: 'União Europeia', currency: 'EUR' },
-  { code: 'CA', name: 'Canadá', currency: 'CAD' },
-  { code: 'AU', name: 'Austrália', currency: 'AUD' },
-  { code: 'JP', name: 'Japão', currency: 'JPY' },
-  { code: 'CN', name: 'China', currency: 'CNY' },
-  { code: 'MX', name: 'México', currency: 'MXN' },
-  { code: 'OTHER', name: 'Outro', currency: 'USD' },
-];
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: '$', BRL: 'R$', EUR: '€', GBP: '£', CAD: 'C$', AUD: 'A$',
+};
+
+function formatCurrency(amount: number, currency: string = 'USD') {
+  const symbol = CURRENCY_SYMBOLS[currency] || currency;
+  return `${symbol} ${amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 export default function BankAccountsDialog({ 
   open, 
@@ -68,233 +59,108 @@ export default function BankAccountsDialog({
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [accounts, setAccounts] = useState<BankAccount[]>([]);
-  const [existingBanks, setExistingBanks] = useState<ExistingBank[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [selectedExistingBank, setSelectedExistingBank] = useState<string>('');
-  const [formData, setFormData] = useState({
-    bank_name: '',
-    account_holder: '',
-    account_type: 'checking',
-    routing_number: '',
-    account_number: '',
-    swift_code: '',
-    iban: '',
-    currency: 'USD',
-    country: 'US',
-    notes: '',
-    is_primary: false,
-  });
+  const [linkedBanks, setLinkedBanks] = useState<LinkedBank[]>([]);
+  const [availableBanks, setAvailableBanks] = useState<AvailableBank[]>([]);
+  const [showLinkForm, setShowLinkForm] = useState(false);
+  const [selectedBankId, setSelectedBankId] = useState<string>('');
 
   useEffect(() => {
     if (open && storeId) {
-      fetchAccounts();
-      fetchExistingBanks();
+      fetchLinkedBanks();
+      fetchAvailableBanks();
     }
   }, [open, storeId]);
 
-  const fetchAccounts = async () => {
+  const fetchLinkedBanks = async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from('bank_accounts')
-      .select('*')
+      .from('store_bank_accounts')
+      .select('id, bank_account_id, is_primary, bank_accounts(id, bank_name, account_holder, currency, country, account_number, routing_number, swift_code, iban, balance)')
       .eq('store_id', storeId)
       .order('is_primary', { ascending: false });
 
     if (error) {
-      console.error('Error fetching bank accounts:', error);
+      console.error('Error fetching linked banks:', error);
     } else {
-      setAccounts(data || []);
+      setLinkedBanks((data as any) || []);
     }
     setLoading(false);
   };
 
-  const fetchExistingBanks = async () => {
+  const fetchAvailableBanks = async () => {
     const { data } = await supabase
       .from('bank_accounts')
-      .select('bank_name, account_holder, account_type, routing_number, swift_code, iban, currency, country')
-      .order('bank_name');
+      .select('id, bank_name, account_holder, currency')
+      .eq('status', 'active')
+      .order('account_holder');
 
     if (data) {
-      // Deduplicate by bank_name + account_holder
-      const unique = data.reduce((acc: ExistingBank[], curr) => {
-        const key = `${curr.bank_name}-${curr.account_holder}`;
-        if (!acc.find(b => `${b.bank_name}-${b.account_holder}` === key)) {
-          acc.push(curr);
-        }
-        return acc;
-      }, []);
-      setExistingBanks(unique);
+      setAvailableBanks(data);
     }
   };
 
-  const resetForm = () => {
-    setSelectedExistingBank('');
-    setFormData({
-      bank_name: '',
-      account_holder: '',
-      account_type: 'checking',
-      routing_number: '',
-      account_number: '',
-      swift_code: '',
-      iban: '',
-      currency: 'USD',
-      country: 'US',
-      notes: '',
-      is_primary: accounts.length === 0,
-    });
+  const getUnlinkedBanks = () => {
+    const linkedIds = new Set(linkedBanks.map(lb => lb.bank_account_id));
+    return availableBanks.filter(b => !linkedIds.has(b.id));
   };
 
-  const handleSelectExistingBank = (value: string) => {
-    setSelectedExistingBank(value);
-    if (value === '__new__') {
-      setFormData(prev => ({
-        ...prev,
-        bank_name: '',
-        account_holder: '',
-        account_type: 'checking',
-        routing_number: '',
-        swift_code: '',
-        iban: '',
-        currency: 'USD',
-        country: 'US',
-      }));
-      return;
-    }
-    const bank = existingBanks[parseInt(value)];
-    if (bank) {
-      setFormData(prev => ({
-        ...prev,
-        bank_name: bank.bank_name,
-        account_holder: bank.account_holder,
-        account_type: bank.account_type,
-        routing_number: bank.routing_number || '',
-        swift_code: bank.swift_code || '',
-        iban: bank.iban || '',
-        currency: bank.currency,
-        country: bank.country,
-      }));
-    }
-  };
-
-  const handleCountryChange = (countryCode: string) => {
-    const country = COUNTRIES.find(c => c.code === countryCode);
-    setFormData({
-      ...formData,
-      country: countryCode,
-      currency: country?.currency || 'USD',
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLink = async () => {
+    if (!selectedBankId) return;
     
-    const hasIBAN = !!formData.iban;
-    if (!formData.bank_name || !formData.account_holder || (!formData.account_number && !hasIBAN)) {
-      toast({
-        title: 'Erro',
-        description: hasIBAN ? 'Preencha os campos obrigatórios' : 'Preencha os campos obrigatórios (Account Number ou IBAN)',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setSaving(true);
-
-    // If this is set as primary, unset others first
-    if (formData.is_primary && accounts.length > 0) {
-      await supabase
-        .from('bank_accounts')
-        .update({ is_primary: false })
-        .eq('store_id', storeId);
-    }
-
-    const { error } = await supabase.from('bank_accounts').insert({
+    const { error } = await supabase.from('store_bank_accounts').insert({
       store_id: storeId,
-      bank_name: formData.bank_name,
-      account_holder: formData.account_holder,
-      account_type: formData.account_type,
-      routing_number: formData.routing_number || null,
-      account_number: formData.account_number || formData.iban || '',
-      swift_code: formData.swift_code || null,
-      iban: formData.iban || null,
-      currency: formData.currency,
-      country: formData.country,
-      notes: formData.notes || null,
-      is_primary: formData.is_primary || accounts.length === 0,
+      bank_account_id: selectedBankId,
+      is_primary: linkedBanks.length === 0,
     });
-
     setSaving(false);
 
     if (error) {
-      toast({
-        title: 'Erro ao salvar',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
-      toast({
-        title: 'Sucesso',
-        description: 'Conta bancária cadastrada',
-      });
-      resetForm();
-      setShowForm(false);
-      fetchAccounts();
+      toast({ title: 'Sucesso', description: 'Banco vinculado à loja' });
+      setSelectedBankId('');
+      setShowLinkForm(false);
+      fetchLinkedBanks();
+      fetchAvailableBanks();
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleUnlink = async (linkId: string) => {
     const { error } = await supabase
-      .from('bank_accounts')
+      .from('store_bank_accounts')
       .delete()
-      .eq('id', id);
+      .eq('id', linkId);
 
     if (error) {
-      toast({
-        title: 'Erro',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
-      toast({
-        title: 'Removido',
-        description: 'Conta bancária removida',
-      });
-      fetchAccounts();
+      toast({ title: 'Removido', description: 'Banco desvinculado da loja' });
+      fetchLinkedBanks();
     }
   };
 
-  const handleSetPrimary = async (id: string) => {
+  const handleSetPrimary = async (linkId: string) => {
     // Unset all primary first
     await supabase
-      .from('bank_accounts')
+      .from('store_bank_accounts')
       .update({ is_primary: false })
       .eq('store_id', storeId);
 
-    // Set the selected one as primary
     const { error } = await supabase
-      .from('bank_accounts')
+      .from('store_bank_accounts')
       .update({ is_primary: true })
-      .eq('id', id);
+      .eq('id', linkId);
 
     if (error) {
-      toast({
-        title: 'Erro',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
-      toast({
-        title: 'Atualizado',
-        description: 'Conta principal definida',
-      });
-      fetchAccounts();
+      toast({ title: 'Atualizado', description: 'Banco principal definido' });
+      fetchLinkedBanks();
     }
   };
 
-  const getCountryName = (code: string) => {
-    return COUNTRIES.find(c => c.code === code)?.name || code;
-  };
+  const unlinkedBanks = getUnlinkedBanks();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -302,7 +168,7 @@ export default function BankAccountsDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building className="w-5 h-5" />
-            Dados Bancários - {storeName}
+            Bancos Vinculados - {storeName}
           </DialogTitle>
         </DialogHeader>
 
@@ -312,278 +178,130 @@ export default function BankAccountsDialog({
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Existing accounts */}
-            {accounts.length > 0 && (
+            {/* Linked banks */}
+            {linkedBanks.length > 0 && (
               <div className="space-y-3">
-                {accounts.map((account) => (
-                  <Card key={account.id} className="relative">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3">
-                          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
-                            <CreditCard className="w-5 h-5 text-primary" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{account.bank_name}</span>
-                              {account.is_primary && (
-                                <Badge variant="default" className="text-xs">
-                                  <Star className="w-3 h-3 mr-1" />
-                                  Principal
-                                </Badge>
-                              )}
+                {linkedBanks.map((link) => {
+                  const bank = link.bank_accounts;
+                  return (
+                    <Card key={link.id} className="relative">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
+                              <CreditCard className="w-5 h-5 text-primary" />
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              {account.account_holder}
-                            </p>
-                            <div className="mt-2 text-sm space-y-1">
-                              <p>
-                                <span className="text-muted-foreground">País:</span>{' '}
-                                {getCountryName(account.country)} ({account.currency})
-                              </p>
-                              {account.routing_number && (
-                                <p>
-                                  <span className="text-muted-foreground">Routing:</span>{' '}
-                                  {account.routing_number}
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{bank.account_holder} - {bank.bank_name}</span>
+                                {link.is_primary && (
+                                  <Badge variant="default" className="text-xs">
+                                    <Star className="w-3 h-3 mr-1" />
+                                    Principal
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="mt-1 text-sm space-y-0.5">
+                                <p className="text-muted-foreground">
+                                  {bank.currency} • Saldo: {formatCurrency(Number(bank.balance), bank.currency)}
                                 </p>
-                              )}
-                              <p>
-                                <span className="text-muted-foreground">Conta:</span>{' '}
-                                {account.account_number}
-                              </p>
-                              {account.swift_code && (
-                                <p>
-                                  <span className="text-muted-foreground">SWIFT:</span>{' '}
-                                  {account.swift_code}
-                                </p>
-                              )}
-                              {account.iban && (
-                                <p>
-                                  <span className="text-muted-foreground">IBAN:</span>{' '}
-                                  {account.iban}
-                                </p>
-                              )}
+                                {bank.routing_number && (
+                                  <p><span className="text-muted-foreground">Routing:</span> {bank.routing_number}</p>
+                                )}
+                                {bank.account_number && (
+                                  <p><span className="text-muted-foreground">Conta:</span> {bank.account_number}</p>
+                                )}
+                                {bank.swift_code && (
+                                  <p><span className="text-muted-foreground">SWIFT:</span> {bank.swift_code}</p>
+                                )}
+                                {bank.iban && (
+                                  <p><span className="text-muted-foreground">IBAN:</span> {bank.iban}</p>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex gap-2">
-                          {!account.is_primary && (
+                          <div className="flex gap-2">
+                            {!link.is_primary && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleSetPrimary(link.id)}
+                                title="Definir como principal"
+                              >
+                                <Star className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleSetPrimary(account.id)}
+                              onClick={() => handleUnlink(link.id)}
+                              className="text-destructive hover:text-destructive"
+                              title="Desvincular"
                             >
-                              <Star className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4" />
                             </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(account.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
 
-            {/* Add new button or form */}
-            {!showForm ? (
+            {/* Link bank form */}
+            {!showLinkForm ? (
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => {
-                  resetForm();
-                  setShowForm(true);
-                }}
+                onClick={() => setShowLinkForm(true)}
+                disabled={unlinkedBanks.length === 0}
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar Conta Bancária
+                <Link2 className="w-4 h-4 mr-2" />
+                {unlinkedBanks.length === 0 
+                  ? 'Todos os bancos já estão vinculados' 
+                  : 'Vincular Banco Existente'}
               </Button>
             ) : (
               <Card>
-                <CardContent className="p-4">
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    {existingBanks.length > 0 && (
-                      <div className="space-y-2">
-                        <Label>Usar banco existente</Label>
-                        <Select
-                          value={selectedExistingBank}
-                          onValueChange={handleSelectExistingBank}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione um banco já cadastrado ou crie novo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__new__">+ Novo banco</SelectItem>
-                            {existingBanks.map((bank, idx) => (
-                              <SelectItem key={idx} value={String(idx)}>
-                                {bank.account_holder} - {bank.bank_name} ({bank.currency})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>País *</Label>
-                        <Select
-                          value={formData.country}
-                          onValueChange={handleCountryChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {COUNTRIES.map((country) => (
-                              <SelectItem key={country.code} value={country.code}>
-                                {country.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Moeda</Label>
-                        <Select
-                          value={formData.currency}
-                          onValueChange={(v) => setFormData({ ...formData, currency: v })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="USD">USD ($)</SelectItem>
-                            <SelectItem value="BRL">BRL (R$)</SelectItem>
-                            <SelectItem value="EUR">EUR (€)</SelectItem>
-                            <SelectItem value="GBP">GBP (£)</SelectItem>
-                            <SelectItem value="CAD">CAD ($)</SelectItem>
-                            <SelectItem value="AUD">AUD ($)</SelectItem>
-                            <SelectItem value="JPY">JPY (¥)</SelectItem>
-                            <SelectItem value="CNY">CNY (¥)</SelectItem>
-                            <SelectItem value="MXN">MXN ($)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Nome do Banco *</Label>
-                      <Input
-                        placeholder="Ex: Bank of America, Itaú, Santander"
-                        value={formData.bank_name}
-                        onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Titular da Conta *</Label>
-                      <Input
-                        placeholder="Nome completo do titular"
-                        value={formData.account_holder}
-                        onChange={(e) => setFormData({ ...formData, account_holder: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Tipo de Conta</Label>
-                        <Select
-                          value={formData.account_type}
-                          onValueChange={(v) => setFormData({ ...formData, account_type: v })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="checking">Corrente</SelectItem>
-                            <SelectItem value="savings">Poupança</SelectItem>
-                            <SelectItem value="business">Empresarial</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Routing Number</Label>
-                        <Input
-                          placeholder="Ex: 021000021"
-                          value={formData.routing_number}
-                          onChange={(e) => setFormData({ ...formData, routing_number: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Account Number *</Label>
-                      <Input
-                        placeholder="Ex: 123456789"
-                        value={formData.account_number}
-                        onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>SWIFT/BIC Code</Label>
-                        <Input
-                          placeholder="Ex: BOFAUS3N"
-                          value={formData.swift_code}
-                          onChange={(e) => setFormData({ ...formData, swift_code: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>IBAN</Label>
-                        <Input
-                          placeholder="Ex: DE89370400440532013000"
-                          value={formData.iban}
-                          onChange={(e) => setFormData({ ...formData, iban: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Observações</Label>
-                      <Textarea
-                        placeholder="Informações adicionais..."
-                        value={formData.notes}
-                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        rows={2}
-                      />
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setShowForm(false)}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button type="submit" disabled={saving}>
-                        {saving ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Salvando...
-                          </>
-                        ) : (
-                          'Salvar'
-                        )}
-                      </Button>
-                    </div>
-                  </form>
+                <CardContent className="p-4 space-y-4">
+                  <div className="space-y-2">
+                    <Label>Selecione o banco para vincular</Label>
+                    <Select value={selectedBankId} onValueChange={setSelectedBankId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um banco cadastrado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {unlinkedBanks.map((bank) => (
+                          <SelectItem key={bank.id} value={bank.id}>
+                            {bank.account_holder} - {bank.bank_name} ({bank.currency})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Para cadastrar um novo banco, acesse a página de <strong>Bancos</strong> primeiro.
+                  </p>
+                  <div className="flex justify-end gap-3">
+                    <Button variant="outline" onClick={() => { setShowLinkForm(false); setSelectedBankId(''); }}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleLink} disabled={saving || !selectedBankId}>
+                      {saving ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Vinculando...</>
+                      ) : (
+                        <><Link2 className="w-4 h-4 mr-2" />Vincular</>
+                      )}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )}
 
-            {accounts.length === 0 && !showForm && (
+            {linkedBanks.length === 0 && !showLinkForm && (
               <p className="text-center text-muted-foreground py-4">
-                Nenhuma conta bancária cadastrada para esta loja
+                Nenhum banco vinculado a esta loja
               </p>
             )}
           </div>

@@ -332,26 +332,21 @@ export default function Banks() {
       toast({ title: 'Erro', description: 'Preencha os campos obrigatórios', variant: 'destructive' });
       return;
     }
-    if (stores.length === 0) {
-      toast({ title: 'Erro', description: 'Cadastre uma loja antes de criar uma conta bancária', variant: 'destructive' });
-      return;
-    }
-    const storeId = accountForm.store_id || stores[0].id;
     setSaving(true);
     const { error } = await supabase.from('bank_accounts').insert({
       bank_name: accountForm.bank_name,
-      store_id: storeId,
+      store_id: null,
       account_holder: accountForm.account_holder,
       account_number: accountForm.account_holder,
       currency: accountForm.currency || 'USD',
       country: 'US',
-      is_primary: accounts.length === 0,
+      is_primary: false,
     });
     setSaving(false);
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Sucesso', description: 'Conta bancária cadastrada' });
+      toast({ title: 'Sucesso', description: 'Banco cadastrado. Vincule-o a lojas na página de Lojas.' });
       setShowAccountDialog(false);
       setAccountForm({ bank_name: '', store_id: '', account_holder: '', account_number: '', currency: 'USD' });
       fetchData();
@@ -864,21 +859,8 @@ export default function Banks() {
               </Select>
             </div>
 
-            {stores.length > 1 && (
-              <div className="space-y-2">
-                <Label>Loja *</Label>
-                <Select value={accountForm.store_id || stores[0]?.id || ''} onValueChange={v => setAccountForm({ ...accountForm, store_id: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a loja" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stores.map(store => (
-                      <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+
+
 
             <div className="space-y-2">
               <Label>Titular da Conta *</Label>
