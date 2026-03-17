@@ -200,7 +200,7 @@ export default function Payroll() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">
-              {formatCurrency(totalPayroll)}
+              {formatCurrency(totalPayroll, 'BRL')}
             </div>
             <p className="text-xs text-muted-foreground">Soma de todos os salários ativos</p>
           </CardContent>
