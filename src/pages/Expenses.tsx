@@ -67,7 +67,7 @@ export default function Expenses() {
   const { toast } = useToast();
   const [profileNames, setProfileNames] = useState<ProfileMap>({});
   const isAdmin = profile?.role === 'admin';
-  const [bankAccounts, setBankAccounts] = useState<{ id: string; bank_name: string; store_name?: string }[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<{ id: string; bank_name: string; account_holder: string }[]>([]);
   const [selectedBankAccount, setSelectedBankAccount] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -127,11 +127,11 @@ export default function Expenses() {
   const fetchBankAccounts = async () => {
     const { data } = await supabase
       .from('bank_accounts')
-      .select('id, bank_name, stores(name)')
+      .select('id, bank_name, account_holder')
       .eq('status', 'active')
       .order('bank_name');
     if (data) {
-      setBankAccounts(data.map((a: any) => ({ id: a.id, bank_name: a.bank_name, store_name: a.stores?.name })));
+      setBankAccounts(data.map((a: any) => ({ id: a.id, bank_name: a.bank_name, account_holder: a.account_holder })));
     }
   };
 
@@ -1091,7 +1091,7 @@ export default function Expenses() {
                       <SelectItem value="__none__">Nenhum (não debitar)</SelectItem>
                       {bankAccounts.map((ba) => (
                         <SelectItem key={ba.id} value={ba.id}>
-                          {ba.bank_name} {ba.store_name ? `- ${ba.store_name}` : ''}
+                          {ba.account_holder} - {ba.bank_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1270,7 +1270,7 @@ export default function Expenses() {
                       <SelectItem value="__none__">Nenhum (não debitar)</SelectItem>
                       {bankAccounts.map((ba) => (
                         <SelectItem key={ba.id} value={ba.id}>
-                          {ba.bank_name} {ba.store_name ? `- ${ba.store_name}` : ''}
+                          {ba.account_holder} - {ba.bank_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
