@@ -843,8 +843,7 @@ export default function Commissions() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Data</th>
-                        {!isAdmin && <th>Sócio</th>}
+                         <th>Data</th>
                         <th>Loja</th>
                         <th className="text-right">Lucro</th>
                         <th>Status Shopify</th>
