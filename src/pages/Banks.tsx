@@ -336,13 +336,14 @@ export default function Banks() {
       toast({ title: 'Erro', description: 'Cadastre uma loja antes de criar uma conta bancária', variant: 'destructive' });
       return;
     }
+    const storeId = accountForm.store_id || stores[0].id;
     setSaving(true);
     const { error } = await supabase.from('bank_accounts').insert({
       bank_name: accountForm.bank_name,
-      store_id: stores[0].id,
+      store_id: storeId,
       account_holder: accountForm.account_holder,
       account_number: accountForm.account_holder,
-      currency: 'USD',
+      currency: accountForm.currency || 'USD',
       country: 'US',
       is_primary: accounts.length === 0,
     });
