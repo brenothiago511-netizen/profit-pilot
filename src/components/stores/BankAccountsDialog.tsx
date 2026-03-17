@@ -66,6 +66,7 @@ export default function BankAccountsDialog({
   const [availableBanks, setAvailableBanks] = useState<AvailableBank[]>([]);
   const [showLinkForm, setShowLinkForm] = useState(false);
   const [selectedBankId, setSelectedBankId] = useState<string>('');
+  const [linkForm, setLinkForm] = useState({ account_number: '', routing_number: '', iban: '', currency: 'USD' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ account_number: '', routing_number: '', iban: '', currency: '' });
 
