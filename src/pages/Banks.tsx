@@ -191,7 +191,7 @@ export default function Banks() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bank_transactions' }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [profile?.role, user?.id]);
 
   const fetchStores = async () => {
     const isSocio = profile?.role === 'socio';
