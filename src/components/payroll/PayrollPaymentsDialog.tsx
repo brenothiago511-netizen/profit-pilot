@@ -170,7 +170,7 @@ export default function PayrollPaymentsDialog({
           </div>
           <div className="flex-1 p-3 rounded-lg bg-muted">
             <p className="text-muted-foreground">Total Pago</p>
-            <p className="font-bold text-primary">{formatCurrency(totalPaid)}</p>
+            <p className="font-bold text-primary">{formatCurrency(totalPaid, 'BRL')}</p>
           </div>
           <div className="flex-1 p-3 rounded-lg bg-muted">
             <p className="text-muted-foreground">Pagamentos</p>
