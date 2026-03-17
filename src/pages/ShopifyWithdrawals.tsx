@@ -119,16 +119,41 @@ const ShopifyWithdrawals = () => {
   }, [form.store_name, stores]);
 
   const fetchStores = async () => {
-    const { data, error } = await supabase
-      .from('stores')
-      .select('id, name')
-      .eq('status', 'active')
-      .order('name');
-
-    if (error) {
-      console.error('Error fetching stores:', error);
+    const isSocio = profile?.role === 'socio';
+    
+    if (isSocio && user?.id) {
+      // Fetch only the partner's stores
+      const { data: partnerData } = await supabase
+        .from('partners')
+        .select('store_id')
+        .eq('user_id', user.id)
+        .eq('status', 'active');
+      
+      const storeIds = partnerData?.map(p => p.store_id).filter(Boolean) as string[] || [];
+      
+      if (storeIds.length > 0) {
+        const { data } = await supabase
+          .from('stores')
+          .select('id, name')
+          .eq('status', 'active')
+          .in('id', storeIds)
+          .order('name');
+        setStores(data || []);
+      } else {
+        setStores([]);
+      }
     } else {
-      setStores(data || []);
+      const { data, error } = await supabase
+        .from('stores')
+        .select('id, name')
+        .eq('status', 'active')
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching stores:', error);
+      } else {
+        setStores(data || []);
+      }
     }
   };
 
