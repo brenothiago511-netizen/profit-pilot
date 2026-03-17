@@ -302,17 +302,17 @@ export default function BankAccountsDialog({
                                 </div>
                               ) : (
                                 <div className="mt-1 text-sm space-y-0.5">
-                                  <p className="text-muted-foreground">
-                                    {bank.currency} • Saldo: {formatCurrency(Number(bank.balance), bank.currency)}
-                                  </p>
-                                  {bank.routing_number && (
-                                    <p><span className="text-muted-foreground">Routing:</span> {bank.routing_number}</p>
-                                  )}
                                   {bank.account_number && (
                                     <p><span className="text-muted-foreground">Conta:</span> {bank.account_number}</p>
                                   )}
+                                  {bank.routing_number && (
+                                    <p><span className="text-muted-foreground">Routing:</span> {bank.routing_number}</p>
+                                  )}
                                   {bank.iban && (
                                     <p><span className="text-muted-foreground">IBAN:</span> {bank.iban}</p>
+                                  )}
+                                  {!bank.account_number && !bank.routing_number && !bank.iban && (
+                                    <p className="text-muted-foreground italic">Nenhum dado bancário cadastrado</p>
                                   )}
                                 </div>
                               )}
