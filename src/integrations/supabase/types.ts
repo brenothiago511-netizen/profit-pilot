@@ -101,7 +101,7 @@ export type Database = {
           notes: string | null
           routing_number: string | null
           status: string
-          store_id: string
+          store_id: string | null
           swift_code: string | null
           updated_at: string
         }
@@ -120,7 +120,7 @@ export type Database = {
           notes?: string | null
           routing_number?: string | null
           status?: string
-          store_id: string
+          store_id?: string | null
           swift_code?: string | null
           updated_at?: string
         }
@@ -139,7 +139,7 @@ export type Database = {
           notes?: string | null
           routing_number?: string | null
           status?: string
-          store_id?: string
+          store_id?: string | null
           swift_code?: string | null
           updated_at?: string
         }
