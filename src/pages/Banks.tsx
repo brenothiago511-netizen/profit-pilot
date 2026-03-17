@@ -194,8 +194,27 @@ export default function Banks() {
   }, []);
 
   const fetchStores = async () => {
-    const { data } = await supabase.from('stores').select('id, name').eq('status', 'active').order('name');
-    if (data) setStores(data);
+    const isSocio = profile?.role === 'socio';
+    if (isSocio && user?.id) {
+      // Socio only sees their own stores
+      const { data: partnerData } = await supabase
+        .from('partners')
+        .select('store_id')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .not('store_id', 'is', null);
+      
+      const storeIds = partnerData?.map(p => p.store_id).filter(Boolean) as string[] || [];
+      if (storeIds.length > 0) {
+        const { data } = await supabase.from('stores').select('id, name').in('id', storeIds).eq('status', 'active').order('name');
+        if (data) setStores(data);
+      } else {
+        setStores([]);
+      }
+    } else {
+      const { data } = await supabase.from('stores').select('id, name').eq('status', 'active').order('name');
+      if (data) setStores(data);
+    }
   };
 
   const fetchData = async () => {
