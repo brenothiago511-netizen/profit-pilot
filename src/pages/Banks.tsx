@@ -149,7 +149,7 @@ const BANK_OPTIONS = ['Airwallex', 'Mercury', 'Relay', 'Revolut'];
 
 export default function Banks() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isAdmin, profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
@@ -194,8 +194,27 @@ export default function Banks() {
   }, []);
 
   const fetchStores = async () => {
-    const { data } = await supabase.from('stores').select('id, name').eq('status', 'active').order('name');
-    if (data) setStores(data);
+    const isSocio = profile?.role === 'socio';
+    if (isSocio && user?.id) {
+      // Socio only sees their own stores
+      const { data: partnerData } = await supabase
+        .from('partners')
+        .select('store_id')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .not('store_id', 'is', null);
+      
+      const storeIds = partnerData?.map(p => p.store_id).filter(Boolean) as string[] || [];
+      if (storeIds.length > 0) {
+        const { data } = await supabase.from('stores').select('id, name').in('id', storeIds).eq('status', 'active').order('name');
+        if (data) setStores(data);
+      } else {
+        setStores([]);
+      }
+    } else {
+      const { data } = await supabase.from('stores').select('id, name').eq('status', 'active').order('name');
+      if (data) setStores(data);
+    }
   };
 
   const fetchData = async () => {
@@ -317,13 +336,14 @@ export default function Banks() {
       toast({ title: 'Erro', description: 'Cadastre uma loja antes de criar uma conta bancária', variant: 'destructive' });
       return;
     }
+    const storeId = accountForm.store_id || stores[0].id;
     setSaving(true);
     const { error } = await supabase.from('bank_accounts').insert({
       bank_name: accountForm.bank_name,
-      store_id: stores[0].id,
+      store_id: storeId,
       account_holder: accountForm.account_holder,
       account_number: accountForm.account_holder,
-      currency: 'USD',
+      currency: accountForm.currency || 'USD',
       country: 'US',
       is_primary: accounts.length === 0,
     });
@@ -844,6 +864,21 @@ export default function Banks() {
               </Select>
             </div>
 
+            {stores.length > 1 && (
+              <div className="space-y-2">
+                <Label>Loja *</Label>
+                <Select value={accountForm.store_id || stores[0]?.id || ''} onValueChange={v => setAccountForm({ ...accountForm, store_id: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a loja" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stores.map(store => (
+                      <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Titular da Conta *</Label>
