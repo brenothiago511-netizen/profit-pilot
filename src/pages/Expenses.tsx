@@ -631,16 +631,39 @@ export default function Expenses() {
     setExtracting(true);
     try {
       const base64 = await fileToBase64(file);
-      
+
+      let accessToken = (await supabase.auth.getSession()).data.session?.access_token ?? null;
+      if (!accessToken) {
+        const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+        accessToken = refreshed.session?.access_token ?? null;
+        if (refreshError || !accessToken) {
+          throw new Error('Sua sessão expirou. Faça login novamente e tente de novo.');
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke('extract-expense', {
         body: { image: base64 },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
 
       console.log('Extract response:', { data, error });
 
       if (error) {
         console.error('Edge function error:', error);
-        throw new Error(error.message || 'Erro ao chamar a função de extração');
+
+        const response = (error as any)?.context as Response | undefined;
+        const responseData = response ? await response.json().catch(() => null) : null;
+        let errorMessage = responseData?.error || error.message || 'Erro ao chamar a função de extração';
+
+        if (response?.status === 401) {
+          errorMessage = 'Sua sessão expirou. Faça login novamente e tente de novo.';
+        } else if (response?.status === 400) {
+          errorMessage = 'A imagem não pôde ser processada. Tente novamente com uma imagem mais nítida.';
+        }
+
+        throw new Error(errorMessage);
       }
 
       if (data?.error) {
