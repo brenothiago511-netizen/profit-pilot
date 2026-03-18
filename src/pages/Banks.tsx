@@ -547,7 +547,7 @@ export default function Banks() {
               <div>
                 <p className="text-sm text-muted-foreground">Fluxo Líquido</p>
                 <p className={`text-2xl font-bold mt-1 ${metrics.netFlow >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
-                  {formatCurrency(metrics.netFlow)}
+                  {formatCurrency(metrics.netFlow, baseCurrency)}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-accent flex items-center justify-center">
