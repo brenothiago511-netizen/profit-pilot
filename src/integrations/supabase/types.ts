@@ -94,6 +94,7 @@ export type Database = {
           bank_name: string
           country: string
           created_at: string
+          created_by: string | null
           currency: string
           iban: string | null
           id: string
@@ -113,6 +114,7 @@ export type Database = {
           bank_name: string
           country?: string
           created_at?: string
+          created_by?: string | null
           currency?: string
           iban?: string | null
           id?: string
@@ -132,6 +134,7 @@ export type Database = {
           bank_name?: string
           country?: string
           created_at?: string
+          created_by?: string | null
           currency?: string
           iban?: string | null
           id?: string

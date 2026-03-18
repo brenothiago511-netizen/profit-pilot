@@ -22,7 +22,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 interface BankAccount {
   id: string;
-  store_id: string;
+  store_id: string | null;
   bank_name: string;
   account_holder: string;
   account_type: string;
@@ -32,6 +32,7 @@ interface BankAccount {
   is_primary: boolean;
   balance: number;
   status: string;
+  created_by: string | null;
   stores?: { name: string };
 }
 
@@ -162,7 +163,6 @@ export default function Banks() {
   const [saving, setSaving] = useState(false);
   const [filterUserId, setFilterUserId] = useState<string>('all');
   const [allProfiles, setAllProfiles] = useState<{ id: string; name: string }[]>([]);
-  const [storeBankLinks, setStoreBankLinks] = useState<{ bank_account_id: string; store_id: string }[]>([]);
   const [accountForm, setAccountForm] = useState({
     bank_name: '',
     store_id: '',
@@ -191,23 +191,17 @@ export default function Banks() {
     fetchStores();
     if (isAdmin) {
       fetchProfiles();
-      fetchStoreBankLinks();
     }
     const channel = supabase
       .channel('bank-transactions-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bank_transactions' }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [profile?.role, user?.id]);
+  }, [profile?.role, user?.id, isAdmin]);
 
   const fetchProfiles = async () => {
     const { data } = await supabase.from('profiles').select('id, name').eq('status', 'active').order('name');
     if (data) setAllProfiles(data);
-  };
-
-  const fetchStoreBankLinks = async () => {
-    const { data } = await supabase.from('store_bank_accounts').select('bank_account_id, store_id');
-    if (data) setStoreBankLinks(data);
   };
 
   const fetchStores = async () => {
@@ -256,47 +250,10 @@ export default function Banks() {
   };
 
   // Filter accounts by user (admin only)
-
-  // We need partner data for filtering
-  const [partnersByUser, setPartnersByUser] = useState<Record<string, string[]>>({});
-
-  useEffect(() => {
-    if (isAdmin) {
-      supabase.from('partners').select('user_id, store_id').eq('status', 'active').not('store_id', 'is', null)
-        .then(({ data }) => {
-          if (data) {
-            const map: Record<string, string[]> = {};
-            data.forEach(p => {
-              if (!map[p.user_id]) map[p.user_id] = [];
-              if (p.store_id) map[p.user_id].push(p.store_id);
-            });
-            setPartnersByUser(map);
-          }
-        });
-    }
-  }, [isAdmin]);
-
-  // Build a set of all bank_account_ids that are linked to ANY store
-  const allLinkedBankIds = useMemo(() => {
-    return new Set(storeBankLinks.map(l => l.bank_account_id));
-  }, [storeBankLinks]);
-
   const displayedAccounts = useMemo(() => {
     if (filterUserId === 'all' || !isAdmin) return accounts;
-    const userStoreIds = new Set(partnersByUser[filterUserId] || []);
-    // Get bank account IDs linked to user's stores via store_bank_accounts
-    const linkedBankIds = new Set(
-      storeBankLinks
-        .filter(l => userStoreIds.has(l.store_id))
-        .map(l => l.bank_account_id)
-    );
-    // Include: accounts linked to user's stores + accounts with direct store_id match + unlinked accounts (not linked to any store)
-    return accounts.filter(a =>
-      linkedBankIds.has(a.id) ||
-      (a.store_id && userStoreIds.has(a.store_id)) ||
-      (!a.store_id && !allLinkedBankIds.has(a.id)) // unlinked/orphan accounts visible to all
-    );
-  }, [accounts, filterUserId, isAdmin, partnersByUser, storeBankLinks, allLinkedBankIds]);
+    return accounts.filter((account) => account.created_by === filterUserId);
+  }, [accounts, filterUserId, isAdmin]);
 
   const filteredTransactions = useMemo(() => {
     if (selectedAccount === 'all') return transactions;
@@ -401,6 +358,7 @@ export default function Banks() {
       currency: accountForm.currency || 'USD',
       country: 'US',
       is_primary: false,
+      created_by: user?.id ?? null,
     });
     setSaving(false);
     if (error) {
@@ -648,7 +606,7 @@ export default function Banks() {
                     {filterUserId !== 'all' ? 'Nenhuma conta bancária encontrada para este usuário' : 'Nenhuma conta bancária cadastrada'}
                   </p>
                   <p className="text-sm text-muted-foreground/70 mt-1">
-                    {filterUserId !== 'all' ? 'Este usuário não possui lojas com contas vinculadas' : 'Cadastre contas bancárias nas suas lojas para começar'}
+                    {filterUserId !== 'all' ? 'Este usuário ainda não cadastrou contas bancárias' : 'Cadastre contas bancárias nas suas lojas para começar'}
                   </p>
                 </CardContent>
               </Card>
