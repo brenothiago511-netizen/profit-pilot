@@ -636,7 +636,16 @@ export default function Expenses() {
         body: { image: base64 },
       });
 
-      if (error) throw error;
+      console.log('Extract response:', { data, error });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Erro ao chamar a função de extração');
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
 
       if (data) {
         const transactions = Array.isArray(data) ? data : [data];
