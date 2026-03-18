@@ -532,7 +532,7 @@ export default function Banks() {
               <div>
                 <p className="text-sm text-muted-foreground">Saídas (Mês)</p>
                 <p className="text-2xl font-bold text-destructive mt-1">
-                  {formatCurrency(metrics.monthOut)}
+                  {formatCurrency(metrics.monthOut, baseCurrency)}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-destructive/10 flex items-center justify-center">
