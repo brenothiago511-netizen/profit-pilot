@@ -606,7 +606,7 @@ export default function Banks() {
                     {filterUserId !== 'all' ? 'Nenhuma conta bancária encontrada para este usuário' : 'Nenhuma conta bancária cadastrada'}
                   </p>
                   <p className="text-sm text-muted-foreground/70 mt-1">
-                    {filterUserId !== 'all' ? 'Este usuário não possui lojas com contas vinculadas' : 'Cadastre contas bancárias nas suas lojas para começar'}
+                    {filterUserId !== 'all' ? 'Este usuário ainda não cadastrou contas bancárias' : 'Cadastre contas bancárias nas suas lojas para começar'}
                   </p>
                 </CardContent>
               </Card>
