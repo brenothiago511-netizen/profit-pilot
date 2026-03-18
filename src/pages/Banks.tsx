@@ -358,6 +358,7 @@ export default function Banks() {
       currency: accountForm.currency || 'USD',
       country: 'US',
       is_primary: false,
+      created_by: user?.id ?? null,
     });
     setSaving(false);
     if (error) {
