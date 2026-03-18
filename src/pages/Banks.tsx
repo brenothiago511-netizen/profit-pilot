@@ -591,7 +591,7 @@ export default function Banks() {
             {(() => {
               const accts = displayedAccounts;
               // Group accounts by holder + bank
-              const grouped = accounts.reduce((acc, account) => {
+              const grouped = accts.reduce((acc, account) => {
                 const key = `${account.account_holder}|||${account.bank_name}`;
                 if (!acc[key]) acc[key] = [];
                 acc[key].push(account);
