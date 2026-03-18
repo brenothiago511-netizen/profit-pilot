@@ -253,16 +253,28 @@ export default function Banks() {
     setLoading(false);
   };
 
-  // Filter accounts by user (admin only)
+  // Filter accounts by user - non-admins only see their own
   const displayedAccounts = useMemo(() => {
-    if (filterUserId === 'all' || !isAdmin) return accounts;
-    return accounts.filter((account) => account.created_by === filterUserId);
-  }, [accounts, filterUserId, isAdmin]);
+    if (isAdmin) {
+      if (filterUserId === 'all') return accounts;
+      return accounts.filter((account) => account.created_by === filterUserId);
+    }
+    // Non-admins: only show their own accounts
+    return accounts.filter((account) => account.created_by === user?.id);
+  }, [accounts, filterUserId, isAdmin, user?.id]);
+
+  // Get IDs of displayed accounts for filtering transactions
+  const displayedAccountIds = useMemo(() => new Set(displayedAccounts.map(a => a.id)), [displayedAccounts]);
 
   const filteredTransactions = useMemo(() => {
-    if (selectedAccount === 'all') return transactions;
-    return transactions.filter(tx => tx.bank_account_id === selectedAccount);
-  }, [transactions, selectedAccount]);
+    // First filter by displayed accounts (user isolation)
+    let filtered = transactions.filter(tx => displayedAccountIds.has(tx.bank_account_id));
+    // Then filter by selected account if applicable
+    if (selectedAccount !== 'all') {
+      filtered = filtered.filter(tx => tx.bank_account_id === selectedAccount);
+    }
+    return filtered;
+  }, [transactions, selectedAccount, displayedAccountIds]);
 
   // Dashboard metrics - convert all to base currency (USD)
   const [metrics, setMetrics] = useState({ totalBalance: 0, monthIn: 0, monthOut: 0, netFlow: 0 });
@@ -293,17 +305,18 @@ export default function Banks() {
         return rateCache[key];
       };
 
-      // Convert all account balances to base currency
+      // Convert displayed account balances to base currency
       let totalBalance = 0;
-      for (const a of accounts) {
+      for (const a of displayedAccounts) {
         const rate = await getRate(a.currency, base);
         totalBalance += Number(a.balance) * rate;
       }
 
-      // Convert monthly transactions to base currency
+      // Convert monthly transactions (only from displayed accounts) to base currency
       const now = new Date();
       const monthStart = startOfMonth(now);
-      const monthTx = transactions.filter(tx => new Date(tx.date) >= monthStart);
+      const userTx = transactions.filter(tx => displayedAccountIds.has(tx.bank_account_id));
+      const monthTx = userTx.filter(tx => new Date(tx.date) >= monthStart);
 
       let monthIn = 0;
       let monthOut = 0;
@@ -320,10 +333,12 @@ export default function Banks() {
 
       setMetrics({ totalBalance, monthIn, monthOut, netFlow: monthIn - monthOut });
     };
-    if (accounts.length > 0 || transactions.length > 0) {
+    if (displayedAccounts.length > 0 || transactions.length > 0) {
       computeMetrics();
+    } else {
+      setMetrics({ totalBalance: 0, monthIn: 0, monthOut: 0, netFlow: 0 });
     }
-  }, [accounts, transactions]);
+  }, [displayedAccounts, transactions, displayedAccountIds]);
 
   // Chart data - last 6 months
   const chartData = useMemo(() => {
@@ -331,7 +346,8 @@ export default function Banks() {
       const d = subMonths(new Date(), 5 - i);
       return { month: format(d, 'MMM', { locale: ptBR }), start: startOfMonth(d), end: endOfMonth(d), entradas: 0, saidas: 0 };
     });
-    transactions.forEach(tx => {
+    const userTx = transactions.filter(tx => displayedAccountIds.has(tx.bank_account_id));
+    userTx.forEach(tx => {
       const txDate = new Date(tx.date);
       const m = months.find(m => txDate >= m.start && txDate <= m.end);
       if (m) {
@@ -340,7 +356,7 @@ export default function Banks() {
       }
     });
     return months.map(m => ({ month: m.month, entradas: m.entradas, saidas: m.saidas }));
-  }, [transactions]);
+  }, [transactions, displayedAccountIds]);
 
   const handleSubmitTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
