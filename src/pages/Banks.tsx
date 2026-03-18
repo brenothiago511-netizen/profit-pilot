@@ -264,17 +264,65 @@ export default function Banks() {
     return transactions.filter(tx => tx.bank_account_id === selectedAccount);
   }, [transactions, selectedAccount]);
 
-  // Dashboard metrics
-  const metrics = useMemo(() => {
-    const totalBalance = accounts.reduce((sum, a) => sum + Number(a.balance), 0);
-    const now = new Date();
-    const monthStart = startOfMonth(now);
-    const monthTx = transactions.filter(tx => new Date(tx.date) >= monthStart);
-    const monthIn = monthTx.filter(tx => tx.type === 'entrada' || tx.type === 'transferencia_entrada')
-      .reduce((sum, tx) => sum + Number(tx.amount), 0);
-    const monthOut = monthTx.filter(tx => tx.type === 'saida' || tx.type === 'transferencia_saida')
-      .reduce((sum, tx) => sum + Number(tx.amount), 0);
-    return { totalBalance, monthIn, monthOut, netFlow: monthIn - monthOut };
+  // Dashboard metrics - convert all to base currency (USD)
+  const [metrics, setMetrics] = useState({ totalBalance: 0, monthIn: 0, monthOut: 0, netFlow: 0 });
+  const [baseCurrency, setBaseCurrency] = useState('USD');
+
+  useEffect(() => {
+    const computeMetrics = async () => {
+      // Fetch base currency
+      const { data: settings } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'base_currency')
+        .maybeSingle();
+      const base = settings?.value ? String(settings.value).replace(/"/g, '') : 'USD';
+      setBaseCurrency(base);
+
+      // Cache exchange rates to avoid repeated RPCs
+      const rateCache: Record<string, number> = {};
+      const getRate = async (from: string, to: string) => {
+        if (from === to) return 1;
+        const key = `${from}->${to}`;
+        if (rateCache[key] !== undefined) return rateCache[key];
+        const { data } = await supabase.rpc('get_exchange_rate', {
+          p_base_currency: from,
+          p_target_currency: to,
+        });
+        rateCache[key] = data || 1;
+        return rateCache[key];
+      };
+
+      // Convert all account balances to base currency
+      let totalBalance = 0;
+      for (const a of accounts) {
+        const rate = await getRate(a.currency, base);
+        totalBalance += Number(a.balance) * rate;
+      }
+
+      // Convert monthly transactions to base currency
+      const now = new Date();
+      const monthStart = startOfMonth(now);
+      const monthTx = transactions.filter(tx => new Date(tx.date) >= monthStart);
+
+      let monthIn = 0;
+      let monthOut = 0;
+      for (const tx of monthTx) {
+        const txCurrency = (tx as any).bank_accounts?.currency || base;
+        const rate = await getRate(txCurrency, base);
+        const converted = Number(tx.amount) * rate;
+        if (tx.type === 'entrada' || tx.type === 'transferencia_entrada') {
+          monthIn += converted;
+        } else if (tx.type === 'saida' || tx.type === 'transferencia_saida') {
+          monthOut += converted;
+        }
+      }
+
+      setMetrics({ totalBalance, monthIn, monthOut, netFlow: monthIn - monthOut });
+    };
+    if (accounts.length > 0 || transactions.length > 0) {
+      computeMetrics();
+    }
   }, [accounts, transactions]);
 
   // Chart data - last 6 months
@@ -454,7 +502,7 @@ export default function Banks() {
               <div>
                 <p className="text-sm text-muted-foreground">Saldo Total</p>
                 <p className="text-2xl font-bold text-foreground mt-1">
-                  {formatCurrency(metrics.totalBalance)}
+                  {formatCurrency(metrics.totalBalance, baseCurrency)}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -469,7 +517,7 @@ export default function Banks() {
               <div>
                 <p className="text-sm text-muted-foreground">Entradas (Mês)</p>
                 <p className="text-2xl font-bold text-[hsl(var(--success))] mt-1">
-                  {formatCurrency(metrics.monthIn)}
+                  {formatCurrency(metrics.monthIn, baseCurrency)}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-[hsl(var(--success-light))] flex items-center justify-center">
@@ -484,7 +532,7 @@ export default function Banks() {
               <div>
                 <p className="text-sm text-muted-foreground">Saídas (Mês)</p>
                 <p className="text-2xl font-bold text-destructive mt-1">
-                  {formatCurrency(metrics.monthOut)}
+                  {formatCurrency(metrics.monthOut, baseCurrency)}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-destructive/10 flex items-center justify-center">
@@ -499,7 +547,7 @@ export default function Banks() {
               <div>
                 <p className="text-sm text-muted-foreground">Fluxo Líquido</p>
                 <p className={`text-2xl font-bold mt-1 ${metrics.netFlow >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
-                  {formatCurrency(metrics.netFlow)}
+                  {formatCurrency(metrics.netFlow, baseCurrency)}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-accent flex items-center justify-center">
