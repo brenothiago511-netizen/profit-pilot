@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Loader2, Plus, Building2, TrendingUp, TrendingDown, ArrowRightLeft,
-  Wallet, CreditCard, Star, DollarSign, BarChart3, ArrowUpRight, ArrowDownRight, Pencil, Trash2,
+  Wallet, CreditCard, Star, DollarSign, BarChart3, ArrowUpRight, ArrowDownRight, Pencil, Trash2, Users,
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
