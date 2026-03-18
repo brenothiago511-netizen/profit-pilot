@@ -346,7 +346,8 @@ export default function Banks() {
       const d = subMonths(new Date(), 5 - i);
       return { month: format(d, 'MMM', { locale: ptBR }), start: startOfMonth(d), end: endOfMonth(d), entradas: 0, saidas: 0 };
     });
-    transactions.forEach(tx => {
+    const userTx = transactions.filter(tx => displayedAccountIds.has(tx.bank_account_id));
+    userTx.forEach(tx => {
       const txDate = new Date(tx.date);
       const m = months.find(m => txDate >= m.start && txDate <= m.end);
       if (m) {
@@ -355,7 +356,7 @@ export default function Banks() {
       }
     });
     return months.map(m => ({ month: m.month, entradas: m.entradas, saidas: m.saidas }));
-  }, [transactions]);
+  }, [transactions, displayedAccountIds]);
 
   const handleSubmitTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
