@@ -403,41 +403,58 @@ export default function Expenses() {
 
     setSaving(true);
     
-    const originalAmount = parseFloat(aiFormData.amount);
-    let convertedAmount = originalAmount;
-    let exchangeRate = 1;
-    
-    // Convert to BRL if different currency
-    if (aiFormData.currency !== 'BRL') {
-      exchangeRate = await getExchangeRate(aiFormData.currency, 'BRL');
-      convertedAmount = originalAmount * exchangeRate;
-    }
-    
-    const { error } = await supabase.from('expenses').insert({
-      store_id: aiFormData.store_id || null,
-      user_id: user?.id,
-      date: aiFormData.date,
-      amount: convertedAmount,
-      original_amount: originalAmount,
-      original_currency: aiFormData.currency,
-      converted_amount: convertedAmount,
-      exchange_rate_used: exchangeRate,
-      description: aiFormData.description,
-      category_id: aiFormData.category_id || null,
-      type: aiFormData.type,
-      payment_method: aiFormData.payment_method || null,
-      ai_extracted: true,
-    });
+    try {
+      // Refresh session before saving
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          toast({
+            title: 'Sessão expirada',
+            description: 'Faça login novamente para continuar.',
+            variant: 'destructive',
+          });
+          setSaving(false);
+          return;
+        }
+      }
 
-    setSaving(false);
-
-    if (error) {
-      toast({
-        title: 'Erro ao salvar',
-        description: error.message,
-        variant: 'destructive',
+      const originalAmount = parseFloat(aiFormData.amount);
+      let convertedAmount = originalAmount;
+      let exchangeRate = 1;
+      
+      // Convert to BRL if different currency
+      if (aiFormData.currency !== 'BRL') {
+        exchangeRate = await getExchangeRate(aiFormData.currency, 'BRL');
+        convertedAmount = originalAmount * exchangeRate;
+      }
+      
+      const { error } = await supabase.from('expenses').insert({
+        store_id: aiFormData.store_id || null,
+        user_id: user?.id,
+        date: aiFormData.date,
+        amount: convertedAmount,
+        original_amount: originalAmount,
+        original_currency: aiFormData.currency,
+        converted_amount: convertedAmount,
+        exchange_rate_used: exchangeRate,
+        description: aiFormData.description,
+        category_id: aiFormData.category_id || null,
+        type: aiFormData.type,
+        payment_method: aiFormData.payment_method || null,
+        ai_extracted: true,
       });
-    } else {
+
+      if (error) {
+        toast({
+          title: 'Erro ao salvar',
+          description: error.message,
+          variant: 'destructive',
+        });
+        setSaving(false);
+        return;
+      }
+
       // If a bank account was selected, create a bank transaction (debit)
       if (selectedBankAccount) {
         try {
@@ -482,6 +499,17 @@ export default function Expenses() {
       setAiDialogOpen(false);
       resetAiForm();
       fetchExpenses();
+    } catch (err: any) {
+      console.error('Save error:', err);
+      toast({
+        title: 'Erro ao salvar',
+        description: err?.message === 'Failed to fetch' 
+          ? 'Erro de conexão. Verifique sua internet e tente novamente.'
+          : (err?.message || 'Erro inesperado ao salvar'),
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
