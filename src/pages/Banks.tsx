@@ -517,7 +517,7 @@ export default function Banks() {
               <div>
                 <p className="text-sm text-muted-foreground">Entradas (Mês)</p>
                 <p className="text-2xl font-bold text-[hsl(var(--success))] mt-1">
-                  {formatCurrency(metrics.monthIn)}
+                  {formatCurrency(metrics.monthIn, baseCurrency)}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-[hsl(var(--success-light))] flex items-center justify-center">
