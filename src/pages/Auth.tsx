@@ -229,6 +229,8 @@ export default function Auth() {
                       'Entrar'
                     )}
                   </Button>
+                  <DividerWithText />
+                  <GoogleButton />
                 </form>
               </TabsContent>
 
