@@ -276,21 +276,27 @@ export default function Banks() {
     }
   }, [isAdmin]);
 
+  // Build a set of all bank_account_ids that are linked to ANY store
+  const allLinkedBankIds = useMemo(() => {
+    return new Set(storeBankLinks.map(l => l.bank_account_id));
+  }, [storeBankLinks]);
+
   const displayedAccounts = useMemo(() => {
     if (filterUserId === 'all' || !isAdmin) return accounts;
     const userStoreIds = new Set(partnersByUser[filterUserId] || []);
-    if (userStoreIds.size === 0) return [];
-    // Get bank account IDs linked to user's stores
+    // Get bank account IDs linked to user's stores via store_bank_accounts
     const linkedBankIds = new Set(
       storeBankLinks
         .filter(l => userStoreIds.has(l.store_id))
         .map(l => l.bank_account_id)
     );
-    // Also include accounts with direct store_id match
+    // Include: accounts linked to user's stores + accounts with direct store_id match + unlinked accounts (not linked to any store)
     return accounts.filter(a =>
-      linkedBankIds.has(a.id) || (a.store_id && userStoreIds.has(a.store_id))
+      linkedBankIds.has(a.id) ||
+      (a.store_id && userStoreIds.has(a.store_id)) ||
+      (!a.store_id && !allLinkedBankIds.has(a.id)) // unlinked/orphan accounts visible to all
     );
-  }, [accounts, filterUserId, isAdmin, partnersByUser, storeBankLinks]);
+  }, [accounts, filterUserId, isAdmin, partnersByUser, storeBankLinks, allLinkedBankIds]);
 
   const filteredTransactions = useMemo(() => {
     if (selectedAccount === 'all') return transactions;
