@@ -22,7 +22,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 interface BankAccount {
   id: string;
-  store_id: string;
+  store_id: string | null;
   bank_name: string;
   account_holder: string;
   account_type: string;
@@ -32,6 +32,7 @@ interface BankAccount {
   is_primary: boolean;
   balance: number;
   status: string;
+  created_by: string | null;
   stores?: { name: string };
 }
 
