@@ -108,7 +108,7 @@ const ShopifyWithdrawals = () => {
         return;
       }
       
-      // First get bank account IDs linked to this store via junction table
+      // Get bank account IDs linked to this store via junction table only
       const { data: links, error: linksError } = await supabase
         .from('store_bank_accounts')
         .select('bank_account_id')
@@ -123,17 +123,7 @@ const ShopifyWithdrawals = () => {
       const bankAccountIds = links?.map(l => l.bank_account_id) || [];
       
       if (bankAccountIds.length === 0) {
-        // Fallback: also check direct store_id on bank_accounts
-        const { data, error } = await supabase
-          .from('bank_accounts')
-          .select('id, bank_name, account_holder, account_number, account_type, currency, country, is_primary, status')
-          .eq('store_id', selectedStore.id)
-          .eq('status', 'active')
-          .order('is_primary', { ascending: false });
-        if (error) {
-          console.error('Error fetching bank accounts for store:', selectedStore.id, error);
-        }
-        setStoreBankAccounts(data || []);
+        setStoreBankAccounts([]);
         return;
       }
       
