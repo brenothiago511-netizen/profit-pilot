@@ -193,8 +193,9 @@ export default function Banks() {
       fetchProfiles();
     }
     const channel = supabase
-      .channel('bank-transactions-realtime')
+      .channel('bank-data-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bank_transactions' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bank_accounts' }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [profile?.role, user?.id, isAdmin]);
@@ -244,6 +245,9 @@ export default function Banks() {
         .limit(500),
     ]);
 
+    if (accountsRes.error) {
+      console.error('Error fetching bank accounts:', accountsRes.error);
+    }
     if (accountsRes.data) setAccounts(accountsRes.data as any);
     if (txRes.data) setTransactions(txRes.data as any);
     setLoading(false);
