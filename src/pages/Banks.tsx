@@ -780,7 +780,7 @@ export default function Banks() {
                   <SelectValue placeholder="Selecione a conta" />
                 </SelectTrigger>
                 <SelectContent>
-                  {accounts.map(a => (
+                  {accounts.filter(a => a.created_by === user?.id).map(a => (
                     <SelectItem key={a.id} value={a.id}>
                       {a.account_holder} - {a.bank_name} • {formatCurrency(Number(a.balance), a.currency)}
                     </SelectItem>
