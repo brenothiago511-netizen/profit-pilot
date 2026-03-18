@@ -160,6 +160,9 @@ export default function Banks() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
+  const [filterUserId, setFilterUserId] = useState<string>('all');
+  const [allProfiles, setAllProfiles] = useState<{ id: string; name: string }[]>([]);
+  const [storeBankLinks, setStoreBankLinks] = useState<{ bank_account_id: string; store_id: string }[]>([]);
   const [accountForm, setAccountForm] = useState({
     bank_name: '',
     store_id: '',
