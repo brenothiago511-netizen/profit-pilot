@@ -117,7 +117,20 @@ export default function Auth() {
     }
   };
 
-  return (
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+    if (result?.error) {
+      toast({
+        title: 'Erro ao entrar com Google',
+        description: result.error.message || 'Tente novamente.',
+        variant: 'destructive',
+      });
+    }
+    setIsGoogleLoading(false);
+  };
     <div className="min-h-screen flex items-center justify-center bg-[hsl(0,0%,5%)] p-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-10 flex flex-col items-center">
