@@ -502,7 +502,7 @@ export default function Banks() {
               <div>
                 <p className="text-sm text-muted-foreground">Saldo Total</p>
                 <p className="text-2xl font-bold text-foreground mt-1">
-                  {formatCurrency(metrics.totalBalance)}
+                  {formatCurrency(metrics.totalBalance, baseCurrency)}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
