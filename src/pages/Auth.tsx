@@ -10,6 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Mail, Lock, User } from 'lucide-react';
 import logoAglomerado from '@/assets/logo-aglomerado.png';
 import { z } from 'zod';
+import { lovable } from '@/integrations/lovable/index';
+import { Separator } from '@/components/ui/separator';
 
 const loginSchema = z.object({
   email: z.string().email('E-mail inválido'),
