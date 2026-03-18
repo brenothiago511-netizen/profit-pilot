@@ -667,9 +667,10 @@ export default function Expenses() {
       }
     } catch (error: any) {
       console.error('AI extraction error:', error);
+      const msg = error?.message || 'Não foi possível extrair os dados. Preencha manualmente.';
       toast({
         title: 'Erro na extração',
-        description: 'Não foi possível extrair os dados. Preencha manualmente.',
+        description: msg,
         variant: 'destructive',
       });
     }
