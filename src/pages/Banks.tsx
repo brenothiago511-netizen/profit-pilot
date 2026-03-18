@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Loader2, Plus, Building2, TrendingUp, TrendingDown, ArrowRightLeft,
-  Wallet, CreditCard, Star, DollarSign, BarChart3, ArrowUpRight, ArrowDownRight, Pencil, Trash2,
+  Wallet, CreditCard, Star, DollarSign, BarChart3, ArrowUpRight, ArrowDownRight, Pencil, Trash2, Users,
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -160,6 +160,9 @@ export default function Banks() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
+  const [filterUserId, setFilterUserId] = useState<string>('all');
+  const [allProfiles, setAllProfiles] = useState<{ id: string; name: string }[]>([]);
+  const [storeBankLinks, setStoreBankLinks] = useState<{ bank_account_id: string; store_id: string }[]>([]);
   const [accountForm, setAccountForm] = useState({
     bank_name: '',
     store_id: '',
@@ -186,12 +189,26 @@ export default function Banks() {
   useEffect(() => {
     fetchData();
     fetchStores();
+    if (isAdmin) {
+      fetchProfiles();
+      fetchStoreBankLinks();
+    }
     const channel = supabase
       .channel('bank-transactions-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bank_transactions' }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [profile?.role, user?.id]);
+
+  const fetchProfiles = async () => {
+    const { data } = await supabase.from('profiles').select('id, name').eq('status', 'active').order('name');
+    if (data) setAllProfiles(data);
+  };
+
+  const fetchStoreBankLinks = async () => {
+    const { data } = await supabase.from('store_bank_accounts').select('bank_account_id, store_id');
+    if (data) setStoreBankLinks(data);
+  };
 
   const fetchStores = async () => {
     const isSocio = profile?.role === 'socio';
@@ -237,6 +254,43 @@ export default function Banks() {
     if (txRes.data) setTransactions(txRes.data as any);
     setLoading(false);
   };
+
+  // Filter accounts by user (admin only)
+
+  // We need partner data for filtering
+  const [partnersByUser, setPartnersByUser] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    if (isAdmin) {
+      supabase.from('partners').select('user_id, store_id').eq('status', 'active').not('store_id', 'is', null)
+        .then(({ data }) => {
+          if (data) {
+            const map: Record<string, string[]> = {};
+            data.forEach(p => {
+              if (!map[p.user_id]) map[p.user_id] = [];
+              if (p.store_id) map[p.user_id].push(p.store_id);
+            });
+            setPartnersByUser(map);
+          }
+        });
+    }
+  }, [isAdmin]);
+
+  const displayedAccounts = useMemo(() => {
+    if (filterUserId === 'all' || !isAdmin) return accounts;
+    const userStoreIds = new Set(partnersByUser[filterUserId] || []);
+    if (userStoreIds.size === 0) return [];
+    // Get bank account IDs linked to user's stores
+    const linkedBankIds = new Set(
+      storeBankLinks
+        .filter(l => userStoreIds.has(l.store_id))
+        .map(l => l.bank_account_id)
+    );
+    // Also include accounts with direct store_id match
+    return accounts.filter(a =>
+      linkedBankIds.has(a.id) || (a.store_id && userStoreIds.has(a.store_id))
+    );
+  }, [accounts, filterUserId, isAdmin, partnersByUser, storeBankLinks]);
 
   const filteredTransactions = useMemo(() => {
     if (selectedAccount === 'all') return transactions;
@@ -506,10 +560,27 @@ export default function Banks() {
 
         {/* Accounts Tab */}
         <TabsContent value="accounts">
+          {isAdmin && allProfiles.length > 0 && (
+            <div className="flex items-center gap-3 mb-4">
+              <Users className="w-4 h-4 text-muted-foreground" />
+              <Select value={filterUserId} onValueChange={setFilterUserId}>
+                <SelectTrigger className="w-[250px]">
+                  <SelectValue placeholder="Filtrar por usuário" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os usuários</SelectItem>
+                  {allProfiles.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {(() => {
+              const accts = displayedAccounts;
               // Group accounts by holder + bank
-              const grouped = accounts.reduce((acc, account) => {
+              const grouped = accts.reduce((acc, account) => {
                 const key = `${account.account_holder}|||${account.bank_name}`;
                 if (!acc[key]) acc[key] = [];
                 acc[key].push(account);
@@ -563,12 +634,16 @@ export default function Banks() {
                 );
               });
             })()}
-            {accounts.length === 0 && (
+            {displayedAccounts.length === 0 && (
               <Card className="col-span-full">
                 <CardContent className="p-10 text-center">
                   <CreditCard className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
-                  <p className="text-muted-foreground">Nenhuma conta bancária cadastrada</p>
-                  <p className="text-sm text-muted-foreground/70 mt-1">Cadastre contas bancárias nas suas lojas para começar</p>
+                  <p className="text-muted-foreground">
+                    {filterUserId !== 'all' ? 'Nenhuma conta bancária encontrada para este usuário' : 'Nenhuma conta bancária cadastrada'}
+                  </p>
+                  <p className="text-sm text-muted-foreground/70 mt-1">
+                    {filterUserId !== 'all' ? 'Este usuário não possui lojas com contas vinculadas' : 'Cadastre contas bancárias nas suas lojas para começar'}
+                  </p>
                 </CardContent>
               </Card>
             )}
