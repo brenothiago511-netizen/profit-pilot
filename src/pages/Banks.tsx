@@ -645,12 +645,16 @@ export default function Banks() {
                 );
               });
             })()}
-            {accounts.length === 0 && (
+            {displayedAccounts.length === 0 && (
               <Card className="col-span-full">
                 <CardContent className="p-10 text-center">
                   <CreditCard className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
-                  <p className="text-muted-foreground">Nenhuma conta bancária cadastrada</p>
-                  <p className="text-sm text-muted-foreground/70 mt-1">Cadastre contas bancárias nas suas lojas para começar</p>
+                  <p className="text-muted-foreground">
+                    {filterUserId !== 'all' ? 'Nenhuma conta bancária encontrada para este usuário' : 'Nenhuma conta bancária cadastrada'}
+                  </p>
+                  <p className="text-sm text-muted-foreground/70 mt-1">
+                    {filterUserId !== 'all' ? 'Este usuário não possui lojas com contas vinculadas' : 'Cadastre contas bancárias nas suas lojas para começar'}
+                  </p>
                 </CardContent>
               </Card>
             )}
