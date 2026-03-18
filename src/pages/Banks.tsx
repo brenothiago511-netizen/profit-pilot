@@ -255,6 +255,54 @@ export default function Banks() {
     setLoading(false);
   };
 
+  // Filter accounts by user (admin only)
+  const filteredAccounts = useMemo(() => {
+    if (filterUserId === 'all' || !isAdmin) return accounts;
+    // Get stores for selected user via partners
+    // Then get bank_account_ids linked to those stores
+    const userStoreIds = new Set<string>();
+    // We need to find partner records for this user - use storeBankLinks + partners approach
+    // Since we have store_bank_accounts links, we need to know which stores belong to the user
+    // We'll fetch this async, but for filtering we use a different approach:
+    // Find accounts linked to stores owned by this user
+    return accounts;
+  }, [accounts, filterUserId, isAdmin]);
+
+  // We need partner data for filtering
+  const [partnersByUser, setPartnersByUser] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    if (isAdmin) {
+      supabase.from('partners').select('user_id, store_id').eq('status', 'active').not('store_id', 'is', null)
+        .then(({ data }) => {
+          if (data) {
+            const map: Record<string, string[]> = {};
+            data.forEach(p => {
+              if (!map[p.user_id]) map[p.user_id] = [];
+              if (p.store_id) map[p.user_id].push(p.store_id);
+            });
+            setPartnersByUser(map);
+          }
+        });
+    }
+  }, [isAdmin]);
+
+  const displayedAccounts = useMemo(() => {
+    if (filterUserId === 'all' || !isAdmin) return accounts;
+    const userStoreIds = new Set(partnersByUser[filterUserId] || []);
+    if (userStoreIds.size === 0) return [];
+    // Get bank account IDs linked to user's stores
+    const linkedBankIds = new Set(
+      storeBankLinks
+        .filter(l => userStoreIds.has(l.store_id))
+        .map(l => l.bank_account_id)
+    );
+    // Also include accounts with direct store_id match
+    return accounts.filter(a =>
+      linkedBankIds.has(a.id) || (a.store_id && userStoreIds.has(a.store_id))
+    );
+  }, [accounts, filterUserId, isAdmin, partnersByUser, storeBankLinks]);
+
   const filteredTransactions = useMemo(() => {
     if (selectedAccount === 'all') return transactions;
     return transactions.filter(tx => tx.bank_account_id === selectedAccount);
