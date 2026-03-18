@@ -310,6 +310,8 @@ export default function Auth() {
                       'Criar Conta'
                     )}
                   </Button>
+                  <DividerWithText />
+                  <GoogleButton />
                 </form>
               </TabsContent>
             </Tabs>
