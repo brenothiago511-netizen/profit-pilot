@@ -189,12 +189,26 @@ export default function Banks() {
   useEffect(() => {
     fetchData();
     fetchStores();
+    if (isAdmin) {
+      fetchProfiles();
+      fetchStoreBankLinks();
+    }
     const channel = supabase
       .channel('bank-transactions-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bank_transactions' }, () => fetchData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [profile?.role, user?.id]);
+
+  const fetchProfiles = async () => {
+    const { data } = await supabase.from('profiles').select('id, name').eq('status', 'active').order('name');
+    if (data) setAllProfiles(data);
+  };
+
+  const fetchStoreBankLinks = async () => {
+    const { data } = await supabase.from('store_bank_accounts').select('bank_account_id, store_id');
+    if (data) setStoreBankLinks(data);
+  };
 
   const fetchStores = async () => {
     const isSocio = profile?.role === 'socio';
