@@ -245,6 +245,9 @@ export default function Banks() {
         .limit(500),
     ]);
 
+    if (accountsRes.error) {
+      console.error('Error fetching bank accounts:', accountsRes.error);
+    }
     if (accountsRes.data) setAccounts(accountsRes.data as any);
     if (txRes.data) setTransactions(txRes.data as any);
     setLoading(false);
