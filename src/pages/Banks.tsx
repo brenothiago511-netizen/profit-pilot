@@ -305,17 +305,18 @@ export default function Banks() {
         return rateCache[key];
       };
 
-      // Convert all account balances to base currency
+      // Convert displayed account balances to base currency
       let totalBalance = 0;
-      for (const a of accounts) {
+      for (const a of displayedAccounts) {
         const rate = await getRate(a.currency, base);
         totalBalance += Number(a.balance) * rate;
       }
 
-      // Convert monthly transactions to base currency
+      // Convert monthly transactions (only from displayed accounts) to base currency
       const now = new Date();
       const monthStart = startOfMonth(now);
-      const monthTx = transactions.filter(tx => new Date(tx.date) >= monthStart);
+      const userTx = transactions.filter(tx => displayedAccountIds.has(tx.bank_account_id));
+      const monthTx = userTx.filter(tx => new Date(tx.date) >= monthStart);
 
       let monthIn = 0;
       let monthOut = 0;
@@ -332,10 +333,12 @@ export default function Banks() {
 
       setMetrics({ totalBalance, monthIn, monthOut, netFlow: monthIn - monthOut });
     };
-    if (accounts.length > 0 || transactions.length > 0) {
+    if (displayedAccounts.length > 0 || transactions.length > 0) {
       computeMetrics();
+    } else {
+      setMetrics({ totalBalance: 0, monthIn: 0, monthOut: 0, netFlow: 0 });
     }
-  }, [accounts, transactions]);
+  }, [displayedAccounts, transactions, displayedAccountIds]);
 
   // Chart data - last 6 months
   const chartData = useMemo(() => {
