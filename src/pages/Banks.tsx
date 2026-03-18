@@ -571,8 +571,25 @@ export default function Banks() {
 
         {/* Accounts Tab */}
         <TabsContent value="accounts">
+          {isAdmin && allProfiles.length > 0 && (
+            <div className="flex items-center gap-3 mb-4">
+              <Users className="w-4 h-4 text-muted-foreground" />
+              <Select value={filterUserId} onValueChange={setFilterUserId}>
+                <SelectTrigger className="w-[250px]">
+                  <SelectValue placeholder="Filtrar por usuário" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os usuários</SelectItem>
+                  {allProfiles.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {(() => {
+              const accts = displayedAccounts;
               // Group accounts by holder + bank
               const grouped = accounts.reduce((acc, account) => {
                 const key = `${account.account_holder}|||${account.bank_name}`;
