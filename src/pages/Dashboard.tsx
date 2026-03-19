@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { TrendingUp, TrendingDown, DollarSign, Percent, Store, Loader2, CalendarIcon, Users } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -458,8 +459,28 @@ export default function Dashboard() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="space-y-6">
+          {/* Skeleton dos cards de métricas */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="rounded-lg border bg-card p-6">
+                <Skeleton className="mb-4 h-4 w-24" />
+                <Skeleton className="mb-2 h-8 w-32" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            ))}
+          </div>
+          {/* Skeleton dos gráficos */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="rounded-lg border bg-card p-6">
+              <Skeleton className="mb-4 h-5 w-36" />
+              <Skeleton className="h-[250px] w-full" />
+            </div>
+            <div className="rounded-lg border bg-card p-6">
+              <Skeleton className="mb-4 h-5 w-36" />
+              <Skeleton className="h-[250px] w-full" />
+            </div>
+          </div>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

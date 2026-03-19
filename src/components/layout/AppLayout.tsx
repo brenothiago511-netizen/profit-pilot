@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,8 @@ import {
   DollarSign,
   Wallet,
   Landmark,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import logoAglomerado from '@/assets/logo-aglomerado.png';
 import NotificationBell from '@/components/notifications/NotificationBell';
@@ -98,6 +101,7 @@ export default function AppLayout() {
   const { profile, signOut, isAdmin } = useAuth();
   const { hasPermission } = usePermissions();
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
 
   const handleSignOut = async () => {
     try {
@@ -254,6 +258,19 @@ export default function AppLayout() {
             <GlobalSearch />
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="h-9 w-9"
+              title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </Button>
             <NotificationBell />
           </div>
         </header>
