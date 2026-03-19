@@ -1,13 +1,13 @@
 project_id = "gyovaxenxtrogrxmbjde"
 
 [functions.extract-expense]
-verify_jwt = false
+verify_jwt = true
 
 [functions.bulk-import-users]
 verify_jwt = true
 
 [functions.fetch-exchange-rates]
-verify_jwt = false
+verify_jwt = true
 
 [functions.review-expense-categories]
-verify_jwt = false
+verify_jwt = true

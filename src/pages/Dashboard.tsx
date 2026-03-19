@@ -102,46 +102,38 @@ export default function Dashboard() {
   }, [selectedStore, selectedPartner, dateRange.from, dateRange.to, initialDataLoaded]);
 
   const fetchInitialData = async () => {
-    console.log('fetchInitialData - isSocio:', isSocio, 'user?.id:', user?.id, 'isAdmin:', isAdmin, 'profile?.role:', profile?.role);
-    
     if (isSocio && user?.id) {
       // Fetch partner's stores
-      const { data: partnerData, error: partnerError } = await supabase
+      const { data: partnerData } = await supabase
         .from('partners')
         .select('store_id, capital_percentage')
         .eq('user_id', user.id)
         .eq('status', 'active');
-      
-      console.log('Partner data for socio:', partnerData, 'error:', partnerError);
-      
+
       const storeIds = partnerData?.map(p => p.store_id).filter(Boolean) as string[] || [];
-      console.log('Partner store IDs:', storeIds);
       setPartnerStoreIds(storeIds);
-      
+
       // Fetch store names for partner
       if (storeIds.length > 0) {
-        const { data: storesData, error: storesError } = await supabase
+        const { data: storesData } = await supabase
           .from('stores')
           .select('id, name')
           .in('id', storeIds)
           .eq('status', 'active')
           .order('name');
-        
-        console.log('Stores for socio:', storesData, 'error:', storesError);
+
         if (storesData) setStores(storesData);
       } else {
-        console.log('No store IDs found for socio, setting empty stores');
         setStores([]);
       }
     } else {
       // Admin and Financeiro see all stores
-      const { data: storesData, error: storesError } = await supabase
+      const { data: storesData } = await supabase
         .from('stores')
         .select('id, name')
         .eq('status', 'active')
         .order('name');
-      
-      console.log('All stores for admin/financeiro:', storesData, 'error:', storesError);
+
       if (storesData) setStores(storesData);
       
       // Admin can filter by user
@@ -165,7 +157,6 @@ export default function Dashboard() {
     }
     
     setInitialDataLoaded(true);
-    console.log('Initial data loaded');
   };
 
   const getStoreIdsForQuery = async (): Promise<string[] | null> => {

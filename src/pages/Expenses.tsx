@@ -676,8 +676,6 @@ export default function Expenses() {
         },
       });
 
-      console.log('Extract response:', { data, error });
-
       if (error) {
         console.error('Edge function error:', error);
 
