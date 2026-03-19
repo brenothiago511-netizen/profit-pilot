@@ -136,7 +136,7 @@ export default function Expenses() {
   };
 
   const fetchProfileNames = async () => {
-    const { data } = await supabase.from('profiles').select('id, name');
+    const { data } = await supabase.from('profiles').select('id, name').limit(500);
     if (data) {
       const map: ProfileMap = {};
       data.forEach((p: any) => { map[p.id] = p.name; });

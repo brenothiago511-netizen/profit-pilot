@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PermissionGate } from '@/components/permissions/PermissionGate';
@@ -70,12 +70,13 @@ export default function Reports() {
         .from('revenues')
         .select('source, amount')
         .gte('date', periodStart)
-        .lte('date', periodEnd);
-      
+        .lte('date', periodEnd)
+        .limit(5000);
+
       if (selectedStore !== 'all') {
         revenueQuery = revenueQuery.eq('store_id', selectedStore);
       }
-      
+
       const { data: revenues } = await revenueQuery;
       
       // Group revenues by source
@@ -97,12 +98,13 @@ export default function Reports() {
         .from('expenses')
         .select('amount, expense_categories(name)')
         .gte('date', periodStart)
-        .lte('date', periodEnd);
-      
+        .lte('date', periodEnd)
+        .limit(5000);
+
       if (selectedStore !== 'all') {
         expenseQuery = expenseQuery.eq('store_id', selectedStore);
       }
-      
+
       const { data: expenses } = await expenseQuery;
       
       // Group expenses by category
@@ -131,75 +133,85 @@ export default function Reports() {
       const { data: managers } = await managersQuery;
 
       if (managers && managers.length > 0) {
-        for (const manager of managers) {
-          if (manager.store_id) {
-            // Only calculate if we're viewing all stores or the manager's store matches
-            if (selectedStore !== 'all' && manager.store_id !== selectedStore) {
-              continue;
-            }
-            
-            // Get store-specific revenue and expenses
-            const { data: storeRevenues } = await supabase
-              .from('revenues')
-              .select('amount')
-              .eq('store_id', manager.store_id)
-              .gte('date', periodStart)
-              .lte('date', periodEnd);
-            
-            const { data: storeExpenses } = await supabase
-              .from('expenses')
-              .select('amount')
-              .eq('store_id', manager.store_id)
-              .gte('date', periodStart)
-              .lte('date', periodEnd);
-            
-            const storeRevenue = storeRevenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
-            const storeExpense = storeExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
-            const storeProfit = storeRevenue - storeExpense;
-            
-            if (manager.commission_type === 'lucro') {
-              totalCommissions += (storeProfit * manager.commission_percent) / 100;
-            } else {
-              totalCommissions += (storeRevenue * manager.commission_percent) / 100;
-            }
-          } else {
-            // Manager gets commission on all stores
-            if (selectedStore !== 'all') {
-              const { data: storeRevenues } = await supabase
-                .from('revenues')
-                .select('amount')
-                .eq('store_id', selectedStore)
-                .gte('date', periodStart)
-                .lte('date', periodEnd);
-              
-              const { data: storeExpenses } = await supabase
-                .from('expenses')
-                .select('amount')
-                .eq('store_id', selectedStore)
-                .gte('date', periodStart)
-                .lte('date', periodEnd);
-              
+        const commissionResults = await Promise.all(
+          managers.map(async (manager) => {
+            let commission = 0;
+            if (manager.store_id) {
+              // Only calculate if we're viewing all stores or the manager's store matches
+              if (selectedStore !== 'all' && manager.store_id !== selectedStore) {
+                return commission;
+              }
+
+              // Get store-specific revenue and expenses
+              const [{ data: storeRevenues }, { data: storeExpenses }] = await Promise.all([
+                supabase
+                  .from('revenues')
+                  .select('amount')
+                  .eq('store_id', manager.store_id)
+                  .gte('date', periodStart)
+                  .lte('date', periodEnd)
+                  .limit(5000),
+                supabase
+                  .from('expenses')
+                  .select('amount')
+                  .eq('store_id', manager.store_id)
+                  .gte('date', periodStart)
+                  .lte('date', periodEnd)
+                  .limit(5000),
+              ]);
+
               const storeRevenue = storeRevenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
               const storeExpense = storeExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
               const storeProfit = storeRevenue - storeExpense;
-              
+
               if (manager.commission_type === 'lucro') {
-                totalCommissions += (storeProfit * manager.commission_percent) / 100;
+                commission = (storeProfit * manager.commission_percent) / 100;
               } else {
-                totalCommissions += (storeRevenue * manager.commission_percent) / 100;
+                commission = (storeRevenue * manager.commission_percent) / 100;
               }
             } else {
-              // Use totals for all stores
-              if (manager.commission_type === 'lucro') {
-                totalCommissions += ((totalRevenue - totalExpenses) * manager.commission_percent) / 100;
+              // Manager gets commission on all stores
+              if (selectedStore !== 'all') {
+                const [{ data: storeRevenues }, { data: storeExpenses }] = await Promise.all([
+                  supabase
+                    .from('revenues')
+                    .select('amount')
+                    .eq('store_id', selectedStore)
+                    .gte('date', periodStart)
+                    .lte('date', periodEnd)
+                    .limit(5000),
+                  supabase
+                    .from('expenses')
+                    .select('amount')
+                    .eq('store_id', selectedStore)
+                    .gte('date', periodStart)
+                    .lte('date', periodEnd)
+                    .limit(5000),
+                ]);
+
+                const storeRevenue = storeRevenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
+                const storeExpense = storeExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+                const storeProfit = storeRevenue - storeExpense;
+
+                if (manager.commission_type === 'lucro') {
+                  commission = (storeProfit * manager.commission_percent) / 100;
+                } else {
+                  commission = (storeRevenue * manager.commission_percent) / 100;
+                }
               } else {
-                totalCommissions += (totalRevenue * manager.commission_percent) / 100;
+                // Use totals for all stores
+                if (manager.commission_type === 'lucro') {
+                  commission = ((totalRevenue - totalExpenses) * manager.commission_percent) / 100;
+                } else {
+                  commission = (totalRevenue * manager.commission_percent) / 100;
+                }
               }
             }
-          }
-        }
-        
-        totalCommissions = Math.max(0, totalCommissions);
+            return commission;
+          })
+        );
+
+        totalCommissions = Math.max(0, commissionResults.reduce((sum, c) => sum + c, 0));
       }
 
       const grossProfit = totalRevenue - totalExpenses;
@@ -221,14 +233,14 @@ export default function Reports() {
     setLoading(false);
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = useCallback((value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
     }).format(value);
-  };
+  }, []);
 
-  const exportToCSV = () => {
+  const exportToCSV = useCallback(() => {
     const monthLabel = format(new Date(selectedMonth + '-01'), 'MMMM yyyy', { locale: ptBR });
     
     let csv = `DRE - ${monthLabel}\n\n`;
@@ -256,7 +268,7 @@ export default function Reports() {
     link.href = URL.createObjectURL(blob);
     link.download = `DRE_${selectedMonth}.csv`;
     link.click();
-  };
+  }, [dreData, selectedMonth]);
 
   return (
     <div className="space-y-6 animate-fade-in">

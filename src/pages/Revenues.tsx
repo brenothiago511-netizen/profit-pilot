@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -133,7 +133,7 @@ export default function Revenues() {
   };
 
   const fetchProfileNames = async () => {
-    const { data } = await supabase.from('profiles').select('id, name');
+    const { data } = await supabase.from('profiles').select('id, name').limit(500);
     if (data) {
       const map: ProfileMap = {};
       data.forEach((p: any) => { map[p.id] = p.name; });
@@ -221,7 +221,7 @@ export default function Revenues() {
     return 1;
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -254,7 +254,7 @@ export default function Revenues() {
       };
       reader.readAsDataURL(file);
     }
-  };
+  }, [toast]);
 
   const removeImage = () => {
     setImageFile(null);

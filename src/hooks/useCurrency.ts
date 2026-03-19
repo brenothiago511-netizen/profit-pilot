@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -59,8 +59,11 @@ export function useCurrency() {
   });
   const [loading, setLoading] = useState(true);
   const [displayCurrency, setDisplayCurrency] = useState<'base' | 'original' | 'preferred'>('base');
+  const fetchedRef = useRef(false);
 
   useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
     fetchCurrencyConfig();
   }, [profile?.id]);
 
@@ -94,7 +97,8 @@ export function useCurrency() {
       const { data: rates } = await supabase
         .from('exchange_rates')
         .select('*')
-        .order('date', { ascending: false });
+        .order('date', { ascending: false })
+        .limit(500);
 
       // Get user preferred currency
       const userPreferredCurrency = (profile as any)?.preferred_currency || 'BRL';

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -99,39 +99,39 @@ export default function PartnerDashboard() {
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
 
   // Calculate capital from transactions (aportes - retiradas)
-  const calculatedCapital = transactions.reduce((total, t) => {
+  const calculatedCapital = useMemo(() => transactions.reduce((total, t) => {
     if (t.type === 'aporte') return total + t.amount;
     if (t.type === 'retirada') return total - t.amount;
     return total;
-  }, 0);
+  }, 0), [transactions]);
 
-  const totalDistributions = transactions
+  const totalDistributions = useMemo(() => transactions
     .filter(t => t.type === 'distribuicao')
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => sum + t.amount, 0), [transactions]);
 
-  const totalAportes = transactions
+  const totalAportes = useMemo(() => transactions
     .filter(t => t.type === 'aporte')
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => sum + t.amount, 0), [transactions]);
 
-  const totalRetiradas = transactions
+  const totalRetiradas = useMemo(() => transactions
     .filter(t => t.type === 'retirada')
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => sum + t.amount, 0), [transactions]);
 
   // Calculate partner's share from daily_records (30% fixed) - only when Shopify confirmed received
-  const totalPartnerShare = dailyRecords
+  const totalPartnerShare = useMemo(() => dailyRecords
     .filter(r => r.shopify_status === 'received' || r.shopify_status === 'confirmed')
-    .reduce((sum, r) => sum + ((r.daily_profit || 0) * (PARTNER_PERCENTAGE / 100)), 0);
+    .reduce((sum, r) => sum + ((r.daily_profit || 0) * (PARTNER_PERCENTAGE / 100)), 0), [dailyRecords]);
 
   // Pending confirmations
-  const pendingRecords = dailyRecords.filter(r => 
+  const pendingRecords = useMemo(() => dailyRecords.filter(r =>
     r.status === 'approved' && r.shopify_status !== 'received'
-  );
+  ), [dailyRecords]);
   const pendingCount = pendingRecords.length;
-  const pendingAmount = pendingRecords
-    .reduce((sum, r) => sum + ((r.daily_profit || 0) * (PARTNER_PERCENTAGE / 100)), 0);
+  const pendingAmount = useMemo(() => pendingRecords
+    .reduce((sum, r) => sum + ((r.daily_profit || 0) * (PARTNER_PERCENTAGE / 100)), 0), [pendingRecords]);
 
   // Total profit from store performance
-  const totalStoreProfit = storePerformance.reduce((sum, s) => sum + s.profit, 0);
+  const totalStoreProfit = useMemo(() => storePerformance.reduce((sum, s) => sum + s.profit, 0), [storePerformance]);
   const totalStorePartnerShare = totalStoreProfit * (PARTNER_PERCENTAGE / 100);
 
   useEffect(() => {
@@ -188,7 +188,8 @@ export default function PartnerDashboard() {
           .from('daily_records')
           .select('id, daily_profit, status, shopify_status, date, store_id')
           .in('store_id', storeIds)
-          .order('date', { ascending: false });
+          .order('date', { ascending: false })
+          .limit(5000);
 
         setDailyRecords(recordsData || []);
       }
@@ -198,57 +199,56 @@ export default function PartnerDashboard() {
       const periodStart = format(subMonths(today, 3), 'yyyy-MM-dd');
       const periodEnd = format(today, 'yyyy-MM-dd');
 
-      const performanceData: StorePerformance[] = [];
+      const performanceResults = await Promise.all(
+        partnershipsWithStores
+          .filter(partnership => !!partnership.store_id)
+          .map(async (partnership) => {
+            // Fetch revenues, expenses, and confirmed daily profits in parallel
+            const [{ data: revenues }, { data: expenses }, { data: storeRecords }] = await Promise.all([
+              supabase
+                .from('revenues')
+                .select('amount')
+                .eq('store_id', partnership.store_id)
+                .gte('date', periodStart)
+                .lte('date', periodEnd)
+                .limit(5000),
+              supabase
+                .from('expenses')
+                .select('amount')
+                .eq('store_id', partnership.store_id)
+                .gte('date', periodStart)
+                .lte('date', periodEnd)
+                .limit(5000),
+              supabase
+                .from('daily_records')
+                .select('daily_profit')
+                .eq('store_id', partnership.store_id)
+                .in('shopify_status', ['received', 'confirmed'])
+                .gte('date', periodStart)
+                .lte('date', periodEnd)
+                .limit(5000),
+            ]);
 
-      for (const partnership of partnershipsWithStores) {
-        if (!partnership.store_id) continue;
-        
-        // Fetch revenues
-        const { data: revenues } = await supabase
-          .from('revenues')
-          .select('amount')
-          .eq('store_id', partnership.store_id)
-          .gte('date', periodStart)
-          .lte('date', periodEnd);
+            const totalRevenue = revenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
+            const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+            const profit = totalRevenue - totalExpenses;
+            const confirmedProfit = storeRecords?.reduce((sum, r) => sum + Number(r.daily_profit), 0) || 0;
+            const partnerShare = confirmedProfit * (PARTNER_PERCENTAGE / 100);
 
-        const totalRevenue = revenues?.reduce((sum, r) => sum + Number(r.amount), 0) || 0;
+            return {
+              storeId: partnership.store_id,
+              storeName: partnership.store?.name || 'N/A',
+              revenue: totalRevenue,
+              expenses: totalExpenses,
+              profit,
+              partnerShare,
+              percentage: PARTNER_PERCENTAGE,
+              confirmedProfit,
+            } as StorePerformance;
+          })
+      );
 
-        // Fetch expenses
-        const { data: expenses } = await supabase
-          .from('expenses')
-          .select('amount')
-          .eq('store_id', partnership.store_id)
-          .gte('date', periodStart)
-          .lte('date', periodEnd);
-
-        const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
-        const profit = totalRevenue - totalExpenses;
-
-        // Fetch confirmed daily profits for this store
-        const { data: storeRecords } = await supabase
-          .from('daily_records')
-          .select('daily_profit')
-          .eq('store_id', partnership.store_id)
-          .in('shopify_status', ['received', 'confirmed'])
-          .gte('date', periodStart)
-          .lte('date', periodEnd);
-
-        const confirmedProfit = storeRecords?.reduce((sum, r) => sum + Number(r.daily_profit), 0) || 0;
-        const partnerShare = confirmedProfit * (PARTNER_PERCENTAGE / 100);
-
-        performanceData.push({
-          storeId: partnership.store_id,
-          storeName: partnership.store?.name || 'N/A',
-          revenue: totalRevenue,
-          expenses: totalExpenses,
-          profit,
-          partnerShare,
-          percentage: PARTNER_PERCENTAGE,
-          confirmedProfit,
-        });
-      }
-
-      setStorePerformance(performanceData);
+      setStorePerformance(performanceResults);
 
       // Calculate monthly capital evolution (last 6 months)
       const monthlyCapital: MonthlyData[] = [];

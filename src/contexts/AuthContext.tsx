@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -40,6 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastFetchedUserId = useRef<string | null>(null);
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
@@ -66,9 +67,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          const profile = await fetchProfile(session.user.id);
-          if (mounted) setProfile(profile);
+          if (session.user.id !== lastFetchedUserId.current) {
+            lastFetchedUserId.current = session.user.id;
+            const profile = await fetchProfile(session.user.id);
+            if (mounted) setProfile(profile);
+          }
         } else {
+          lastFetchedUserId.current = null;
           if (mounted) setProfile(null);
         }
       }
@@ -80,10 +85,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        const p = await fetchProfile(session.user.id);
-        if (mounted) {
-          setProfile(p);
-          setLoading(false);
+        if (session.user.id !== lastFetchedUserId.current) {
+          lastFetchedUserId.current = session.user.id;
+          const p = await fetchProfile(session.user.id);
+          if (mounted) {
+            setProfile(p);
+            setLoading(false);
+          }
+        } else {
+          if (mounted) setLoading(false);
         }
       } else {
         if (mounted) setLoading(false);

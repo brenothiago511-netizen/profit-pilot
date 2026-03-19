@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -86,10 +86,17 @@ export function usePermissions() {
     const { data } = await supabase
       .from('user_permissions')
       .select('permission_key, allowed')
-      .eq('user_id', userId);
+      .eq('user_id', userId)
+      .limit(500);
     setUserPermissions((data as UserPermission[]) || []);
     setLoading(false);
   };
+
+  const permissionIndex = useMemo(() => {
+    const map = new Map<string, boolean>();
+    userPermissions.forEach(p => map.set(p.permission_key, p.allowed));
+    return map;
+  }, [userPermissions]);
 
   const hasPermission = useCallback(
     (permissionKey: string): boolean => {
@@ -99,9 +106,9 @@ export function usePermissions() {
       const isCustom = (profile as any).is_custom_permissions;
 
       if (isCustom) {
-        const customPerm = userPermissions.find((p) => p.permission_key === permissionKey);
+        const customPerm = permissionIndex.get(permissionKey);
         if (customPerm !== undefined) {
-          return customPerm.allowed;
+          return customPerm;
         }
       }
 
@@ -112,7 +119,7 @@ export function usePermissions() {
       if (rolePerms.includes('*')) return true;
       return rolePerms.includes(permissionKey);
     },
-    [profile, userPermissions]
+    [profile, permissionIndex]
   );
 
   const can = hasPermission;

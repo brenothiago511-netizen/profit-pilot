@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -99,7 +99,7 @@ export default function Dashboard() {
       fetchTrendData();
       fetchDashboardData();
     }
-  }, [selectedStore, selectedPartner, dateRange, initialDataLoaded]);
+  }, [selectedStore, selectedPartner, dateRange.from, dateRange.to, initialDataLoaded]);
 
   const fetchInitialData = async () => {
     console.log('fetchInitialData - isSocio:', isSocio, 'user?.id:', user?.id, 'isAdmin:', isAdmin, 'profile?.role:', profile?.role);
@@ -283,7 +283,8 @@ export default function Dashboard() {
           .in('shopify_status', ['received', 'confirmed'])
           .eq('created_by', user.id)
           .gte('date', dateStart)
-          .lte('date', dateEnd);
+          .lte('date', dateEnd)
+          .limit(5000);
         
         if (storeIdsToFilter && storeIdsToFilter.length > 0) {
           profitsQuery = profitsQuery.in('store_id', storeIdsToFilter);
@@ -313,7 +314,7 @@ export default function Dashboard() {
     return formatCurrency(value, config.baseCurrency);
   };
 
-  const metrics = [
+  const metrics = useMemo(() => [
     {
       title: 'Receita Total',
       value: data.totalRevenue,
@@ -346,7 +347,7 @@ export default function Dashboard() {
       iconColor: data.partnerShare >= 0 ? 'text-success' : 'text-danger',
       show: isSocio,
     },
-  ];
+  ], [data, isSocio]);
 
   return (
     <div className="space-y-6 animate-fade-in">
