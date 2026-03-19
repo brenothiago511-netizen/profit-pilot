@@ -15,7 +15,7 @@ import { Separator } from '@/components/ui/separator';
 
 const loginSchema = z.object({
   email: z.string().email('E-mail inválido'),
-  password: z.string().min(8, 'Senha deve ter no mínimo 8 caracteres'),
+  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
 });
 
 const signupSchema = z.object({
