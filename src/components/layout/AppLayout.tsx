@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -38,6 +38,7 @@ import {
   Sun,
   Moon,
   BarChart3,
+  Settings,
 } from 'lucide-react';
 import logoAglomerado from '@/assets/logo-aglomerado.png';
 import NotificationBell from '@/components/notifications/NotificationBell';
@@ -88,6 +89,7 @@ const navigationSections = [
     title: 'Administração',
     items: [
       { name: 'Folha de Pagamento', href: '/payroll', icon: Wallet },
+      { name: 'Auditoria', href: '/audit-log', icon: ClipboardList, permissions: [], adminOnly: true },
     ],
   },
   {
@@ -236,6 +238,13 @@ export default function AppLayout() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
+                    <Settings className="h-4 w-4" aria-hidden="true" />
+                    Configurações
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />

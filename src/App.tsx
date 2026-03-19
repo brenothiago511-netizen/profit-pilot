@@ -25,7 +25,9 @@ import Payroll from "./pages/Payroll";
 import ShopifyWithdrawals from "./pages/ShopifyWithdrawals";
 import Banks from "./pages/Banks";
 import ComparativeReport from "./pages/ComparativeReport";
+import AuditLog from "./pages/AuditLog";
 import NotFound from "./pages/NotFound";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -179,6 +181,22 @@ const App = () => (
                 element={
                   <ProtectedRoute allowedRoles={['admin', 'financeiro', 'socio']}>
                     <ComparativeReport />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/audit-log"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AuditLog />
                   </ProtectedRoute>
                 }
               />
