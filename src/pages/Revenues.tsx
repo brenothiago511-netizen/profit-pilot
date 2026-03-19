@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -12,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, TrendingUp, Loader2, Trash2, Upload, X, Image, Pencil, CalendarIcon, User } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { parseDate } from '@/lib/dateUtils';
@@ -52,6 +54,18 @@ const CURRENCIES = [
   { code: 'MXN', label: 'MX$ (MXN)', symbol: 'MX$' },
 ];
 
+const revenueSchema = z.object({
+  date: z.string().min(1, 'Selecione uma data'),
+  amount: z.string()
+    .min(1, 'Informe o valor')
+    .refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, 'Valor deve ser maior que zero'),
+  currency: z.string().min(1, 'Selecione a moeda'),
+  source: z.string().min(2, 'Informe a fonte/descrição com ao menos 2 caracteres').max(255, 'Descrição muito longa'),
+  payment_method: z.string().min(1, 'Selecione o método de pagamento'),
+});
+
+type RevenueFormErrors = Partial<Record<keyof z.infer<typeof revenueSchema>, string>>;
+
 export default function Revenues() {
   const { user, profile } = useAuth();
   const { can } = usePermissions();
@@ -71,6 +85,10 @@ export default function Revenues() {
   const [filterDateFrom, setFilterDateFrom] = useState<Date>(startOfMonth(new Date()));
   const [filterDateTo, setFilterDateTo] = useState<Date>(endOfMonth(new Date()));
   const [filterUser, setFilterUser] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 20;
+  const [formErrors, setFormErrors] = useState<RevenueFormErrors>({});
   const [formData, setFormData] = useState({
     store_id: '',
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -95,6 +113,7 @@ export default function Revenues() {
     setImagePreview(null);
     setEditingRevenue(null);
     setSelectedBankAccount('');
+    setFormErrors({});
   };
 
   const openEditDialog = (revenue: Revenue) => {
@@ -118,10 +137,10 @@ export default function Revenues() {
     if (isAdmin) fetchProfileNames();
   }, []);
 
-  // Re-fetch revenues when date filters or user filter change
+  // Re-fetch revenues when date filters, user filter or page change
   useEffect(() => {
     fetchRevenues();
-  }, [filterDateFrom, filterDateTo, filterUser]);
+  }, [filterDateFrom, filterDateTo, filterUser, currentPage]);
 
   const fetchBankAccounts = async () => {
     const { data } = await supabase
@@ -156,37 +175,43 @@ export default function Revenues() {
     const fromStr = format(filterDateFrom, 'yyyy-MM-dd');
     const toStr = format(filterDateTo, 'yyyy-MM-dd');
 
-    let allData: any[] = [];
-    let from = 0;
-    const PAGE_SIZE = 1000;
-    let hasMore = true;
+    // Build count query
+    let countQuery = supabase
+      .from('revenues')
+      .select('*', { count: 'exact', head: true })
+      .gte('date', fromStr)
+      .lte('date', toStr);
 
-    while (hasMore) {
-      let query = supabase
-        .from('revenues')
-        .select('*, stores(name)')
-        .gte('date', fromStr)
-        .lte('date', toStr)
-        .order('date', { ascending: false })
-        .range(from, from + PAGE_SIZE - 1);
-
-      if (filterUser !== 'all') {
-        query = query.eq('user_id', filterUser);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching revenues:', error);
-        hasMore = false;
-      } else {
-        allData = allData.concat(data || []);
-        hasMore = (data?.length || 0) === PAGE_SIZE;
-        from += PAGE_SIZE;
-      }
+    if (filterUser !== 'all') {
+      countQuery = countQuery.eq('user_id', filterUser);
     }
 
-    setRevenues(allData);
+    const { count } = await countQuery;
+    setTotalCount(count || 0);
+
+    // Fetch the current page
+    const rangeFrom = (currentPage - 1) * PAGE_SIZE;
+    const rangeTo = rangeFrom + PAGE_SIZE - 1;
+
+    let query = supabase
+      .from('revenues')
+      .select('*, stores(name)')
+      .gte('date', fromStr)
+      .lte('date', toStr)
+      .order('date', { ascending: false })
+      .range(rangeFrom, rangeTo);
+
+    if (filterUser !== 'all') {
+      query = query.eq('user_id', filterUser);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching revenues:', error);
+    }
+
+    setRevenues(data || []);
     setLoading(false);
   };
 
@@ -283,14 +308,26 @@ export default function Revenues() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.amount) {
-      toast({
-        title: 'Erro',
-        description: 'Preencha o valor da receita',
-        variant: 'destructive',
+
+    const validation = revenueSchema.safeParse({
+      date: formData.date,
+      amount: String(formData.amount),
+      currency: formData.currency,
+      source: formData.source,
+      payment_method: formData.payment_method,
+    });
+
+    if (!validation.success) {
+      const errors: RevenueFormErrors = {};
+      validation.error.errors.forEach(err => {
+        if (err.path[0]) {
+          errors[err.path[0] as keyof RevenueFormErrors] = err.message;
+        }
       });
+      setFormErrors(errors);
       return;
     }
+    setFormErrors({});
 
     setSaving(true);
     
@@ -438,7 +475,7 @@ export default function Revenues() {
           {isAdmin && (
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-muted-foreground" />
-              <Select value={filterUser} onValueChange={setFilterUser}>
+              <Select value={filterUser} onValueChange={(v) => { setFilterUser(v); setCurrentPage(1); }}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
@@ -464,7 +501,7 @@ export default function Revenues() {
                 <Calendar
                   mode="single"
                   selected={filterDateFrom}
-                  onSelect={(d) => d && setFilterDateFrom(d)}
+                  onSelect={(d) => { if (d) { setFilterDateFrom(d); setCurrentPage(1); } }}
                   locale={ptBR}
                   className="p-3 pointer-events-auto"
                 />
@@ -482,7 +519,7 @@ export default function Revenues() {
                 <Calendar
                   mode="single"
                   selected={filterDateTo}
-                  onSelect={(d) => d && setFilterDateTo(d)}
+                  onSelect={(d) => { if (d) { setFilterDateTo(d); setCurrentPage(1); } }}
                   locale={ptBR}
                   className="p-3 pointer-events-auto"
                 />
@@ -568,20 +605,22 @@ export default function Revenues() {
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                   />
+                  {formErrors.amount && <p className="text-xs text-destructive">{formErrors.amount}</p>}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Origem</Label>
+                  <Label>Origem *</Label>
                   <Input
                     placeholder="Ex: Vendas, Serviços"
                     value={formData.source}
                     onChange={(e) => setFormData({ ...formData, source: e.target.value })}
                   />
+                  {formErrors.source && <p className="text-xs text-destructive">{formErrors.source}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label>Forma de Pagamento</Label>
+                  <Label>Forma de Pagamento *</Label>
                   <Select
                     value={formData.payment_method}
                     onValueChange={(v) => setFormData({ ...formData, payment_method: v })}
@@ -597,6 +636,7 @@ export default function Revenues() {
                       <SelectItem value="transferencia">Transferência</SelectItem>
                     </SelectContent>
                   </Select>
+                  {formErrors.payment_method && <p className="text-xs text-destructive">{formErrors.payment_method}</p>}
                 </div>
               </div>
 
@@ -696,13 +736,17 @@ export default function Revenues() {
           : { all: revenues };
 
         return loading ? (
-          <Card>
-            <CardContent className="py-8">
-              <div className="flex items-center justify-center">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <div className="space-y-3">
+            {[1,2,3,4,5].map(i => (
+              <div key={i} className="flex items-center gap-4 rounded-lg border bg-card p-4">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-32 flex-1" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-8 w-16" />
               </div>
-            </CardContent>
-          </Card>
+            ))}
+          </div>
         ) : revenues.length === 0 ? (
           <Card>
             <CardContent className="py-8">
@@ -731,7 +775,7 @@ export default function Revenues() {
                     )}
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   <div className="overflow-x-auto">
                     <table className="data-table">
                       <thead>
@@ -810,6 +854,35 @@ export default function Revenues() {
                       </tbody>
                     </table>
                   </div>
+                  {/* Paginação */}
+                  {totalCount > PAGE_SIZE && (
+                    <div className="flex items-center justify-between border-t pt-4">
+                      <p className="text-sm text-muted-foreground">
+                        Mostrando {Math.min((currentPage - 1) * PAGE_SIZE + 1, totalCount)}–{Math.min(currentPage * PAGE_SIZE, totalCount)} de {totalCount} receitas
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                        >
+                          Anterior
+                        </Button>
+                        <span className="text-sm">
+                          Página {currentPage} de {Math.ceil(totalCount / PAGE_SIZE)}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => p + 1)}
+                          disabled={currentPage >= Math.ceil(totalCount / PAGE_SIZE)}
+                        >
+                          Próxima
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );

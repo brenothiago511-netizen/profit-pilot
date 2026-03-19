@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
+import { z } from 'zod';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, TrendingDown, Loader2, Trash2, Camera, Sparkles, Upload, Pencil, Check, X, CalendarIcon, User, RefreshCw } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -61,6 +63,17 @@ const CURRENCIES = [
   { code: 'MXN', label: 'MX$ (MXN)', symbol: 'MX$' },
 ];
 
+const expenseSchema = z.object({
+  date: z.string().min(1, 'Selecione uma data'),
+  amount: z.string()
+    .min(1, 'Informe o valor')
+    .refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, 'Valor deve ser maior que zero'),
+  currency: z.string().min(1, 'Selecione a moeda'),
+  description: z.string().min(2, 'Descrição deve ter no mínimo 2 caracteres').max(255, 'Descrição muito longa'),
+});
+
+type ExpenseFormErrors = Partial<Record<keyof z.infer<typeof expenseSchema>, string>>;
+
 export default function Expenses() {
   const { user, profile } = useAuth();
   const { can } = usePermissions();
@@ -89,6 +102,10 @@ export default function Expenses() {
   const [filterDateFrom, setFilterDateFrom] = useState<Date>(startOfMonth(new Date()));
   const [filterDateTo, setFilterDateTo] = useState<Date>(endOfMonth(new Date()));
   const [filterUser, setFilterUser] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 20;
+  const [formErrors, setFormErrors] = useState<ExpenseFormErrors>({});
   
   const [formData, setFormData] = useState({
     store_id: '',
@@ -119,10 +136,10 @@ export default function Expenses() {
     if (isAdmin) fetchProfileNames();
   }, []);
 
-  // Re-fetch expenses when date filters or user filter change
+  // Re-fetch expenses when date filters, user filter or page change
   useEffect(() => {
     fetchExpenses();
-  }, [filterDateFrom, filterDateTo, filterUser]);
+  }, [filterDateFrom, filterDateTo, filterUser, currentPage]);
 
   const fetchBankAccounts = async () => {
     const { data } = await supabase
@@ -181,38 +198,43 @@ export default function Expenses() {
     const fromStr = format(filterDateFrom, 'yyyy-MM-dd');
     const toStr = format(filterDateTo, 'yyyy-MM-dd');
 
-    // Fetch all expenses in the date range using pagination to bypass 1000-row limit
-    let allData: any[] = [];
-    let from = 0;
-    const PAGE_SIZE = 1000;
-    let hasMore = true;
+    // Build count query
+    let countQuery = supabase
+      .from('expenses')
+      .select('*', { count: 'exact', head: true })
+      .gte('date', fromStr)
+      .lte('date', toStr);
 
-    while (hasMore) {
-      let query = supabase
-        .from('expenses')
-        .select('*, stores(name), expense_categories(name)')
-        .gte('date', fromStr)
-        .lte('date', toStr)
-        .order('date', { ascending: false })
-        .range(from, from + PAGE_SIZE - 1);
-
-      if (filterUser !== 'all') {
-        query = query.eq('user_id', filterUser);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching expenses:', error);
-        hasMore = false;
-      } else {
-        allData = allData.concat(data || []);
-        hasMore = (data?.length || 0) === PAGE_SIZE;
-        from += PAGE_SIZE;
-      }
+    if (filterUser !== 'all') {
+      countQuery = countQuery.eq('user_id', filterUser);
     }
 
-    const enrichedExpenses: Expense[] = allData.map((e: any) => ({
+    const { count } = await countQuery;
+    setTotalCount(count || 0);
+
+    // Fetch the current page
+    const rangeFrom = (currentPage - 1) * PAGE_SIZE;
+    const rangeTo = rangeFrom + PAGE_SIZE - 1;
+
+    let query = supabase
+      .from('expenses')
+      .select('*, stores(name), expense_categories(name)')
+      .gte('date', fromStr)
+      .lte('date', toStr)
+      .order('date', { ascending: false })
+      .range(rangeFrom, rangeTo);
+
+    if (filterUser !== 'all') {
+      query = query.eq('user_id', filterUser);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching expenses:', error);
+    }
+
+    const enrichedExpenses: Expense[] = (data || []).map((e: any) => ({
       id: e.id,
       store_id: e.store_id,
       user_id: e.user_id,
@@ -265,14 +287,25 @@ export default function Expenses() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.amount || !formData.description) {
-      toast({
-        title: 'Erro',
-        description: 'Preencha todos os campos obrigatórios',
-        variant: 'destructive',
+
+    const validation = expenseSchema.safeParse({
+      date: formData.date,
+      amount: String(formData.amount),
+      currency: formData.currency,
+      description: formData.description,
+    });
+
+    if (!validation.success) {
+      const errors: ExpenseFormErrors = {};
+      validation.error.errors.forEach(err => {
+        if (err.path[0]) {
+          errors[err.path[0] as keyof ExpenseFormErrors] = err.message;
+        }
       });
+      setFormErrors(errors);
       return;
     }
+    setFormErrors({});
 
     setSaving(true);
     
@@ -602,6 +635,7 @@ export default function Expenses() {
       type: 'variavel',
       payment_method: '',
     });
+    setFormErrors({});
   };
 
   const resetAiForm = () => {
@@ -836,7 +870,7 @@ export default function Expenses() {
           {isAdmin && (
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-muted-foreground" />
-              <Select value={filterUser} onValueChange={setFilterUser}>
+              <Select value={filterUser} onValueChange={(v) => { setFilterUser(v); setCurrentPage(1); }}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
@@ -862,7 +896,7 @@ export default function Expenses() {
                 <Calendar
                   mode="single"
                   selected={filterDateFrom}
-                  onSelect={(d) => d && setFilterDateFrom(d)}
+                  onSelect={(d) => { if (d) { setFilterDateFrom(d); setCurrentPage(1); } }}
                   locale={ptBR}
                   className="p-3 pointer-events-auto"
                 />
@@ -880,7 +914,7 @@ export default function Expenses() {
                 <Calendar
                   mode="single"
                   selected={filterDateTo}
-                  onSelect={(d) => d && setFilterDateTo(d)}
+                  onSelect={(d) => { if (d) { setFilterDateTo(d); setCurrentPage(1); } }}
                   locale={ptBR}
                   className="p-3 pointer-events-auto"
                 />
@@ -1283,6 +1317,7 @@ export default function Expenses() {
                       value={formData.amount}
                       onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                     />
+                    {formErrors.amount && <p className="text-xs text-destructive">{formErrors.amount}</p>}
                   </div>
                 </div>
 
@@ -1293,6 +1328,7 @@ export default function Expenses() {
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   />
+                  {formErrors.description && <p className="text-xs text-destructive">{formErrors.description}</p>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -1418,13 +1454,17 @@ export default function Expenses() {
           : { all: filteredExpenses };
 
         return loading ? (
-          <Card>
-            <CardContent className="py-8">
-              <div className="flex items-center justify-center">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <div className="space-y-3">
+            {[1,2,3,4,5].map(i => (
+              <div key={i} className="flex items-center gap-4 rounded-lg border bg-card p-4">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-32 flex-1" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-8 w-16" />
               </div>
-            </CardContent>
-          </Card>
+            ))}
+          </div>
         ) : filteredExpenses.length === 0 ? (
           <Card>
             <CardContent className="py-8">
@@ -1539,7 +1579,7 @@ export default function Expenses() {
                       )}
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-4">
                     <div className="overflow-x-auto">
                       <table className="data-table">
                         <thead>
@@ -1620,6 +1660,35 @@ export default function Expenses() {
                         </tbody>
                       </table>
                     </div>
+                    {/* Paginação */}
+                    {totalCount > PAGE_SIZE && (
+                      <div className="flex items-center justify-between border-t pt-4">
+                        <p className="text-sm text-muted-foreground">
+                          Mostrando {Math.min((currentPage - 1) * PAGE_SIZE + 1, totalCount)}–{Math.min(currentPage * PAGE_SIZE, totalCount)} de {totalCount} despesas
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                          >
+                            Anterior
+                          </Button>
+                          <span className="text-sm">
+                            Página {currentPage} de {Math.ceil(totalCount / PAGE_SIZE)}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(p => p + 1)}
+                            disabled={currentPage >= Math.ceil(totalCount / PAGE_SIZE)}
+                          >
+                            Próxima
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
