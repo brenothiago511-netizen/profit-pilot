@@ -25,6 +25,18 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     return <Navigate to="/auth" replace />;
   }
 
+  // Wait for profile to load before checking role-based access
+  if (allowedRoles && !profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Carregando perfil...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
     // Redirect financeiro to revenues instead of dashboard
     const redirectPath = profile.role === 'financeiro' ? '/revenues' : '/dashboard';

@@ -224,6 +224,29 @@ export default function Revenues() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: 'Tipo de arquivo inválido',
+          description: 'Apenas imagens JPEG, PNG, WebP e GIF são permitidas.',
+          variant: 'destructive',
+        });
+        e.target.value = '';
+        return;
+      }
+
+      if (file.size > maxSizeBytes) {
+        toast({
+          title: 'Arquivo muito grande',
+          description: 'O tamanho máximo permitido é 5MB.',
+          variant: 'destructive',
+        });
+        e.target.value = '';
+        return;
+      }
+
       setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {

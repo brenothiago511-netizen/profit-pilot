@@ -1,14 +1,29 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const ALLOWED_ORIGINS = [
+  Deno.env.get('SITE_URL') || '',
+  'http://localhost:8080',
+  'http://localhost:3000',
+  'http://localhost:5173',
+].filter(Boolean)
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0] || ''
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
+  }
 }
 
 // Supported currencies
 const CURRENCIES = ['USD', 'BRL', 'EUR', 'GBP', 'ARS', 'CLP', 'MXN', 'COP', 'PEN', 'UYU', 'PYG', 'BOB']
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('origin')
+  const corsHeaders = getCorsHeaders(origin)
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -62,27 +77,38 @@ Deno.serve(async (req) => {
     console.log(`Upserting ${exchangeRates.length} exchange rates...`)
 
     // Upsert exchange rates (update if exists, insert if not)
+    const upsertErrors: string[] = []
     for (const rateRecord of exchangeRates) {
-      const { error } = await supabase
-        .from('exchange_rates')
-        .upsert(rateRecord, {
-          onConflict: 'base_currency,target_currency,date',
-        })
+      try {
+        const { error } = await supabase
+          .from('exchange_rates')
+          .upsert(rateRecord, {
+            onConflict: 'base_currency,target_currency,date',
+          })
 
-      if (error) {
-        console.error(`Error upserting rate for ${rateRecord.target_currency}:`, error)
+        if (error) {
+          const msg = `Error upserting rate for ${rateRecord.target_currency}: ${error.message}`
+          console.error(msg)
+          upsertErrors.push(msg)
+        }
+      } catch (upsertErr) {
+        const msg = `Unexpected error upserting rate for ${rateRecord.target_currency}: ${upsertErr instanceof Error ? upsertErr.message : String(upsertErr)}`
+        console.error(msg)
+        upsertErrors.push(msg)
       }
     }
 
-    console.log('Exchange rates updated successfully')
+    const successCount = exchangeRates.length - upsertErrors.length
+    console.log(`Exchange rates update complete: ${successCount} succeeded, ${upsertErrors.length} failed`)
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Updated ${exchangeRates.length} exchange rates`,
+        message: `Updated ${successCount} of ${exchangeRates.length} exchange rates`,
         baseCurrency,
         date: today,
         rates: exchangeRates,
+        ...(upsertErrors.length > 0 && { warnings: upsertErrors }),
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -91,9 +117,9 @@ Deno.serve(async (req) => {
     )
   } catch (error) {
     console.error('Error fetching exchange rates:', error)
-    
+
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    
+
     return new Response(
       JSON.stringify({
         success: false,

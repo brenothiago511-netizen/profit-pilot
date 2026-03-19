@@ -169,9 +169,9 @@ export default function Dashboard() {
   };
 
   const getStoreIdsForQuery = async (): Promise<string[] | null> => {
-    // For sócio - ALWAYS use their own stores (even if empty, to prevent data leakage)
+    // For sócio - ALWAYS use their own stores (even if empty, return [] to prevent data leakage)
     if (isSocio) {
-      return partnerStoreIds && partnerStoreIds.length > 0 ? partnerStoreIds : ['00000000-0000-0000-0000-000000000000'];
+      return partnerStoreIds && partnerStoreIds.length > 0 ? partnerStoreIds : [];
     }
     
     // For admin filtering by partner - return null so we don't filter by store
@@ -270,8 +270,9 @@ export default function Dashboard() {
       // Calculate net profit: revenue - expenses
       const netProfit = totalRevenue - totalExpenses;
       
-      // Calculate partner share: 30% of confirmed profits from daily_records
+      // Calculate partner share: percentage of confirmed profits from daily_records
       let partnerShare = 0;
+      // TODO: fetch PARTNER_PERCENTAGE from the database (e.g. partners.capital_percentage) instead of hardcoding
       const PARTNER_PERCENTAGE = 30;
       
       if (isSocio && user?.id) {

@@ -74,7 +74,21 @@ export function useCurrency() {
         .eq('key', 'base_currency')
         .maybeSingle();
 
-      const baseCurrency = settings?.value ? JSON.parse(JSON.stringify(settings.value)).replace(/"/g, '') : 'USD';
+      let baseCurrency = 'USD';
+      if (settings?.value) {
+        try {
+          const raw = settings.value;
+          // Value may be stored as a JSON string (e.g. '"USD"') or a plain string (e.g. 'USD')
+          if (typeof raw === 'string') {
+            baseCurrency = raw.replace(/^"|"$/g, '').trim() || 'USD';
+          } else {
+            const parsed = JSON.parse(JSON.stringify(raw));
+            baseCurrency = String(parsed).replace(/^"|"$/g, '').trim() || 'USD';
+          }
+        } catch {
+          baseCurrency = 'USD';
+        }
+      }
 
       // Fetch exchange rates
       const { data: rates } = await supabase
