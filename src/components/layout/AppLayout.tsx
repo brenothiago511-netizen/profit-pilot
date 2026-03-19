@@ -37,6 +37,7 @@ import {
   Landmark,
   Sun,
   Moon,
+  BarChart3,
 } from 'lucide-react';
 import logoAglomerado from '@/assets/logo-aglomerado.png';
 import NotificationBell from '@/components/notifications/NotificationBell';
@@ -80,6 +81,7 @@ const navigationSections = [
     items: [
       { name: 'Relatórios', href: '/reports', icon: FileText, permissions: ['view_reports'] },
       { name: 'Relatório Executivo', href: '/executive-report', icon: ClipboardList, permissions: ['view_reports', 'export_reports'] },
+      { name: 'Comparativo', href: '/comparative-report', icon: BarChart3, permissions: [] },
     ],
   },
   {
@@ -175,13 +177,14 @@ export default function AppLayout() {
             <button
               className="ml-auto lg:hidden text-sidebar-foreground"
               onClick={() => setSidebarOpen(false)}
+              aria-label="Fechar menu"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
+          <nav role="navigation" aria-label="Menu principal" className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
             {filteredSections.map((section) => (
               <div key={section.title}>
                 <p className="px-3 mb-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
@@ -251,8 +254,9 @@ export default function AppLayout() {
           <button
             className="lg:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground"
             onClick={() => setSidebarOpen(true)}
+            aria-label={sidebarOpen ? 'Fechar menu' : 'Abrir menu'}
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-5 h-5" aria-hidden="true" />
           </button>
           <div className="flex-1 flex justify-center px-2">
             <GlobalSearch />
@@ -264,6 +268,7 @@ export default function AppLayout() {
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="h-9 w-9"
               title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
+              aria-label={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
             >
               {theme === 'dark' ? (
                 <Sun className="h-4 w-4" />
