@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import TwoFactorVerify from '@/components/auth/TwoFactorVerify';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,15 +36,24 @@ export default function Auth() {
   const [signupData, setSignupData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, mfaPending } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user) {
+    if (user && !mfaPending) {
       navigate('/dashboard');
     }
-  }, [user, navigate]);
+  }, [user, mfaPending, navigate]);
+
+  if (mfaPending) {
+    return (
+      <TwoFactorVerify
+        onSuccess={() => navigate('/dashboard')}
+        onCancel={() => supabase.auth.signOut()}
+      />
+    );
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -31,10 +31,32 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchNotifications();
-      checkAndGenerateAlerts();
-    }
+    if (!user) return;
+
+    fetchNotifications();
+    checkAndGenerateAlerts();
+
+    // Subscription para novas notificações em tempo real
+    const channel = supabase
+      .channel('notifications-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newNotification = payload.new as Notification;
+          setNotifications(prev => [newNotification, ...prev.slice(0, 19)]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const fetchNotifications = async () => {
