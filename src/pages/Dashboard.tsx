@@ -410,7 +410,7 @@ export default function Dashboard() {
               {/* Partner Filter (Admin only) */}
               {isAdmin && partners.length > 0 && (
                 <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-muted-foreground" />
+                  <Users className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
                   <Select value={selectedPartner} onValueChange={setSelectedPartner}>
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Filtrar por sócio" />
@@ -429,7 +429,7 @@ export default function Dashboard() {
 
               {/* Store Filter */}
               <div className="flex items-center gap-2">
-                <Store className="w-4 h-4 text-muted-foreground" />
+                <Store className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
                 <Select 
                   value={selectedStore} 
                   onValueChange={setSelectedStore}
@@ -492,7 +492,7 @@ export default function Dashboard() {
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     {metric.title}
                   </CardTitle>
-                  <metric.icon className={`h-5 w-5 ${metric.iconColor}`} />
+                  <metric.icon className={`h-5 w-5 ${metric.iconColor}`} aria-hidden="true" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold number-animate">
@@ -515,7 +515,7 @@ export default function Dashboard() {
                 <p className="text-sm text-muted-foreground">Últimos 6 meses</p>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px]">
+                <div role="img" aria-label="Gráfico de receitas e despesas dos últimos 6 meses" className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                       <defs>
@@ -575,7 +575,7 @@ export default function Dashboard() {
                 <p className="text-sm text-muted-foreground">Últimos 6 meses</p>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px]">
+                <div role="img" aria-label="Gráfico de lucro mensal dos últimos 6 meses" className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
