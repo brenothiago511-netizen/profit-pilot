@@ -30,8 +30,9 @@ serve(async (req) => {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
     const { image } = await req.json();
-    
+
     if (!image) {
       return new Response(
         JSON.stringify({ error: 'No image provided' }),
@@ -39,25 +40,39 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
+    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY is not configured');
     }
 
     console.log('Extracting expense data from image...');
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
-            role: 'system',
-            content: `Você é um assistente de IA especializado em extrair dados financeiros de imagens de extratos bancários, comprovantes de pagamento, recibos, notas fiscais e faturas.
+    // Build image content based on whether it's a data URL or regular URL
+    let imageContent: any;
+    if (image.startsWith('data:')) {
+      // Data URL format: data:image/jpeg;base64,...
+      const matches = image.match(/^data:([^;]+);base64,(.+)$/);
+      if (!matches) throw new Error('Invalid data URL format');
+      imageContent = {
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: matches[1],
+          data: matches[2],
+        },
+      };
+    } else {
+      // Regular HTTPS URL
+      imageContent = {
+        type: 'image',
+        source: {
+          type: 'url',
+          url: image,
+        },
+      };
+    }
+
+    const systemPrompt = `Você é um assistente de IA especializado em extrair dados financeiros de imagens de extratos bancários, comprovantes de pagamento, recibos, notas fiscais e faturas.
 
 Analise a imagem e extraia TODAS as transações/despesas visíveis. Para cada transação, extraia:
 - amount: O valor (número, sem símbolo de moeda)
@@ -86,49 +101,50 @@ Responda APENAS com um JSON válido neste formato exato:
 - Para UMA transação: [{"amount": 123.45, "description": "Desc", "date": "2024-01-15", "currency": "USD", "category": "Categoria"}]
 
 Sempre retorne um ARRAY, mesmo que tenha apenas uma transação.
-Se não conseguir extrair um valor, use null para esse campo. Nunca retorne valores negativos, converta para positivo.`
-          },
+Se não conseguir extrair um valor, use null para esse campo. Nunca retorne valores negativos, converta para positivo.`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [
           {
             role: 'user',
             content: [
+              imageContent,
               {
                 type: 'text',
-                text: 'Extraia os dados de despesa desta imagem. Pode ser um extrato bancário, comprovante de pagamento, recibo ou nota fiscal.'
+                text: 'Extraia os dados de despesa desta imagem. Pode ser um extrato bancário, comprovante de pagamento, recibo ou nota fiscal.',
               },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: image
-                }
-              }
-            ]
-          }
+            ],
+          },
         ],
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('AI Gateway error:', response.status, errorText);
-      
+      console.error('Anthropic API error:', response.status, errorText);
+
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: 'Limite de requisições excedido. Tente novamente em alguns minutos.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'Créditos de IA esgotados. Adicione créditos para continuar.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      throw new Error(`AI Gateway error: ${response.status}`);
+      throw new Error(`Anthropic API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    
+    const content = data.content?.[0]?.text;
+
     console.log('AI Response:', content);
 
     if (!content) {
@@ -152,7 +168,7 @@ Se não conseguir extrair um valor, use null para esse campo. Nunca retorne valo
           if (!Array.isArray(extractedData)) extractedData = [extractedData];
         }
       }
-      
+
       // Ensure all amounts are positive
       extractedData = extractedData.map((item: any) => ({
         ...item,

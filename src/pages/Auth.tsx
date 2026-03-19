@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Mail, Lock, User } from 'lucide-react';
 import logoAglomerado from '@/assets/logo-aglomerado.png';
 import { z } from 'zod';
-import { lovable } from '@/integrations/lovable/index';
+import { supabase } from '@/integrations/supabase/client';
 import { Separator } from '@/components/ui/separator';
 
 const loginSchema = z.object({
@@ -119,13 +119,16 @@ export default function Auth() {
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
     });
-    if (result?.error) {
+    if (error) {
       toast({
         title: 'Erro ao entrar com Google',
-        description: result.error.message || 'Tente novamente.',
+        description: error.message || 'Tente novamente.',
         variant: 'destructive',
       });
     }

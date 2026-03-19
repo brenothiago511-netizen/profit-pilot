@@ -40,7 +40,7 @@ serve(async (req) => {
       });
     }
 
-    // Fetch expenses from DB (server-side, no 1000 limit issue with pagination)
+    // Fetch expenses from DB with pagination
     let allExpenses: any[] = [];
     let from = 0;
     const PAGE_SIZE = 1000;
@@ -89,9 +89,9 @@ serve(async (req) => {
     const categoryMap = Object.fromEntries(categories.map(c => [c.name.toLowerCase(), c.id]));
     const categoryNames = categories.map(c => c.name).join(', ');
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
+    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY is not configured');
     }
 
     const BATCH_SIZE = 50;
@@ -104,47 +104,41 @@ serve(async (req) => {
         `${idx}. [ID: ${e.id}] "${e.description}" (atual: ${e.expense_categories?.name || 'Sem categoria'})`
       ).join('\n');
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 4096,
           tools: [
             {
-              type: "function",
-              function: {
-                name: "categorize_expenses",
-                description: "Categorize each expense based on its description.",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    categorizations: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          id: { type: "string", description: "The expense ID" },
-                          category: { type: "string", description: "The category name that best fits" },
-                        },
-                        required: ["id", "category"],
-                        additionalProperties: false,
+              name: 'categorize_expenses',
+              description: 'Categorize each expense based on its description.',
+              input_schema: {
+                type: 'object',
+                properties: {
+                  categorizations: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'string', description: 'The expense ID' },
+                        category: { type: 'string', description: 'The category name that best fits' },
                       },
+                      required: ['id', 'category'],
                     },
                   },
-                  required: ["categorizations"],
-                  additionalProperties: false,
                 },
+                required: ['categorizations'],
               },
             },
           ],
-          tool_choice: { type: "function", function: { name: "categorize_expenses" } },
-          messages: [
-            {
-              role: 'system',
-              content: `Você é um classificador financeiro especializado em e-commerce. Analise cada despesa e atribua a categoria mais adequada.
+          tool_choice: { type: 'tool', name: 'categorize_expenses' },
+          system: `Você é um classificador financeiro especializado em e-commerce. Analise cada despesa e atribua a categoria mais adequada.
 
 Categorias disponíveis: ${categoryNames}
 
@@ -163,11 +157,11 @@ Regras:
 - "papelaria", "material", "suprimento" → "Material de Escritório"
 - Se não se encaixar → "Outros"
 
-IMPORTANTE: Use EXATAMENTE os nomes das categorias disponíveis.`
-            },
+IMPORTANTE: Use EXATAMENTE os nomes das categorias disponíveis.`,
+          messages: [
             {
               role: 'user',
-              content: `Classifique estas despesas:\n\n${expenseList}`
+              content: `Classifique estas despesas:\n\n${expenseList}`,
             },
           ],
         }),
@@ -175,18 +169,12 @@ IMPORTANTE: Use EXATAMENTE os nomes das categorias disponíveis.`
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('AI Gateway error:', response.status, errorText);
+        console.error('Anthropic API error:', response.status, errorText);
 
         if (response.status === 429) {
           return new Response(
             JSON.stringify({ error: 'Limite de requisições excedido. Tente novamente em alguns minutos.', updated: allResults.length }),
             { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        if (response.status === 402) {
-          return new Response(
-            JSON.stringify({ error: 'Créditos de IA esgotados.', updated: allResults.length }),
-            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
         // Skip this batch on error, continue with next
@@ -195,11 +183,12 @@ IMPORTANTE: Use EXATAMENTE os nomes das categorias disponíveis.`
       }
 
       const data = await response.json();
-      const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-      if (toolCall?.function?.arguments) {
+
+      // Anthropic tool use response format: data.content[].type === 'tool_use'
+      const toolUse = data.content?.find((c: any) => c.type === 'tool_use' && c.name === 'categorize_expenses');
+      if (toolUse?.input?.categorizations) {
         try {
-          const parsed = JSON.parse(toolCall.function.arguments);
-          const categorizations = parsed.categorizations || [];
+          const categorizations = toolUse.input.categorizations;
 
           for (const cat of categorizations) {
             const catNameLower = cat.category?.toLowerCase();
@@ -209,7 +198,7 @@ IMPORTANTE: Use EXATAMENTE os nomes das categorias disponíveis.`
             }
           }
         } catch (parseErr) {
-          console.error('Failed to parse tool call:', parseErr);
+          console.error('Failed to process tool use response:', parseErr);
         }
       }
 
