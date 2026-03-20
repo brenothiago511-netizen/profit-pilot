@@ -72,12 +72,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           if (session.user.id !== lastFetchedUserId.current) {
             lastFetchedUserId.current = session.user.id;
-            const profile = await fetchProfile(session.user.id);
-            if (mounted) setProfile(profile);
+            if (mounted) setLoading(true);
+            const p = await fetchProfile(session.user.id);
+            if (mounted) {
+              setProfile(p);
+              setLoading(false);
+            }
           }
         } else {
           lastFetchedUserId.current = null;
-          if (mounted) setProfile(null);
+          if (mounted) {
+            setProfile(null);
+            setLoading(false);
+          }
         }
       }
     );
