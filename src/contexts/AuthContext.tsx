@@ -58,14 +58,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let mounted = true;
 
-    // Failsafe: força loading=false após 8s para evitar tela infinita
+    // Failsafe: força loading=false após 10s para evitar tela infinita
     const failsafe = setTimeout(() => {
       if (mounted) setLoading(false);
-    }, 8000);
+    }, 10000);
 
+    // Usa apenas onAuthStateChange (inclui INITIAL_SESSION) para garantir
+    // que o token já está válido/renovado antes de buscar o perfil.
+    // Evita o problema do F5 onde getSession() retorna token expirado.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
+
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -78,6 +82,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setProfile(p);
               setLoading(false);
             }
+          } else {
+            // Mesmo usuário (ex: TOKEN_REFRESHED), perfil já carregado
+            if (mounted) setLoading(false);
           }
         } else {
           lastFetchedUserId.current = null;
@@ -88,27 +95,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     );
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!mounted) return;
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        // Always fetch profile here (don't rely on onAuthStateChange race)
-        // Set the ref first so onAuthStateChange skips the duplicate fetch
-        lastFetchedUserId.current = session.user.id;
-        const p = await fetchProfile(session.user.id);
-        if (mounted) {
-          setProfile(p);
-          setLoading(false);
-        }
-      } else {
-        if (mounted) setLoading(false);
-      }
-    }).catch(() => {
-      if (mounted) setLoading(false);
-    });
 
     return () => {
       mounted = false;
