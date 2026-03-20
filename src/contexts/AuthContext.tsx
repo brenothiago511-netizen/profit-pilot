@@ -88,15 +88,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        if (session.user.id !== lastFetchedUserId.current) {
-          lastFetchedUserId.current = session.user.id;
-          const p = await fetchProfile(session.user.id);
-          if (mounted) {
-            setProfile(p);
-            setLoading(false);
-          }
-        } else {
-          if (mounted) setLoading(false);
+        // Always fetch profile here (don't rely on onAuthStateChange race)
+        // Set the ref first so onAuthStateChange skips the duplicate fetch
+        lastFetchedUserId.current = session.user.id;
+        const p = await fetchProfile(session.user.id);
+        if (mounted) {
+          setProfile(p);
+          setLoading(false);
         }
       } else {
         if (mounted) setLoading(false);
