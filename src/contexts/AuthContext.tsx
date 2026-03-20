@@ -47,6 +47,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (_userId: string) => {
     try {
+      // getUser() valida o token no servidor antes do RPC,
+      // garantindo que o JWT está ativo mesmo após F5
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) return null;
+
       const { data, error } = await supabase.rpc('get_my_profile');
       if (error || !data) return null;
       return data as Profile;
