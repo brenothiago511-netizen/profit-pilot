@@ -232,6 +232,7 @@ export default function Expenses() {
 
     if (error) {
       console.error('Error fetching expenses:', error);
+      toast({ title: 'Erro ao buscar despesas', description: error.message, variant: 'destructive' });
     }
 
     const enrichedExpenses: Expense[] = (data || []).map((e: any) => ({
