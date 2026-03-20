@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -25,16 +26,10 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     return <Navigate to="/auth" replace />;
   }
 
-  // Wait for profile to load before checking role-based access
+  // Se loading terminou e profile é null, faz signout e redireciona para login
   if (allowedRoles && !profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Carregando perfil...</p>
-        </div>
-      </div>
-    );
+    supabase.auth.signOut();
+    return <Navigate to="/auth" replace />;
   }
 
   if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {

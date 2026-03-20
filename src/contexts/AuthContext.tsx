@@ -47,20 +47,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (userId: string) => {
     try {
-      const result = await Promise.race([
-        supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
-        new Promise<{ data: null; error: Error }>((resolve) =>
-          setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 5000)
-        ),
-      ]);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, email, role, status')
+        .eq('id', userId)
+        .maybeSingle();
 
-      if (result.error) return null;
-      return result.data as Profile | null;
+      if (error) return null;
+      return data as Profile | null;
     } catch {
       return null;
     }
-
-    return data as Profile | null;
   };
 
   useEffect(() => {
