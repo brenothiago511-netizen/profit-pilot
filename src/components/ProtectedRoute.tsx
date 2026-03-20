@@ -1,7 +1,7 @@
+import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -9,7 +9,14 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, signOut } = useAuth();
+
+  // Se após o loading o usuário está logado mas sem perfil, faz signout
+  useEffect(() => {
+    if (!loading && user && allowedRoles && !profile) {
+      signOut();
+    }
+  }, [loading, user, profile, allowedRoles, signOut]);
 
   if (loading) {
     return (
@@ -26,14 +33,18 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     return <Navigate to="/auth" replace />;
   }
 
-  // Se loading terminou e profile é null, faz signout e redireciona para login
   if (allowedRoles && !profile) {
-    supabase.auth.signOut();
-    return <Navigate to="/auth" replace />;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Carregando perfil...</p>
+        </div>
+      </div>
+    );
   }
 
   if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
-    // Redirect financeiro to revenues instead of dashboard
     const redirectPath = profile.role === 'financeiro' ? '/revenues' : '/dashboard';
     return <Navigate to={redirectPath} replace />;
   }
