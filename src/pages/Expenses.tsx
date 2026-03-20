@@ -105,6 +105,7 @@ export default function Expenses() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const PAGE_SIZE = 20;
+  const [summaryExpenses, setSummaryExpenses] = useState<Expense[]>([]);
   const [formErrors, setFormErrors] = useState<ExpenseFormErrors>({});
   
   const [formData, setFormData] = useState({
@@ -140,6 +141,28 @@ export default function Expenses() {
   useEffect(() => {
     fetchExpenses();
   }, [filterDateFrom, filterDateTo, filterUser, currentPage]);
+
+  // Re-fetch summary when date/user filters change (sem paginação, para totais corretos)
+  useEffect(() => {
+    const fetchSummary = async () => {
+      const fromStr = format(filterDateFrom, 'yyyy-MM-dd');
+      const toStr = format(filterDateTo, 'yyyy-MM-dd');
+      let query = supabase
+        .from('expenses')
+        .select('amount, category_id, user_id, expense_categories(name)')
+        .gte('date', fromStr)
+        .lte('date', toStr);
+      if (filterUser !== 'all') query = query.eq('user_id', filterUser);
+      const { data } = await query;
+      setSummaryExpenses((data || []).map((e: any) => ({
+        ...e,
+        id: '', store_id: '', date: '', description: '', type: '', payment_method: '',
+        ai_extracted: false, original_currency: '', original_amount: 0,
+        category_name: e.expense_categories?.name,
+      })));
+    };
+    fetchSummary();
+  }, [filterDateFrom, filterDateTo, filterUser]);
 
   const fetchBankAccounts = async () => {
     const { data } = await supabase
@@ -1431,8 +1454,8 @@ export default function Expenses() {
       </div>
 
       {(() => {
-        // Data already filtered server-side by date and user
-        const filteredExpenses = expenses;
+        // Usa summaryExpenses (sem paginação) para totais e gráficos corretos
+        const filteredExpenses = summaryExpenses.length > 0 ? summaryExpenses : expenses;
 
         // Category summary
         const categorySummary = filteredExpenses.reduce((acc, e) => {
