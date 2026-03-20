@@ -1456,11 +1456,12 @@ export default function Expenses() {
       </div>
 
       {(() => {
-        // Usa summaryExpenses (sem paginação) para totais e gráficos corretos
-        const filteredExpenses = summaryExpenses.length > 0 ? summaryExpenses : expenses;
+        // summaryExpenses (RPC) → apenas para gráfico e total
+        // expenses (paginado) → para a tabela
+        const chartSource = summaryExpenses.length > 0 ? summaryExpenses : expenses;
 
-        // Category summary
-        const categorySummary = filteredExpenses.reduce((acc, e) => {
+        // Category summary (usa dados do RPC para totais corretos)
+        const categorySummary = chartSource.reduce((acc, e) => {
           const catName = e.category_name || 'Sem categoria';
           if (!acc[catName]) acc[catName] = 0;
           acc[catName] += e.amount;
@@ -1468,16 +1469,17 @@ export default function Expenses() {
         }, {} as Record<string, number>);
 
         const sortedCategories = Object.entries(categorySummary).sort((a, b) => b[1] - a[1]);
-        const totalFiltered = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
-        
+        const totalFiltered = chartSource.reduce((sum, e) => sum + e.amount, 0);
+
+        // Tabela sempre usa dados paginados reais
         const expensesByUser = isAdmin
-          ? filteredExpenses.reduce((acc, e) => {
+          ? expenses.reduce((acc, e) => {
               const key = e.user_id || 'unknown';
               if (!acc[key]) acc[key] = [];
               acc[key].push(e);
               return acc;
             }, {} as Record<string, Expense[]>)
-          : { all: filteredExpenses };
+          : { all: expenses };
 
         return loading ? (
           <div className="space-y-3">
@@ -1491,7 +1493,7 @@ export default function Expenses() {
               </div>
             ))}
           </div>
-        ) : filteredExpenses.length === 0 ? (
+        ) : chartSource.length === 0 ? (
           <Card>
             <CardContent className="py-8">
               <div className="text-center text-muted-foreground">
