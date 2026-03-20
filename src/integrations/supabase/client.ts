@@ -4,6 +4,14 @@ import type { Database } from './types';
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
+// Limpar sessão do projeto antigo antes de inicializar o cliente
+const OLD_PROJECT_ID = 'gyovaxenxtrogrxmbjde';
+Object.keys(localStorage).forEach(key => {
+  if (key.includes(OLD_PROJECT_ID)) {
+    localStorage.removeItem(key);
+  }
+});
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
