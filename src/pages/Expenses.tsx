@@ -142,25 +142,26 @@ export default function Expenses() {
     fetchExpenses();
   }, [filterDateFrom, filterDateTo, filterUser, currentPage]);
 
-  // Re-fetch summary when date/user filters change (sem paginação, para totais corretos)
+  // Re-fetch summary when date/user filters change (via RPC para evitar limite de linhas)
   useEffect(() => {
     const fetchSummary = async () => {
       const fromStr = format(filterDateFrom, 'yyyy-MM-dd');
       const toStr = format(filterDateTo, 'yyyy-MM-dd');
-      let query = supabase
-        .from('expenses')
-        .select('amount, category_id, user_id, expense_categories(name)')
-        .gte('date', fromStr)
-        .lte('date', toStr)
-        .limit(50000);
-      if (filterUser !== 'all') query = query.eq('user_id', filterUser);
-      const { data } = await query;
-      setSummaryExpenses((data || []).map((e: any) => ({
-        ...e,
+      const params: any = { p_date_from: fromStr, p_date_to: toStr };
+      if (filterUser !== 'all') params.p_user_id = filterUser;
+      const { data } = await supabase.rpc('get_expense_summary', params);
+      const rows = Array.isArray(data) ? data : [];
+      // Converte para o formato esperado pelo gráfico
+      const synthetic = rows.map((r: any) => ({
         id: '', store_id: '', date: '', description: '', type: '', payment_method: '',
         ai_extracted: false, original_currency: '', original_amount: 0,
-        category_name: e.expense_categories?.name,
-      })));
+        amount: r.total_amount,
+        category_id: '',
+        user_id: '',
+        category_name: r.category_name,
+        expense_categories: { name: r.category_name },
+      }));
+      setSummaryExpenses(synthetic);
     };
     fetchSummary();
   }, [filterDateFrom, filterDateTo, filterUser]);
