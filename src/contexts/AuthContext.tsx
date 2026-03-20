@@ -45,16 +45,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [mfaPending, setMfaPending] = useState(false);
   const lastFetchedUserId = useRef<string | null>(null);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (_userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, name, email, role, status')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (error) return null;
-      return data as Profile | null;
+      const { data, error } = await supabase.rpc('get_my_profile');
+      if (error || !data) return null;
+      return data as Profile;
     } catch {
       return null;
     }
