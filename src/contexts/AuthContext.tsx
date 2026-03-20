@@ -46,14 +46,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const lastFetchedUserId = useRef<string | null>(null);
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+    try {
+      const result = await Promise.race([
+        supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+        new Promise<{ data: null; error: Error }>((resolve) =>
+          setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 5000)
+        ),
+      ]);
 
-    if (error) {
-      console.error('Error fetching profile:', error);
+      if (result.error) return null;
+      return result.data as Profile | null;
+    } catch {
       return null;
     }
 
@@ -62,6 +65,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let mounted = true;
+
+    // Failsafe: força loading=false após 8s para evitar tela infinita
+    const failsafe = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 8000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -107,6 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       mounted = false;
+      clearTimeout(failsafe);
       subscription.unsubscribe();
     };
   }, []);
