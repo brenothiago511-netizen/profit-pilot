@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
@@ -9,14 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, profile, loading, signOut } = useAuth();
-
-  // Se após o loading o usuário está logado mas sem perfil, faz signout
-  useEffect(() => {
-    if (!loading && user && allowedRoles && !profile) {
-      signOut();
-    }
-  }, [loading, user, profile, allowedRoles, signOut]);
+  const { user, profile, loading } = useAuth();
 
   if (loading) {
     return (

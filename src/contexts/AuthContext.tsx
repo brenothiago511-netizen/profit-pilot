@@ -45,10 +45,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [mfaPending, setMfaPending] = useState(false);
   const lastFetchedUserId = useRef<string | null>(null);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, accessToken?: string): Promise<Profile | null> => {
     try {
-      const { data, error } = await supabase.rpc('get_profile_by_id', { p_user_id: userId });
-      if (error || !data) return null;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      // Usa o JWT do usuário explicitamente para garantir autenticação correta no F5
+      const bearer = accessToken ?? supabaseKey;
+
+      const resp = await fetch(`${supabaseUrl}/rest/v1/rpc/get_profile_by_id`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${bearer}`,
+        },
+        body: JSON.stringify({ p_user_id: userId }),
+      });
+
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      if (!data) return null;
       return data as Profile;
     } catch {
       return null;
@@ -77,7 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (session.user.id !== lastFetchedUserId.current) {
             lastFetchedUserId.current = session.user.id;
             if (mounted) setLoading(true);
-            const p = await fetchProfile(session.user.id);
+            const p = await fetchProfile(session.user.id, session.access_token);
             if (mounted) {
               setProfile(p);
               setLoading(false);
