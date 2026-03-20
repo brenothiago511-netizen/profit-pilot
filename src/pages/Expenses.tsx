@@ -151,7 +151,8 @@ export default function Expenses() {
         .from('expenses')
         .select('amount, category_id, user_id, expense_categories(name)')
         .gte('date', fromStr)
-        .lte('date', toStr);
+        .lte('date', toStr)
+        .limit(50000);
       if (filterUser !== 'all') query = query.eq('user_id', filterUser);
       const { data } = await query;
       setSummaryExpenses((data || []).map((e: any) => ({
