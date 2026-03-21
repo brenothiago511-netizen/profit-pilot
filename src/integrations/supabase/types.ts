@@ -1291,14 +1291,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_profile_by_id: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
-      get_my_profile: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
       get_exchange_rate: {
         Args: {
           p_base_currency: string
