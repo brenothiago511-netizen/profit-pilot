@@ -386,6 +386,7 @@ export default function Banks() {
       category: txForm.category || null,
       notes: txForm.notes || null,
       created_by: user?.id,
+      user_id: user?.id,
     });
 
     if (txError) {

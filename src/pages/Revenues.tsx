@@ -417,6 +417,7 @@ export default function Revenues() {
             description: `Receita: ${formData.source || 'Sem origem'}`,
             reference_type: 'revenue',
             created_by: user?.id,
+            user_id: user?.id,
           });
 
           await supabase

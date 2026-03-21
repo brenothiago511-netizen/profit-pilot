@@ -415,6 +415,7 @@ export default function Expenses() {
             description: `Despesa: ${formData.description}`,
             reference_type: 'expense',
             created_by: user?.id,
+            user_id: user?.id,
           });
 
           await supabase
@@ -543,6 +544,7 @@ export default function Expenses() {
             description: `Despesa IA: ${aiFormData.description}`,
             reference_type: 'expense',
             created_by: user?.id,
+            user_id: user?.id,
           });
 
           await supabase
