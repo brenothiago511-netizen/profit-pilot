@@ -80,6 +80,7 @@ export default function Expenses() {
   const { toast } = useToast();
   const [profileNames, setProfileNames] = useState<ProfileMap>({});
   const isAdmin = profile?.role === 'admin';
+  const isSocio = profile?.role === 'socio';
   const [bankAccounts, setBankAccounts] = useState<{ id: string; bank_name: string; account_holder: string }[]>([]);
   const [selectedBankAccount, setSelectedBankAccount] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -98,10 +99,10 @@ export default function Expenses() {
   const [selectedForSave, setSelectedForSave] = useState<Set<number>>(new Set());
   const [showTransactionPreview, setShowTransactionPreview] = useState(true);
   const [reviewingCategories, setReviewingCategories] = useState(false);
-  
+
   const [filterDateFrom, setFilterDateFrom] = useState<Date>(startOfMonth(new Date()));
   const [filterDateTo, setFilterDateTo] = useState<Date>(endOfMonth(new Date()));
-  const [filterUser, setFilterUser] = useState<string>('all');
+  const [filterUser, setFilterUser] = useState<string>(isSocio && user?.id ? user.id : 'all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const PAGE_SIZE = 20;
@@ -136,6 +137,13 @@ export default function Expenses() {
     fetchBankAccounts();
     if (isAdmin) fetchProfileNames();
   }, []);
+
+  // Ensure socio users are always filtered to their own data when profile loads
+  useEffect(() => {
+    if (isSocio && user?.id) {
+      setFilterUser(user.id);
+    }
+  }, [isSocio, user?.id]);
 
   // Re-fetch expenses when date filters, user filter or page change
   useEffect(() => {

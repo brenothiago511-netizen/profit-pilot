@@ -75,6 +75,7 @@ export default function Revenues() {
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [profileNames, setProfileNames] = useState<ProfileMap>({});
   const isAdmin = profile?.role === 'admin';
+  const isSocio = profile?.role === 'socio';
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -84,7 +85,7 @@ export default function Revenues() {
   const [selectedBankAccount, setSelectedBankAccount] = useState<string>('');
   const [filterDateFrom, setFilterDateFrom] = useState<Date>(startOfMonth(new Date()));
   const [filterDateTo, setFilterDateTo] = useState<Date>(endOfMonth(new Date()));
-  const [filterUser, setFilterUser] = useState<string>('all');
+  const [filterUser, setFilterUser] = useState<string>(isSocio && user?.id ? user.id : 'all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const PAGE_SIZE = 20;
@@ -136,6 +137,13 @@ export default function Revenues() {
     fetchBankAccounts();
     if (isAdmin) fetchProfileNames();
   }, []);
+
+  // Ensure socio users are always filtered to their own data when profile loads
+  useEffect(() => {
+    if (isSocio && user?.id) {
+      setFilterUser(user.id);
+    }
+  }, [isSocio, user?.id]);
 
   // Re-fetch revenues when date filters, user filter or page change
   useEffect(() => {

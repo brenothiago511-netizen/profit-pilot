@@ -17,7 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Users as UsersIcon, Loader2, Store, Shield, UserCheck, UserX, Search, X, Key, Trash2 } from 'lucide-react';
+import { Plus, Users as UsersIcon, Loader2, Store, Shield, UserCheck, UserX, Search, X, Key, Trash2, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { CsvImportDialog } from '@/components/users/CsvImportDialog';
 import { PermissionsDialog } from '@/components/users/PermissionsDialog';
@@ -70,6 +70,13 @@ export default function Users() {
   const [roleFilter, setRoleFilter] = useState<AppRole | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [storeFilter, setStoreFilter] = useState<string>('all');
+
+  // Remap orphaned data state
+  const [remapDialogOpen, setRemapDialogOpen] = useState(false);
+  const [orphanedUsers, setOrphanedUsers] = useState<{ user_id: string; count: number }[]>([]);
+  const [remapSelections, setRemapSelections] = useState<Record<string, string>>({});
+  const [remapping, setRemapping] = useState(false);
+  const [loadingOrphans, setLoadingOrphans] = useState(false);
 
   // Filtered users
   const filteredUsers = users.filter((user) => {
@@ -361,6 +368,54 @@ export default function Users() {
     fetchUsers();
   };
 
+  const fetchOrphanedUsers = async () => {
+    setLoadingOrphans(true);
+    const profileIds = users.map(u => u.id);
+
+    const [{ data: expUsers }, { data: revUsers }] = await Promise.all([
+      supabase.from('expenses').select('user_id').not('user_id', 'is', null),
+      supabase.from('revenues').select('user_id').not('user_id', 'is', null),
+    ]);
+
+    const allIds = new Set([
+      ...(expUsers || []).map((e: any) => e.user_id),
+      ...(revUsers || []).map((r: any) => r.user_id),
+    ]);
+
+    const orphanIds = [...allIds].filter(id => !profileIds.includes(id));
+
+    const orphanData = await Promise.all(
+      orphanIds.map(async (uid) => {
+        const [{ count: expCount }, { count: revCount }] = await Promise.all([
+          supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('user_id', uid),
+          supabase.from('revenues').select('id', { count: 'exact', head: true }).eq('user_id', uid),
+        ]);
+        return { user_id: uid, count: (expCount || 0) + (revCount || 0) };
+      })
+    );
+
+    setOrphanedUsers(orphanData.filter(o => o.count > 0));
+    setRemapSelections({});
+    setLoadingOrphans(false);
+  };
+
+  const handleRemap = async () => {
+    setRemapping(true);
+    for (const [oldId, newId] of Object.entries(remapSelections)) {
+      if (!newId) continue;
+      await Promise.all([
+        supabase.from('expenses').update({ user_id: newId }).eq('user_id', oldId),
+        supabase.from('revenues').update({ user_id: newId }).eq('user_id', oldId),
+        supabase.from('partners').update({ user_id: newId }).eq('user_id', oldId),
+      ]);
+    }
+    toast({ title: 'Sucesso', description: 'Dados reatribuídos com sucesso' });
+    setRemapping(false);
+    setRemapDialogOpen(false);
+    setOrphanedUsers([]);
+    setRemapSelections({});
+  };
+
   const getRoleBadgeVariant = (role: AppRole) => {
     switch (role) {
       case 'admin':
@@ -400,6 +455,13 @@ export default function Users() {
         </div>
 
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => { fetchOrphanedUsers(); setRemapDialogOpen(true); }}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Reatribuir Dados
+          </Button>
           <CsvImportDialog onImportComplete={fetchUsers} />
           
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -783,6 +845,79 @@ export default function Users() {
         userName={selectedUser?.name || ''}
         userRole={selectedUser?.role || 'financeiro'}
       />
+
+      {/* Remap Orphaned Data Dialog */}
+      <Dialog open={remapDialogOpen} onOpenChange={setRemapDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Reatribuir Dados Órfãos</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Dados com user_id sem perfil cadastrado. Selecione o usuário correto para cada entrada.
+            </p>
+            {loadingOrphans ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : orphanedUsers.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                Nenhum dado órfão encontrado.
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[360px] overflow-y-auto">
+                {orphanedUsers.map((orphan) => (
+                  <div key={orphan.user_id} className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono text-muted-foreground truncate max-w-[260px]">
+                        {orphan.user_id}
+                      </span>
+                      <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                        {orphan.count} registro(s)
+                      </span>
+                    </div>
+                    <Select
+                      value={remapSelections[orphan.user_id] || ''}
+                      onValueChange={(v) =>
+                        setRemapSelections(prev => ({ ...prev, [orphan.user_id]: v }))
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder="Selecionar usuário..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users.map(u => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.name} ({u.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => setRemapDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleRemap}
+                disabled={remapping || orphanedUsers.length === 0 || Object.values(remapSelections).every(v => !v)}
+              >
+                {remapping ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Reatribuindo...
+                  </>
+                ) : (
+                  'Reatribuir'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
