@@ -1291,14 +1291,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_profile_by_id: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
-      get_my_profile: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
       get_exchange_rate: {
         Args: {
           p_base_currency: string
@@ -1306,6 +1298,13 @@ export type Database = {
           p_target_currency: string
         }
         Returns: number
+      }
+      get_expense_summary: {
+        Args: { p_date_from: string; p_date_to: string; p_user_id?: string }
+        Returns: {
+          category_name: string
+          total_amount: number
+        }[]
       }
       get_partner_store_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_role: {
