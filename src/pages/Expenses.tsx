@@ -157,7 +157,7 @@ export default function Expenses() {
       const toStr = format(filterDateTo, 'yyyy-MM-dd');
       const params: any = { p_date_from: fromStr, p_date_to: toStr };
       if (filterUser !== 'all') params.p_user_id = filterUser;
-      const { data } = await supabase.rpc('get_expense_summary', params);
+      const { data } = await supabase.rpc('get_expense_summary' as any, params);
       const rows = Array.isArray(data) ? data : [];
       // Converte para o formato esperado pelo gráfico
       const synthetic = rows.map((r: any) => ({
