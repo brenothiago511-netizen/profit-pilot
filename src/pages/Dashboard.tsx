@@ -241,22 +241,34 @@ export default function Dashboard() {
       const filterUserId = (isSocio && includeNullStore) ? user!.id : 
                            (isAdmin && selectedPartner !== 'all') ? selectedPartner : null;
 
-      // Run revenue + expenses queries in parallel
-      const rpcParams = (table: string) => ({
-        p_table: table,
-        p_date_start: dateStart,
-        p_date_end: dateEnd,
-        p_store_ids: storeIdsToFilter || null,
-        p_user_id: filterUserId,
-        p_include_null_store: includeNullStore || false,
-      });
+      let totalRevenue = 0;
+      let totalExpenses = 0;
 
-      const [{ data: revSum }, { data: expSum }] = await Promise.all([
-        supabase.rpc('sum_amounts', rpcParams('revenues')),
-        supabase.rpc('sum_amounts', rpcParams('expenses')),
-      ]);
-      const totalRevenue = Number(revSum) || 0;
-      const totalExpenses = Number(expSum) || 0;
+      if (filterUserId) {
+        // Direct query with user_id filter (bypasses buggy sum_amounts user filter)
+        const [revRes, expRes] = await Promise.all([
+          supabase.from('revenues').select('amount').eq('user_id', filterUserId).gte('date', dateStart).lte('date', dateEnd).limit(10000),
+          supabase.from('expenses').select('amount').eq('user_id', filterUserId).gte('date', dateStart).lte('date', dateEnd).limit(10000),
+        ]);
+        totalRevenue = (revRes.data || []).reduce((sum, r) => sum + Number(r.amount), 0);
+        totalExpenses = (expRes.data || []).reduce((sum, e) => sum + Number(e.amount), 0);
+      } else {
+        // Use server-side SUM via RPC for all-users totals
+        const rpcParams = (table: string) => ({
+          p_table: table,
+          p_date_start: dateStart,
+          p_date_end: dateEnd,
+          p_store_ids: storeIdsToFilter || null,
+          p_user_id: filterUserId,
+          p_include_null_store: includeNullStore || false,
+        });
+        const [{ data: revSum }, { data: expSum }] = await Promise.all([
+          supabase.rpc('sum_amounts', rpcParams('revenues')),
+          supabase.rpc('sum_amounts', rpcParams('expenses')),
+        ]);
+        totalRevenue = Number(revSum) || 0;
+        totalExpenses = Number(expSum) || 0;
+      }
 
       // Calculate net profit: revenue - expenses
       const netProfit = totalRevenue - totalExpenses;
