@@ -1307,6 +1307,7 @@ export type Database = {
         }[]
       }
       get_partner_store_ids: { Args: { _user_id: string }; Returns: string[] }
+      get_profile_by_id: { Args: { p_user_id: string }; Returns: Json }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
