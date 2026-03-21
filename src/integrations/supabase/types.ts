@@ -1299,6 +1299,13 @@ export type Database = {
         }
         Returns: number
       }
+      get_expense_summary: {
+        Args: { p_date_from: string; p_date_to: string; p_user_id?: string }
+        Returns: {
+          category_name: string
+          total_amount: number
+        }[]
+      }
       get_partner_store_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_role: {
         Args: { _user_id: string }
