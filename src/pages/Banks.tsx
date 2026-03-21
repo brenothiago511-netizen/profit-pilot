@@ -169,6 +169,7 @@ export default function Banks() {
     account_holder: '',
     account_number: '',
     currency: 'USD',
+    user_id: '',
   });
   const [editForm, setEditForm] = useState({
     bank_name: '',
@@ -426,7 +427,7 @@ export default function Banks() {
       currency: accountForm.currency || 'USD',
       country: 'US',
       is_primary: false,
-      created_by: user?.id ?? null,
+      created_by: accountForm.user_id || user?.id || null,
     });
     setSaving(false);
     if (error) {
@@ -434,7 +435,7 @@ export default function Banks() {
     } else {
       toast({ title: 'Sucesso', description: 'Banco cadastrado. Vincule-o a lojas na página de Lojas.' });
       setShowAccountDialog(false);
-      setAccountForm({ bank_name: '', store_id: '', account_holder: '', account_number: '', currency: 'USD' });
+      setAccountForm({ bank_name: '', store_id: '', account_holder: '', account_number: '', currency: 'USD', user_id: '' });
       fetchData();
     }
   };
@@ -977,6 +978,22 @@ export default function Banks() {
                 onChange={e => setAccountForm({ ...accountForm, account_holder: e.target.value })}
               />
             </div>
+
+            {isAdmin && allProfiles.length > 0 && (
+              <div className="space-y-2">
+                <Label>Atribuir ao Usuário</Label>
+                <Select value={accountForm.user_id} onValueChange={v => setAccountForm({ ...accountForm, user_id: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o usuário" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allProfiles.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Moeda</Label>
