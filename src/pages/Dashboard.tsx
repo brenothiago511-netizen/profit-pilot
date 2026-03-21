@@ -142,7 +142,6 @@ export default function Dashboard() {
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('id, name')
-          .neq('id', user!.id)
           .eq('status', 'active')
           .order('name');
         
