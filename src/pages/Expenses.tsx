@@ -720,20 +720,8 @@ export default function Expenses() {
     try {
       const base64 = await fileToBase64(file);
 
-      let accessToken = (await supabase.auth.getSession()).data.session?.access_token ?? null;
-      if (!accessToken) {
-        const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
-        accessToken = refreshed.session?.access_token ?? null;
-        if (refreshError || !accessToken) {
-          throw new Error('Sua sessão expirou. Faça login novamente e tente de novo.');
-        }
-      }
-
       const { data, error } = await supabase.functions.invoke('extract-expense', {
         body: { image: base64 },
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
       });
 
       if (error) {
