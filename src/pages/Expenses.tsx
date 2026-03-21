@@ -740,7 +740,8 @@ export default function Expenses() {
         console.error('Edge function error:', error);
 
         const response = (error as any)?.context as Response | undefined;
-        const responseData = response ? await response.json().catch(() => null) : null;
+        let responseData: any = null;
+        try { if (response?.json) responseData = await response.json(); } catch { /* ignore */ }
         let errorMessage = responseData?.error || error.message || 'Erro ao chamar a função de extração';
 
         if (response?.status === 401) {
