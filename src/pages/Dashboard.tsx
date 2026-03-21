@@ -625,7 +625,7 @@ export default function Dashboard() {
           </div>
 
           {/* Bank Balance Evolution */}
-          <BankBalanceChart />
+          <BankBalanceChart userId={selectedPartner !== 'all' ? selectedPartner : null} />
         </>
       )}
     </div>

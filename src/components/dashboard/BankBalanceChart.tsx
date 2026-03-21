@@ -21,14 +21,18 @@ interface BalancePoint {
   saldo: number;
 }
 
-export function BankBalanceChart() {
+interface BankBalanceChartProps {
+  userId?: string | null;
+}
+
+export function BankBalanceChart({ userId }: BankBalanceChartProps = {}) {
   const [data, setData] = useState<BalancePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const { formatCurrency, config } = useCurrency();
 
   useEffect(() => {
     fetchBankEvolution();
-  }, []);
+  }, [userId]);
 
   const fetchBankEvolution = async () => {
     try {
@@ -45,10 +49,14 @@ export function BankBalanceChart() {
 
         // Get all bank_accounts balances as of month end by summing transactions
         // We'll use a simpler approach: get net transaction amounts up to month end
-        const { data: txData, error } = await supabase
+        let query = supabase
           .from('bank_transactions')
           .select('amount, type')
           .lte('date', monthEnd);
+
+        if (userId) query = query.eq('user_id', userId);
+
+        const { data: txData, error } = await query;
 
         if (error) {
           console.error('Error fetching bank transactions:', error);
