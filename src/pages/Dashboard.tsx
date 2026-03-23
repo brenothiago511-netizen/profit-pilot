@@ -202,24 +202,50 @@ export default function Dashboard() {
         monthMeta.push({ start, end, label: raw.charAt(0).toUpperCase() + raw.slice(1) });
       }
 
-      // Always use RPC (SECURITY DEFINER) to bypass RLS and get consistent totals
-      const rpcArgs = (table: string, s: string, e: string) => ({
-        p_table: table,
-        p_date_start: s,
-        p_date_end: e,
-        p_store_ids: storeIdsToFilter || null,
-        p_user_id: filterUserId,
-        p_include_null_store: includeNullStore || false,
-      });
-      const allCalls = monthMeta.flatMap(m => [
-        supabase.rpc('sum_amounts', rpcArgs('revenues', m.start, m.end)),
-        supabase.rpc('sum_amounts', rpcArgs('expenses', m.start, m.end)),
-      ]);
-      const results = await Promise.all(allCalls);
-      for (let i = 0; i < monthMeta.length; i++) {
-        const rev = Number(results[i * 2].data) || 0;
-        const exp = Number(results[i * 2 + 1].data) || 0;
-        months.push({ month: monthMeta[i].label, receitas: rev, despesas: exp, lucro: rev - exp });
+      if (filterUserId && isAdmin) {
+        // Admin viewing individual partner: RPC with user filter (bypasses RLS)
+        const rpcArgs = (table: string, s: string, e: string) => ({
+          p_table: table, p_date_start: s, p_date_end: e,
+          p_store_ids: null, p_user_id: filterUserId, p_include_null_store: false,
+        });
+        const allCalls = monthMeta.flatMap(m => [
+          supabase.rpc('sum_amounts', rpcArgs('revenues', m.start, m.end)),
+          supabase.rpc('sum_amounts', rpcArgs('expenses', m.start, m.end)),
+        ]);
+        const results = await Promise.all(allCalls);
+        for (let i = 0; i < monthMeta.length; i++) {
+          const rev = Number(results[i * 2].data) || 0;
+          const exp = Number(results[i * 2 + 1].data) || 0;
+          months.push({ month: monthMeta[i].label, receitas: rev, despesas: exp, lucro: rev - exp });
+        }
+      } else if (filterUserId) {
+        // Sócio viewing own data: direct query
+        const allCalls = monthMeta.flatMap(m => [
+          supabase.from('revenues').select('amount').eq('user_id', filterUserId).gte('date', m.start).lte('date', m.end).limit(10000),
+          supabase.from('expenses').select('amount').eq('user_id', filterUserId).gte('date', m.start).lte('date', m.end).limit(10000),
+        ]);
+        const results = await Promise.all(allCalls);
+        for (let i = 0; i < monthMeta.length; i++) {
+          const rev = (results[i * 2].data || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
+          const exp = (results[i * 2 + 1].data || []).reduce((sum: number, e: any) => sum + Number(e.amount), 0);
+          months.push({ month: monthMeta[i].label, receitas: rev, despesas: exp, lucro: rev - exp });
+        }
+      } else {
+        // Admin "Todos os sócios": RPC with no user filter
+        const rpcArgs = (table: string, s: string, e: string) => ({
+          p_table: table, p_date_start: s, p_date_end: e,
+          p_store_ids: storeIdsToFilter || null, p_user_id: filterUserId, p_include_null_store: includeNullStore || false,
+        });
+        const allCalls = monthMeta.flatMap(m => [
+          supabase.rpc('sum_amounts', rpcArgs('revenues', m.start, m.end)),
+          supabase.rpc('sum_amounts', rpcArgs('expenses', m.start, m.end)),
+        ]);
+        const results = await Promise.all(allCalls);
+        for (let i = 0; i < monthMeta.length; i++) {
+          const rev = Number(results[i * 2].data) || 0;
+          const exp = Number(results[i * 2 + 1].data) || 0;
+          months.push({ month: monthMeta[i].label, receitas: rev, despesas: exp, lucro: rev - exp });
+        }
       }
 
       setTrendData(months);
@@ -246,21 +272,47 @@ export default function Dashboard() {
       let totalRevenue = 0;
       let totalExpenses = 0;
 
-      // Always use RPC (SECURITY DEFINER) to bypass RLS and get consistent totals
-      const rpcParams = (table: string) => ({
-        p_table: table,
-        p_date_start: dateStart,
-        p_date_end: dateEnd,
-        p_store_ids: storeIdsToFilter || null,
-        p_user_id: filterUserId,
-        p_include_null_store: includeNullStore || false,
-      });
-      const [{ data: revSum }, { data: expSum }] = await Promise.all([
-        supabase.rpc('sum_amounts', rpcParams('revenues')),
-        supabase.rpc('sum_amounts', rpcParams('expenses')),
-      ]);
-      totalRevenue = Number(revSum) || 0;
-      totalExpenses = Number(expSum) || 0;
+      if (filterUserId && isAdmin) {
+        // Admin viewing individual partner: use RPC with user filter (SECURITY DEFINER bypasses RLS)
+        const rpcParams = (table: string) => ({
+          p_table: table,
+          p_date_start: dateStart,
+          p_date_end: dateEnd,
+          p_store_ids: null,
+          p_user_id: filterUserId,
+          p_include_null_store: false,
+        });
+        const [{ data: revSum }, { data: expSum }] = await Promise.all([
+          supabase.rpc('sum_amounts', rpcParams('revenues')),
+          supabase.rpc('sum_amounts', rpcParams('expenses')),
+        ]);
+        totalRevenue = Number(revSum) || 0;
+        totalExpenses = Number(expSum) || 0;
+      } else if (filterUserId) {
+        // Sócio viewing own data: direct query (RLS correctly allows seeing own records)
+        const [revRes, expRes] = await Promise.all([
+          supabase.from('revenues').select('amount').eq('user_id', filterUserId).gte('date', dateStart).lte('date', dateEnd).limit(10000),
+          supabase.from('expenses').select('amount').eq('user_id', filterUserId).gte('date', dateStart).lte('date', dateEnd).limit(10000),
+        ]);
+        totalRevenue = (revRes.data || []).reduce((sum, r) => sum + Number(r.amount), 0);
+        totalExpenses = (expRes.data || []).reduce((sum, e) => sum + Number(e.amount), 0);
+      } else {
+        // Admin "Todos os sócios": use RPC (SECURITY DEFINER bypasses RLS for full totals)
+        const rpcParams = (table: string) => ({
+          p_table: table,
+          p_date_start: dateStart,
+          p_date_end: dateEnd,
+          p_store_ids: storeIdsToFilter || null,
+          p_user_id: filterUserId,
+          p_include_null_store: includeNullStore || false,
+        });
+        const [{ data: revSum }, { data: expSum }] = await Promise.all([
+          supabase.rpc('sum_amounts', rpcParams('revenues')),
+          supabase.rpc('sum_amounts', rpcParams('expenses')),
+        ]);
+        totalRevenue = Number(revSum) || 0;
+        totalExpenses = Number(expSum) || 0;
+      }
 
       // Calculate net profit: revenue - expenses
       const netProfit = totalRevenue - totalExpenses;
