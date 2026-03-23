@@ -215,15 +215,22 @@ export default function Dashboard() {
           months.push({ month: monthMeta[i].label, receitas: rev, despesas: exp, lucro: rev - exp });
         }
       } else {
-        // Direct queries without user filter (consistent with individual partner path)
+        const rpcArgs = (table: string, s: string, e: string) => ({
+          p_table: table,
+          p_date_start: s,
+          p_date_end: e,
+          p_store_ids: storeIdsToFilter || null,
+          p_user_id: filterUserId,
+          p_include_null_store: includeNullStore || false,
+        });
         const allCalls = monthMeta.flatMap(m => [
-          supabase.from('revenues').select('amount').gte('date', m.start).lte('date', m.end).limit(50000),
-          supabase.from('expenses').select('amount').gte('date', m.start).lte('date', m.end).limit(50000),
+          supabase.rpc('sum_amounts', rpcArgs('revenues', m.start, m.end)),
+          supabase.rpc('sum_amounts', rpcArgs('expenses', m.start, m.end)),
         ]);
         const results = await Promise.all(allCalls);
         for (let i = 0; i < monthMeta.length; i++) {
-          const rev = (results[i * 2].data || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
-          const exp = (results[i * 2 + 1].data || []).reduce((sum: number, e: any) => sum + Number(e.amount), 0);
+          const rev = Number(results[i * 2].data) || 0;
+          const exp = Number(results[i * 2 + 1].data) || 0;
           months.push({ month: monthMeta[i].label, receitas: rev, despesas: exp, lucro: rev - exp });
         }
       }
@@ -261,13 +268,21 @@ export default function Dashboard() {
         totalRevenue = (revRes.data || []).reduce((sum, r) => sum + Number(r.amount), 0);
         totalExpenses = (expRes.data || []).reduce((sum, e) => sum + Number(e.amount), 0);
       } else {
-        // Direct queries without user filter (consistent with individual partner path)
-        const [revRes, expRes] = await Promise.all([
-          supabase.from('revenues').select('amount').gte('date', dateStart).lte('date', dateEnd).limit(50000),
-          supabase.from('expenses').select('amount').gte('date', dateStart).lte('date', dateEnd).limit(50000),
+        // Use server-side SUM via RPC (SECURITY DEFINER bypasses RLS for full totals)
+        const rpcParams = (table: string) => ({
+          p_table: table,
+          p_date_start: dateStart,
+          p_date_end: dateEnd,
+          p_store_ids: storeIdsToFilter || null,
+          p_user_id: filterUserId,
+          p_include_null_store: includeNullStore || false,
+        });
+        const [{ data: revSum }, { data: expSum }] = await Promise.all([
+          supabase.rpc('sum_amounts', rpcParams('revenues')),
+          supabase.rpc('sum_amounts', rpcParams('expenses')),
         ]);
-        totalRevenue = (revRes.data || []).reduce((sum, r) => sum + Number(r.amount), 0);
-        totalExpenses = (expRes.data || []).reduce((sum, e) => sum + Number(e.amount), 0);
+        totalRevenue = Number(revSum) || 0;
+        totalExpenses = Number(expSum) || 0;
       }
 
       // Calculate net profit: revenue - expenses
