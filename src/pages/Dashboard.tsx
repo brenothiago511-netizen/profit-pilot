@@ -25,6 +25,7 @@ import {
 import { CurrencyToggle } from '@/components/currency/CurrencyToggle';
 import { useCurrency } from '@/hooks/useCurrency';
 import { BankBalanceChart } from '@/components/dashboard/BankBalanceChart';
+import { useToast } from '@/hooks/use-toast';
 
 interface DashboardData {
   totalRevenue: number;
@@ -60,6 +61,7 @@ interface DateRange {
 export default function Dashboard() {
   const { user, profile, isAdmin } = useAuth();
   const { formatCurrency, config } = useCurrency();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [partners, setPartners] = useState<PartnerOption[]>([]);
@@ -79,6 +81,7 @@ export default function Dashboard() {
   const [trendData, setTrendData] = useState<TrendData[]>([]);
   
   const isSocio = profile?.role === 'socio';
+  const [partnerCapitalPct, setPartnerCapitalPct] = useState(30);
   
   // Date range state - default to current month
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -113,6 +116,12 @@ export default function Dashboard() {
 
       const storeIds = partnerData?.map(p => p.store_id).filter(Boolean) as string[] || [];
       setPartnerStoreIds(storeIds);
+
+      // Use the first active partner's capital_percentage (or average if multiple)
+      if (partnerData && partnerData.length > 0) {
+        const pct = partnerData.reduce((sum, p) => sum + Number(p.capital_percentage || 0), 0) / partnerData.length;
+        setPartnerCapitalPct(pct || 30);
+      }
 
       // Fetch store names for partner
       if (storeIds.length > 0) {
@@ -206,29 +215,22 @@ export default function Dashboard() {
           months.push({ month: monthMeta[i].label, receitas: rev, despesas: exp, lucro: rev - exp });
         }
       } else {
-        const rpcArgs = (table: string, s: string, e: string) => ({
-          p_table: table,
-          p_date_start: s,
-          p_date_end: e,
-          p_store_ids: storeIdsToFilter || null,
-          p_user_id: filterUserId,
-          p_include_null_store: includeNullStore || false,
-        });
+        // Direct queries without user filter (consistent with individual partner path)
         const allCalls = monthMeta.flatMap(m => [
-          supabase.rpc('sum_amounts', rpcArgs('revenues', m.start, m.end)),
-          supabase.rpc('sum_amounts', rpcArgs('expenses', m.start, m.end)),
+          supabase.from('revenues').select('amount').gte('date', m.start).lte('date', m.end).limit(50000),
+          supabase.from('expenses').select('amount').gte('date', m.start).lte('date', m.end).limit(50000),
         ]);
         const results = await Promise.all(allCalls);
         for (let i = 0; i < monthMeta.length; i++) {
-          const rev = Number(results[i * 2].data) || 0;
-          const exp = Number(results[i * 2 + 1].data) || 0;
+          const rev = (results[i * 2].data || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
+          const exp = (results[i * 2 + 1].data || []).reduce((sum: number, e: any) => sum + Number(e.amount), 0);
           months.push({ month: monthMeta[i].label, receitas: rev, despesas: exp, lucro: rev - exp });
         }
       }
 
       setTrendData(months);
     } catch (error) {
-      console.error('Error fetching trend data:', error);
+      toast({ title: 'Erro ao carregar gráfico', description: 'Não foi possível carregar os dados de tendência.', variant: 'destructive' });
     }
   };
 
@@ -259,21 +261,13 @@ export default function Dashboard() {
         totalRevenue = (revRes.data || []).reduce((sum, r) => sum + Number(r.amount), 0);
         totalExpenses = (expRes.data || []).reduce((sum, e) => sum + Number(e.amount), 0);
       } else {
-        // Use server-side SUM via RPC for all-users totals
-        const rpcParams = (table: string) => ({
-          p_table: table,
-          p_date_start: dateStart,
-          p_date_end: dateEnd,
-          p_store_ids: storeIdsToFilter || null,
-          p_user_id: filterUserId,
-          p_include_null_store: includeNullStore || false,
-        });
-        const [{ data: revSum }, { data: expSum }] = await Promise.all([
-          supabase.rpc('sum_amounts', rpcParams('revenues')),
-          supabase.rpc('sum_amounts', rpcParams('expenses')),
+        // Direct queries without user filter (consistent with individual partner path)
+        const [revRes, expRes] = await Promise.all([
+          supabase.from('revenues').select('amount').gte('date', dateStart).lte('date', dateEnd).limit(50000),
+          supabase.from('expenses').select('amount').gte('date', dateStart).lte('date', dateEnd).limit(50000),
         ]);
-        totalRevenue = Number(revSum) || 0;
-        totalExpenses = Number(expSum) || 0;
+        totalRevenue = (revRes.data || []).reduce((sum, r) => sum + Number(r.amount), 0);
+        totalExpenses = (expRes.data || []).reduce((sum, e) => sum + Number(e.amount), 0);
       }
 
       // Calculate net profit: revenue - expenses
@@ -281,8 +275,7 @@ export default function Dashboard() {
       
       // Calculate partner share: percentage of confirmed profits from daily_records
       let partnerShare = 0;
-      // TODO: fetch PARTNER_PERCENTAGE from the database (e.g. partners.capital_percentage) instead of hardcoding
-      const PARTNER_PERCENTAGE = 30;
+      const PARTNER_PERCENTAGE = partnerCapitalPct;
       
       if (isSocio && user?.id) {
         // Fetch confirmed profits (shopify_status = 'received' or 'confirmed') created by this user
@@ -314,7 +307,7 @@ export default function Dashboard() {
         partnerPercentage: PARTNER_PERCENTAGE,
       });
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      toast({ title: 'Erro ao carregar dashboard', description: 'Não foi possível carregar os dados financeiros.', variant: 'destructive' });
     }
     setLoading(false);
   };
