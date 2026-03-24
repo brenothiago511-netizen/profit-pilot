@@ -99,6 +99,7 @@ export default function Expenses() {
   const [selectedForSave, setSelectedForSave] = useState<Set<number>>(new Set());
   const [showTransactionPreview, setShowTransactionPreview] = useState(true);
   const [reviewingCategories, setReviewingCategories] = useState(false);
+  const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<string>>(new Set());
 
   const [filterDateFrom, setFilterDateFrom] = useState<Date>(startOfMonth(new Date()));
   const [filterDateTo, setFilterDateTo] = useState<Date>(endOfMonth(new Date()));
@@ -227,6 +228,7 @@ export default function Expenses() {
   };
 
   const fetchExpenses = async () => {
+    setSelectedExpenseIds(new Set());
     setLoading(true);
     const fromStr = format(filterDateFrom, 'yyyy-MM-dd');
     const toStr = format(filterDateTo, 'yyyy-MM-dd');
@@ -832,6 +834,19 @@ export default function Expenses() {
         title: 'Excluído',
         description: 'Despesa excluída com sucesso',
       });
+      fetchExpenses();
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!can('delete_expense') || selectedExpenseIds.size === 0) return;
+    const ids = Array.from(selectedExpenseIds);
+    const { error } = await supabase.from('expenses').delete().in('id', ids);
+    if (error) {
+      toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Excluído', description: `${ids.length} despesa(s) excluída(s) com sucesso` });
+      setSelectedExpenseIds(new Set());
       fetchExpenses();
     }
   };
@@ -1605,6 +1620,19 @@ export default function Expenses() {
                         </span>
                       )}
                     </div>
+                    {selectedExpenseIds.size > 0 && (
+                      <div className="flex items-center gap-3 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
+                        <span className="font-medium">{selectedExpenseIds.size} selecionada(s)</span>
+                        {can('delete_expense') && (
+                          <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+                            <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir selecionadas
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedExpenseIds(new Set())}>
+                          <X className="w-3.5 h-3.5 mr-1" /> Limpar seleção
+                        </Button>
+                      </div>
+                    )}
                     {can('edit_expense') && userExpenses.length > 0 && (
                       <div className="flex items-center gap-2 pt-1">
                         <Select
@@ -1637,6 +1665,16 @@ export default function Expenses() {
                       <table className="data-table">
                         <thead>
                           <tr>
+                            <th className="w-10">
+                              <Checkbox
+                                checked={userExpenses.length > 0 && userExpenses.every(e => selectedExpenseIds.has(e.id))}
+                                onCheckedChange={(checked) => {
+                                  const next = new Set(selectedExpenseIds);
+                                  userExpenses.forEach(e => checked ? next.add(e.id) : next.delete(e.id));
+                                  setSelectedExpenseIds(next);
+                                }}
+                              />
+                            </th>
                             <th>Data</th>
                             <th>Loja</th>
                             <th>Descrição</th>
@@ -1653,7 +1691,17 @@ export default function Expenses() {
                             const showOriginal = expense.original_currency && expense.original_currency !== 'BRL' && expense.original_amount;
                             
                             return (
-                              <tr key={expense.id}>
+                              <tr key={expense.id} className={selectedExpenseIds.has(expense.id) ? 'bg-muted/40' : ''}>
+                                <td>
+                                  <Checkbox
+                                    checked={selectedExpenseIds.has(expense.id)}
+                                    onCheckedChange={(checked) => {
+                                      const next = new Set(selectedExpenseIds);
+                                      checked ? next.add(expense.id) : next.delete(expense.id);
+                                      setSelectedExpenseIds(next);
+                                    }}
+                                  />
+                                </td>
                                 <td>{format(parseDate(expense.date), 'dd/MM/yyyy')}</td>
                                 <td>{expense.store_name || '-'}</td>
                                 <td>
