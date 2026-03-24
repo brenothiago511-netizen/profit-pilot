@@ -202,24 +202,51 @@ export default function Dashboard() {
         monthMeta.push({ start, end, label: raw.charAt(0).toUpperCase() + raw.slice(1) });
       }
 
-      // Always use RPC for consistent totals (SECURITY DEFINER + server-side SUM).
-      const rpcArgs = (table: string, s: string, e: string) => ({
-        p_table: table,
-        p_date_start: s,
-        p_date_end: e,
-        p_store_ids: storeIdsToFilter || null,
-        p_user_id: filterUserId,
-        p_include_null_store: includeNullStore || false,
-      });
-      const allCalls = monthMeta.flatMap(m => [
-        supabase.rpc('sum_amounts', rpcArgs('revenues', m.start, m.end)),
-        supabase.rpc('sum_amounts', rpcArgs('expenses', m.start, m.end)),
-      ]);
-      const results = await Promise.all(allCalls);
-      for (let i = 0; i < monthMeta.length; i++) {
-        const rev = Number(results[i * 2].data) || 0;
-        const exp = Number(results[i * 2 + 1].data) || 0;
-        months.push({ month: monthMeta[i].label, receitas: rev, despesas: exp, lucro: rev - exp });
+      if (filterUserId) {
+        // Paginated direct query per month for individual partner
+        const fetchMonthSum = async (table: 'revenues' | 'expenses', start: string, end: string) => {
+          let total = 0;
+          let from = 0;
+          const pageSize = 1000;
+          while (true) {
+            const { data } = await supabase
+              .from(table)
+              .select('amount')
+              .eq('user_id', filterUserId)
+              .gte('date', start)
+              .lte('date', end)
+              .range(from, from + pageSize - 1);
+            const rows = data || [];
+            total += rows.reduce((s: number, r: any) => s + Number(r.amount), 0);
+            if (rows.length < pageSize) break;
+            from += pageSize;
+          }
+          return total;
+        };
+        for (const m of monthMeta) {
+          const [rev, exp] = await Promise.all([fetchMonthSum('revenues', m.start, m.end), fetchMonthSum('expenses', m.start, m.end)]);
+          months.push({ month: m.label, receitas: rev, despesas: exp, lucro: rev - exp });
+        }
+      } else {
+        // RPC for "Todos os sócios"
+        const rpcArgs = (table: string, s: string, e: string) => ({
+          p_table: table,
+          p_date_start: s,
+          p_date_end: e,
+          p_store_ids: storeIdsToFilter || null,
+          p_user_id: null,
+          p_include_null_store: includeNullStore || false,
+        });
+        const allCalls = monthMeta.flatMap(m => [
+          supabase.rpc('sum_amounts', rpcArgs('revenues', m.start, m.end)),
+          supabase.rpc('sum_amounts', rpcArgs('expenses', m.start, m.end)),
+        ]);
+        const results = await Promise.all(allCalls);
+        for (let i = 0; i < monthMeta.length; i++) {
+          const rev = Number(results[i * 2].data) || 0;
+          const exp = Number(results[i * 2 + 1].data) || 0;
+          months.push({ month: monthMeta[i].label, receitas: rev, despesas: exp, lucro: rev - exp });
+        }
       }
 
       setTrendData(months);
@@ -246,24 +273,45 @@ export default function Dashboard() {
       let totalRevenue = 0;
       let totalExpenses = 0;
 
-      console.log('[Dashboard] isAdmin:', isAdmin, '| isSocio:', isSocio, '| selectedPartner:', selectedPartner, '| filterUserId:', filterUserId);
-
-      // Always use RPC: SECURITY DEFINER bypasses RLS and server-side SUM avoids 1000-row limit.
-      // p_user_id = null → totals for all partners; p_user_id = uuid → totals for that partner only.
-      const rpcParams = (table: string) => ({
-        p_table: table,
-        p_date_start: dateStart,
-        p_date_end: dateEnd,
-        p_store_ids: storeIdsToFilter || null,
-        p_user_id: filterUserId,
-        p_include_null_store: includeNullStore || false,
-      });
-      const [{ data: revSum }, { data: expSum }] = await Promise.all([
-        supabase.rpc('sum_amounts', rpcParams('revenues')),
-        supabase.rpc('sum_amounts', rpcParams('expenses')),
-      ]);
-      totalRevenue = Number(revSum) || 0;
-      totalExpenses = Number(expSum) || 0;
+      if (filterUserId) {
+        // Paginated direct query for individual partner — avoids both 1000-row limit and RPC p_user_id bug
+        const fetchAll = async (table: 'revenues' | 'expenses') => {
+          let total = 0;
+          let from = 0;
+          const pageSize = 1000;
+          while (true) {
+            const { data } = await supabase
+              .from(table)
+              .select('amount')
+              .eq('user_id', filterUserId)
+              .gte('date', dateStart)
+              .lte('date', dateEnd)
+              .range(from, from + pageSize - 1);
+            const rows = data || [];
+            total += rows.reduce((s: number, r: any) => s + Number(r.amount), 0);
+            if (rows.length < pageSize) break;
+            from += pageSize;
+          }
+          return total;
+        };
+        [totalRevenue, totalExpenses] = await Promise.all([fetchAll('revenues'), fetchAll('expenses')]);
+      } else {
+        // RPC for "Todos os sócios" — SECURITY DEFINER bypasses RLS, server-side SUM avoids row limit
+        const rpcParams = (table: string) => ({
+          p_table: table,
+          p_date_start: dateStart,
+          p_date_end: dateEnd,
+          p_store_ids: storeIdsToFilter || null,
+          p_user_id: null,
+          p_include_null_store: includeNullStore || false,
+        });
+        const [{ data: revSum }, { data: expSum }] = await Promise.all([
+          supabase.rpc('sum_amounts', rpcParams('revenues')),
+          supabase.rpc('sum_amounts', rpcParams('expenses')),
+        ]);
+        totalRevenue = Number(revSum) || 0;
+        totalExpenses = Number(expSum) || 0;
+      }
 
       // Calculate net profit: revenue - expenses
       const netProfit = totalRevenue - totalExpenses;
