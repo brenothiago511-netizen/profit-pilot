@@ -146,7 +146,7 @@ function BankBalanceWithConverter({ groupAccounts }: { groupAccounts: BankAccoun
   );
 }
 
-const BANK_OPTIONS = ['Airwallex', 'Mercury', 'Relay', 'Revolut'];
+const BANK_OPTIONS = ['Airwallex', 'Mercury', 'Relay', 'Revolut', 'Wise'];
 
 export default function Banks() {
   const { toast } = useToast();
