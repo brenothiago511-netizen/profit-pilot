@@ -527,7 +527,7 @@ export default function Commissions() {
         <div>
           <h1 className="page-title">Lucros</h1>
           <p className="page-description">
-            Registre e confirme os lucros diários por loja
+            Registre os lucros diários — confirmação automática via saque Shopify
           </p>
         </div>
 
@@ -827,7 +827,7 @@ export default function Commissions() {
                       {isAdmin ? `Lucros - ${userName}` : 'Registros de Lucro'}
                     </CardTitle>
                     <CardDescription>
-                      Clique em "Confirmar Shopify" quando o valor for recebido
+                      Os lucros são confirmados automaticamente ao marcar o saque Shopify como recebido
                     </CardDescription>
                   </div>
                   {isAdmin && (
@@ -882,26 +882,15 @@ export default function Commissions() {
                                 >
                                   <Pencil className="w-4 h-4" />
                                 </Button>
-                                {(record.shopify_status === 'received' || record.shopify_status === 'confirmed') ? (
+                                {(record.shopify_status === 'received' || record.shopify_status === 'confirmed') && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     className="text-muted-foreground hover:text-amber-500"
                                     onClick={() => toggleShopifyPaid(record.id, record.shopify_status)}
-                                    title="Desmarcar recebimento Shopify"
+                                    title="Reverter confirmação"
                                   >
-                                    Desmarcar
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    variant="default"
-                                    size="sm"
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                                    onClick={() => toggleShopifyPaid(record.id, record.shopify_status)}
-                                    title="Confirmar que o valor foi recebido na Shopify"
-                                  >
-                                    <Check className="w-4 h-4 mr-1" />
-                                    Confirmar Recebido
+                                    Reverter
                                   </Button>
                                 )}
                                 <Button
