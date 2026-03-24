@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, Zap, TrendingUp, Check, CalendarIcon } from 'lucide-react';
+import { Clock, Zap, TrendingUp, TrendingDown, CalendarIcon } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
@@ -57,11 +57,13 @@ export default function GestorDashboard() {
   const fmt = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-  const pending  = records.filter(r => r.shopify_status === 'pending');
+  const pending   = records.filter(r => r.shopify_status === 'pending');
   const confirmed = records.filter(r => r.shopify_status === 'confirmed' || r.shopify_status === 'received');
+  const lost      = records.filter(r => r.daily_profit < 0);
   const totalPending   = pending.reduce((s, r) => s + r.daily_profit, 0);
   const totalConfirmed = confirmed.reduce((s, r) => s + r.daily_profit, 0);
   const totalAll       = records.reduce((s, r) => s + r.daily_profit, 0);
+  const totalLost      = lost.reduce((s, r) => s + r.daily_profit, 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -102,7 +104,7 @@ export default function GestorDashboard() {
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -136,6 +138,18 @@ export default function GestorDashboard() {
           <CardContent>
             <p className="text-2xl font-bold text-emerald-400">{fmt(totalAll)}</p>
             <p className="text-xs text-muted-foreground mt-1">{records.length} registro(s)</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <TrendingDown className="w-4 h-4 text-destructive" /> Perdidos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-destructive">{fmt(totalLost)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{lost.length} dia(s) negativo(s)</p>
           </CardContent>
         </Card>
       </div>
