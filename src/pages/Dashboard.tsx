@@ -246,6 +246,8 @@ export default function Dashboard() {
       let totalRevenue = 0;
       let totalExpenses = 0;
 
+      console.log('[Dashboard] isAdmin:', isAdmin, '| isSocio:', isSocio, '| selectedPartner:', selectedPartner, '| filterUserId:', filterUserId);
+
       // Always use RPC: SECURITY DEFINER bypasses RLS and server-side SUM avoids 1000-row limit.
       // p_user_id = null → totals for all partners; p_user_id = uuid → totals for that partner only.
       const rpcParams = (table: string) => ({
