@@ -35,6 +35,10 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'manage_stores',
     'export_reports',
   ],
+  gestor: [
+    'view_profits',
+    'register_profits',
+  ],
   socio: [
     'view_dashboard',
     'view_dashboard_socios',

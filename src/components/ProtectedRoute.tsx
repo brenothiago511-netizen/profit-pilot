@@ -56,8 +56,9 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
   }
 
   if (allowedRoles && !allowedRoles.includes(profile.role)) {
-    const redirectPath = profile.role === 'financeiro' ? '/revenues' : '/dashboard';
-    return <Navigate to={redirectPath} replace />;
+    if (profile.role === 'gestor') return <Navigate to="/gestor-dashboard" replace />;
+    if (profile.role === 'financeiro') return <Navigate to="/revenues" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

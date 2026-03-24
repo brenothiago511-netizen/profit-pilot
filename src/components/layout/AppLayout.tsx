@@ -73,6 +73,7 @@ const navigationSections = [
   {
     title: 'Lucros',
     items: [
+      { name: 'Dashboard', href: '/gestor-dashboard', icon: LayoutDashboard, permissions: ['register_profits'], gestorOnly: true },
       { name: 'Lucros', href: '/commissions', icon: DollarSign, permissions: ['view_profits', 'register_profits'] },
       { name: 'Saques Shopify', href: '/shopify-withdrawals', icon: Wallet, permissions: ['view_profits', 'register_profits', 'view_shopify_withdrawals'] },
     ],
@@ -102,7 +103,7 @@ const navigationSections = [
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { profile, signOut, isAdmin } = useAuth();
+  const { profile, signOut, isAdmin, isGestor } = useAuth();
   const { hasPermission } = usePermissions();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
@@ -122,10 +123,11 @@ export default function AppLayout() {
       .map((section) => ({
         ...section,
         items: section.items.filter((item) => {
-          // Check if item is admin-only
-          if ((item as any).adminOnly && !isAdmin) {
-            return false;
-          }
+          if ((item as any).adminOnly && !isAdmin) return false;
+          // gestorOnly items only show for gestor role
+          if ((item as any).gestorOnly && !isGestor) return false;
+          // non-gestor items hidden from gestor (except gestorOnly ones)
+          if (isGestor && !(item as any).gestorOnly && (item as any).href !== '/commissions') return false;
           const perms = (item as any).permissions;
           if (!perms || perms.length === 0) return true;
           return perms.some((perm: string) => hasPermission(perm));
@@ -147,6 +149,7 @@ export default function AppLayout() {
       admin: 'Administrador',
       financeiro: 'Financeiro',
       socio: 'Sócio',
+      gestor: 'Gestor',
     };
     return roles[role] || role;
   };

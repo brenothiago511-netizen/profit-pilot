@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from 'r
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-type AppRole = 'admin' | 'financeiro' | 'gestor' | 'socio';
+export type AppRole = 'admin' | 'financeiro' | 'gestor' | 'socio';
 
 interface Profile {
   id: string;
@@ -23,6 +23,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isFinanceiro: boolean;
   isSocio: boolean;
+  isGestor: boolean;
   mfaPending: boolean;
   verifyMFA: (code: string) => Promise<{ error: Error | null }>;
 }
@@ -181,6 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAdmin = profile?.role === 'admin';
   const isFinanceiro = profile?.role === 'financeiro';
   const isSocio = profile?.role === 'socio';
+  const isGestor = profile?.role === 'gestor';
 
   return (
     <AuthContext.Provider
@@ -195,6 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin,
         isFinanceiro,
         isSocio,
+        isGestor,
         mfaPending,
         verifyMFA,
       }}

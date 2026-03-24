@@ -28,6 +28,7 @@ import ComparativeReport from "./pages/ComparativeReport";
 import AuditLog from "./pages/AuditLog";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
+import GestorDashboard from "./pages/GestorDashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,6 +51,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            {/* gestor redirect handled by ProtectedRoute */}
             <Route path="/auth" element={<Auth />} />
             
             <Route
@@ -62,6 +64,11 @@ const App = () => (
               <Route path="/dashboard" element={
                 <ProtectedRoute allowedRoles={['admin', 'socio']}>
                   <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/gestor-dashboard" element={
+                <ProtectedRoute allowedRoles={['gestor']}>
+                  <GestorDashboard />
                 </ProtectedRoute>
               } />
               <Route
@@ -107,7 +114,7 @@ const App = () => (
               <Route
                 path="/commissions"
                 element={
-                  <ProtectedRoute allowedRoles={['admin', 'financeiro', 'socio']}>
+                  <ProtectedRoute allowedRoles={['admin', 'financeiro', 'socio', 'gestor']}>
                     <Commissions />
                   </ProtectedRoute>
                 }
