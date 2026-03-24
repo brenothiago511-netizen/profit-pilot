@@ -1605,6 +1605,32 @@ export default function Expenses() {
                         </span>
                       )}
                     </div>
+                    {can('edit_expense') && userExpenses.length > 0 && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <Select
+                          value=""
+                          onValueChange={(id) => {
+                            const expense = userExpenses.find(e => e.id === id);
+                            if (expense) openEditDialog(expense);
+                          }}
+                        >
+                          <SelectTrigger className="w-full sm:w-80">
+                            <SelectValue placeholder="Selecionar despesa para editar..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {userExpenses.map((expense) => (
+                              <SelectItem key={expense.id} value={expense.id}>
+                                <span className="flex items-center gap-2">
+                                  <span className="text-muted-foreground text-xs">{format(parseDate(expense.date), 'dd/MM')}</span>
+                                  <span className="truncate max-w-[180px]">{expense.description}</span>
+                                  <span className="text-destructive text-xs ml-auto">{formatCurrency(expense.amount)}</span>
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="overflow-x-auto">
