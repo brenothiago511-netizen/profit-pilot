@@ -100,6 +100,8 @@ export default function Expenses() {
   const [showTransactionPreview, setShowTransactionPreview] = useState(true);
   const [reviewingCategories, setReviewingCategories] = useState(false);
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<string>>(new Set());
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkEditForm, setBulkEditForm] = useState({ bank_account_id: '', payment_method: '', type: '', category_id: '' });
 
   const [filterDateFrom, setFilterDateFrom] = useState<Date>(startOfMonth(new Date()));
   const [filterDateTo, setFilterDateTo] = useState<Date>(endOfMonth(new Date()));
@@ -849,6 +851,51 @@ export default function Expenses() {
       setSelectedExpenseIds(new Set());
       fetchExpenses();
     }
+  };
+
+  const handleBulkEdit = async () => {
+    if (!can('edit_expense') || selectedExpenseIds.size === 0) return;
+    const ids = Array.from(selectedExpenseIds);
+    const updates: Record<string, any> = {};
+    if (bulkEditForm.payment_method) updates.payment_method = bulkEditForm.payment_method;
+    if (bulkEditForm.type) updates.type = bulkEditForm.type;
+    if (bulkEditForm.category_id) updates.category_id = bulkEditForm.category_id;
+    if (Object.keys(updates).length === 0 && !bulkEditForm.bank_account_id) {
+      toast({ title: 'Atenção', description: 'Selecione ao menos um campo para atualizar.', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from('expenses').update(updates).in('id', ids);
+    if (error) {
+      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
+      setSaving(false);
+      return;
+    }
+    // If bank account selected, create debit transactions for each expense
+    if (bulkEditForm.bank_account_id) {
+      for (const id of ids) {
+        const expense = expenses.find(e => e.id === id);
+        if (!expense) continue;
+        try {
+          const { data: bankData } = await supabase.from('bank_accounts').select('balance').eq('id', bulkEditForm.bank_account_id).single();
+          const currentBalance = Number(bankData?.balance || 0);
+          const newBalance = currentBalance - expense.amount;
+          await supabase.from('bank_transactions').insert({
+            bank_account_id: bulkEditForm.bank_account_id, type: 'saida',
+            amount: expense.amount, balance_after: newBalance, date: expense.date,
+            description: `Despesa: ${expense.description}`, reference_type: 'expense',
+            created_by: user?.id, user_id: user?.id,
+          });
+          await supabase.from('bank_accounts').update({ balance: newBalance }).eq('id', bulkEditForm.bank_account_id);
+        } catch (err) { console.error(err); }
+      }
+    }
+    toast({ title: 'Sucesso', description: `${ids.length} despesa(s) atualizada(s)` });
+    setSaving(false);
+    setBulkEditOpen(false);
+    setBulkEditForm({ bank_account_id: '', payment_method: '', type: '', category_id: '' });
+    setSelectedExpenseIds(new Set());
+    fetchExpenses();
   };
 
   const handleReviewCategories = async () => {
@@ -1623,40 +1670,14 @@ export default function Expenses() {
                     {selectedExpenseIds.size > 0 && (
                       <div className="flex items-center gap-3 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
                         <span className="font-medium">{selectedExpenseIds.size} selecionada(s)</span>
-                        {can('delete_expense') && (
-                          <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
-                            <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir selecionadas
+                        {can('edit_expense') && (
+                          <Button size="sm" onClick={() => setBulkEditOpen(true)}>
+                            <Pencil className="w-3.5 h-3.5 mr-1" /> Editar selecionadas
                           </Button>
                         )}
                         <Button variant="ghost" size="sm" onClick={() => setSelectedExpenseIds(new Set())}>
                           <X className="w-3.5 h-3.5 mr-1" /> Limpar seleção
                         </Button>
-                      </div>
-                    )}
-                    {can('edit_expense') && userExpenses.length > 0 && (
-                      <div className="flex items-center gap-2 pt-1">
-                        <Select
-                          value=""
-                          onValueChange={(id) => {
-                            const expense = userExpenses.find(e => e.id === id);
-                            if (expense) openEditDialog(expense);
-                          }}
-                        >
-                          <SelectTrigger className="w-full sm:w-80">
-                            <SelectValue placeholder="Selecionar despesa para editar..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {userExpenses.map((expense) => (
-                              <SelectItem key={expense.id} value={expense.id}>
-                                <span className="flex items-center gap-2">
-                                  <span className="text-muted-foreground text-xs">{format(parseDate(expense.date), 'dd/MM')}</span>
-                                  <span className="truncate max-w-[180px]">{expense.description}</span>
-                                  <span className="text-destructive text-xs ml-auto">{formatCurrency(expense.amount)}</span>
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
                       </div>
                     )}
                   </CardHeader>
@@ -1797,6 +1818,69 @@ export default function Expenses() {
           </>
         );
       })()}
+      {/* Bulk Edit Dialog */}
+      <Dialog open={bulkEditOpen} onOpenChange={setBulkEditOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar {selectedExpenseIds.size} despesa(s)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <p className="text-sm text-muted-foreground">Deixe em branco os campos que não deseja alterar.</p>
+            <div className="space-y-2">
+              <Label>Banco de Saída</Label>
+              <Select value={bulkEditForm.bank_account_id || '__none__'} onValueChange={v => setBulkEditForm(f => ({ ...f, bank_account_id: v === '__none__' ? '' : v }))}>
+                <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Não alterar</SelectItem>
+                  {bankAccounts.map(ba => <SelectItem key={ba.id} value={ba.id}>{ba.account_holder} - {ba.bank_name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Forma de Pagamento</Label>
+              <Select value={bulkEditForm.payment_method || '__none__'} onValueChange={v => setBulkEditForm(f => ({ ...f, payment_method: v === '__none__' ? '' : v }))}>
+                <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Não alterar</SelectItem>
+                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="cartao_credito">Cartão Crédito</SelectItem>
+                  <SelectItem value="cartao_debito">Cartão Débito</SelectItem>
+                  <SelectItem value="transferencia">Transferência</SelectItem>
+                  <SelectItem value="boleto">Boleto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select value={bulkEditForm.type || '__none__'} onValueChange={v => setBulkEditForm(f => ({ ...f, type: v === '__none__' ? '' : v }))}>
+                <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Não alterar</SelectItem>
+                  <SelectItem value="fixa">Fixa</SelectItem>
+                  <SelectItem value="variavel">Variável</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select value={bulkEditForm.category_id || '__none__'} onValueChange={v => setBulkEditForm(f => ({ ...f, category_id: v === '__none__' ? '' : v }))}>
+                <SelectTrigger><SelectValue placeholder="Não alterar" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Não alterar</SelectItem>
+                  {categories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => setBulkEditOpen(false)}>Cancelar</Button>
+              <Button onClick={handleBulkEdit} disabled={saving}>
+                {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Salvando...</> : 'Salvar alterações'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
