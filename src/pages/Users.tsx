@@ -22,7 +22,7 @@ import { format } from 'date-fns';
 import { CsvImportDialog } from '@/components/users/CsvImportDialog';
 import { PermissionsDialog } from '@/components/users/PermissionsDialog';
 
-type AppRole = 'admin' | 'financeiro' | 'socio';
+type AppRole = 'admin' | 'financeiro' | 'socio' | 'gestor' | 'captador';
 
 interface UserProfile {
   id: string;
@@ -121,7 +121,7 @@ export default function Users() {
     if (error) {
       console.error('Error fetching users:', error);
     } else {
-      setUsers((data || []).map(u => ({ ...u, role: u.role === 'gestor' ? 'socio' : u.role })) as UserProfile[]);
+      setUsers((data || []) as UserProfile[]);
       // Fetch store assignments for all users
       const userIds = (data || []).map(u => u.id);
       if (userIds.length > 0) {
@@ -434,6 +434,8 @@ export default function Users() {
       admin: 'Administrador',
       financeiro: 'Financeiro',
       socio: 'Sócio',
+      gestor: 'Gestor',
+      captador: 'Captador',
     };
     return roles[role] || role;
   };
@@ -519,6 +521,7 @@ export default function Users() {
                     <SelectItem value="financeiro">Financeiro</SelectItem>
                     <SelectItem value="gestor">Gestor</SelectItem>
                     <SelectItem value="socio">Sócio</SelectItem>
+                    <SelectItem value="captador">Captador</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -579,6 +582,7 @@ export default function Users() {
                   <SelectItem value="financeiro">Financeiro</SelectItem>
                   <SelectItem value="gestor">Gestor</SelectItem>
                   <SelectItem value="socio">Sócio</SelectItem>
+                  <SelectItem value="captador">Captador</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -815,6 +819,7 @@ export default function Users() {
                   <SelectItem value="financeiro">Financeiro</SelectItem>
                   <SelectItem value="gestor">Gestor</SelectItem>
                   <SelectItem value="socio">Sócio</SelectItem>
+                  <SelectItem value="captador">Captador</SelectItem>
                 </SelectContent>
               </Select>
             </div>

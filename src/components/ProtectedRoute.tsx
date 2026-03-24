@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: ('admin' | 'financeiro' | 'gestor' | 'socio')[];
+  allowedRoles?: ('admin' | 'financeiro' | 'gestor' | 'socio' | 'captador')[];
 }
 
 export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
@@ -56,6 +56,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
   }
 
   if (allowedRoles && !allowedRoles.includes(profile.role)) {
+    if (profile.role === 'captador') return <Navigate to="/captador-dashboard" replace />;
     if (profile.role === 'gestor') return <Navigate to="/gestor-dashboard" replace />;
     if (profile.role === 'financeiro') return <Navigate to="/revenues" replace />;
     return <Navigate to="/dashboard" replace />;

@@ -68,12 +68,14 @@ const navigationSections = [
       { name: 'Lojas', href: '/stores', icon: Store, permissions: ['manage_stores'] },
       { name: 'Usuários', href: '/users', icon: UserCog, permissions: ['manage_users'] },
       { name: 'Sócios', href: '/partners', icon: Handshake, permissions: ['manage_partners'], adminOnly: true },
+      { name: 'Captadores', href: '/captadores', icon: Percent, permissions: [], adminOnly: true },
     ],
   },
   {
     title: 'Lucros',
     items: [
       { name: 'Dashboard', href: '/gestor-dashboard', icon: LayoutDashboard, permissions: ['register_profits'], gestorOnly: true },
+      { name: 'Dashboard', href: '/captador-dashboard', icon: LayoutDashboard, permissions: ['view_captador_dashboard'], captadorOnly: true },
       { name: 'Lucros', href: '/commissions', icon: DollarSign, permissions: ['view_profits', 'register_profits'] },
       { name: 'Saques Shopify', href: '/shopify-withdrawals', icon: Wallet, permissions: ['view_profits', 'register_profits', 'view_shopify_withdrawals'] },
     ],
@@ -103,7 +105,7 @@ const navigationSections = [
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { profile, signOut, isAdmin, isGestor } = useAuth();
+  const { profile, signOut, isAdmin, isGestor, isCaptador } = useAuth();
   const { hasPermission } = usePermissions();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
@@ -126,15 +128,19 @@ export default function AppLayout() {
           if ((item as any).adminOnly && !isAdmin) return false;
           // gestorOnly items only show for gestor role
           if ((item as any).gestorOnly && !isGestor) return false;
+          // captadorOnly items only show for captador role
+          if ((item as any).captadorOnly && !isCaptador) return false;
           // non-gestor items hidden from gestor (except gestorOnly ones)
           if (isGestor && !(item as any).gestorOnly && (item as any).href !== '/commissions') return false;
+          // captador only sees their own dashboard
+          if (isCaptador && !(item as any).captadorOnly) return false;
           const perms = (item as any).permissions;
           if (!perms || perms.length === 0) return true;
           return perms.some((perm: string) => hasPermission(perm));
         }),
       }))
       .filter((section) => section.items.length > 0);
-  }, [hasPermission, isAdmin]);
+  }, [hasPermission, isAdmin, isGestor, isCaptador]);
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -150,6 +156,7 @@ export default function AppLayout() {
       financeiro: 'Financeiro',
       socio: 'Sócio',
       gestor: 'Gestor',
+      captador: 'Captador',
     };
     return roles[role] || role;
   };

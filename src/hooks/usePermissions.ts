@@ -39,6 +39,9 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'view_profits',
     'register_profits',
   ],
+  captador: [
+    'view_captador_dashboard',
+  ],
   socio: [
     'view_dashboard',
     'view_dashboard_socios',

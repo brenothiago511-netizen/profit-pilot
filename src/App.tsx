@@ -29,6 +29,8 @@ import AuditLog from "./pages/AuditLog";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
 import GestorDashboard from "./pages/GestorDashboard";
+import CaptadorDashboard from "./pages/CaptadorDashboard";
+import Captadores from "./pages/Captadores";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,6 +71,16 @@ const App = () => (
               <Route path="/gestor-dashboard" element={
                 <ProtectedRoute allowedRoles={['gestor']}>
                   <GestorDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/captador-dashboard" element={
+                <ProtectedRoute allowedRoles={['captador']}>
+                  <CaptadorDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/captadores" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <Captadores />
                 </ProtectedRoute>
               } />
               <Route
