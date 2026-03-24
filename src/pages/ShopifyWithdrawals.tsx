@@ -383,34 +383,31 @@ const ShopifyWithdrawals = () => {
         toast.success('Saque recebido e receita registrada automaticamente!');
       }
 
-      // Auto-confirm daily records (profits) matching the store + dates
-      if (matchedStore) {
-        // Build the set of dates to match: sale_dates (if set) + withdrawal.date
-        const datesToMatch = new Set<string>();
-        datesToMatch.add(withdrawal.date);
-        if (withdrawal.sale_date) {
-          withdrawal.sale_date.split(',').map(d => d.trim()).forEach(d => datesToMatch.add(d));
-        }
+      // Auto-confirm daily records (profits) matching the sale dates and store
+      if (matchedStore && withdrawal.sale_date) {
+        const saleDates = withdrawal.sale_date.split(',').map(d => d.trim());
 
-        const { data: matchingRecords, error: fetchError } = await supabase
-          .from('daily_records')
-          .select('id')
-          .eq('store_id', matchedStore.id)
-          .in('date', Array.from(datesToMatch))
-          .eq('shopify_status', 'pending');
-
-        if (!fetchError && matchingRecords && matchingRecords.length > 0) {
-          const recordIds = matchingRecords.map(r => r.id);
-          const { error: updateError } = await supabase
+        if (saleDates.length > 0) {
+          const { data: matchingRecords, error: fetchError } = await supabase
             .from('daily_records')
-            .update({ shopify_status: 'confirmed' })
-            .in('id', recordIds);
+            .select('id')
+            .eq('store_id', matchedStore.id)
+            .in('date', saleDates)
+            .eq('shopify_status', 'pending');
 
-          if (updateError) {
-            console.error('Error confirming daily records:', updateError);
-            toast.error('Erro ao confirmar lucros diários automaticamente');
-          } else {
-            toast.success(`${matchingRecords.length} lucro(s) confirmado(s) automaticamente!`);
+          if (!fetchError && matchingRecords && matchingRecords.length > 0) {
+            const recordIds = matchingRecords.map(r => r.id);
+            const { error: updateError } = await supabase
+              .from('daily_records')
+              .update({ shopify_status: 'confirmed' })
+              .in('id', recordIds);
+
+            if (updateError) {
+              console.error('Error confirming daily records:', updateError);
+              toast.error('Erro ao confirmar lucros diários automaticamente');
+            } else {
+              toast.success(`${matchingRecords.length} lucro(s) confirmado(s) automaticamente!`);
+            }
           }
         }
       }
