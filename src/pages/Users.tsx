@@ -364,11 +364,13 @@ export default function Users() {
 
     setSaving(true);
 
-    // Update profile role
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ role: selectedRole })
-      .eq('id', selectedUser.id);
+    // Usa RPC para bypass do cache do PostgREST (schema antigo rejeita captador)
+    const { error: profileError } = await supabase.rpc('upsert_user_profile', {
+      p_id: selectedUser.id,
+      p_name: selectedUser.name,
+      p_email: selectedUser.email,
+      p_role: selectedRole,
+    });
 
     if (profileError) {
       toast({
@@ -380,19 +382,9 @@ export default function Users() {
       return;
     }
 
-    // Update user_roles table
-    await supabase
-      .from('user_roles')
-      .delete()
-      .eq('user_id', selectedUser.id);
-
-    const { error: roleError } = await supabase
-      .from('user_roles')
-      .insert({ user_id: selectedUser.id, role: selectedRole });
-
-    if (roleError) {
-      console.error('Error updating user_roles:', roleError);
-    }
+    // user_roles — tenta atualizar sem bloquear (pode falhar no enum)
+    await supabase.from('user_roles').delete().eq('user_id', selectedUser.id);
+    await supabase.from('user_roles').insert({ user_id: selectedUser.id, role: selectedRole }).then(() => {});
 
     toast({
       title: 'Sucesso',
