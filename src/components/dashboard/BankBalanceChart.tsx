@@ -54,7 +54,7 @@ export function BankBalanceChart({ userId }: BankBalanceChartProps = {}) {
           .select('amount, type')
           .lte('date', monthEnd);
 
-        if (userId) query = query.eq('user_id', userId);
+        if (userId) query = query.eq('created_by', userId);
 
         const { data: txData, error } = await query;
 

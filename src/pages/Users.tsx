@@ -218,7 +218,7 @@ export default function Users() {
           id: newUserId,
           name: formData.name,
           email: formData.email,
-          role: formData.role,
+          role: formData.role as any,
           status: 'active',
         });
 
@@ -370,7 +370,7 @@ export default function Users() {
     // Update direto na tabela profiles (role agora é TEXT, aceita qualquer valor)
     const { error: profileError } = await supabase
       .from('profiles')
-      .update({ role: selectedRole })
+      .update({ role: selectedRole as any })
       .eq('id', selectedUser.id);
 
     if (profileError) {
@@ -385,7 +385,7 @@ export default function Users() {
 
     // user_roles — tenta atualizar sem bloquear (pode falhar no enum)
     await supabase.from('user_roles').delete().eq('user_id', selectedUser.id);
-    await supabase.from('user_roles').insert({ user_id: selectedUser.id, role: selectedRole }).then(() => {});
+    await supabase.from('user_roles').insert({ user_id: selectedUser.id, role: selectedRole as any }).then(() => {});
 
     toast({
       title: 'Sucesso',
