@@ -212,12 +212,15 @@ export default function Users() {
 
     const newUserId = signUpData?.user?.id;
     if (newUserId) {
-      const { error: upsertError } = await supabase.rpc('upsert_user_profile', {
-        p_id: newUserId,
-        p_name: formData.name,
-        p_email: formData.email,
-        p_role: formData.role,
-      });
+      const { error: upsertError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: newUserId,
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          status: 'active',
+        });
 
       if (upsertError) {
         console.error('Erro ao criar perfil:', upsertError);
@@ -364,13 +367,11 @@ export default function Users() {
 
     setSaving(true);
 
-    // Usa RPC para bypass do cache do PostgREST (schema antigo rejeita captador)
-    const { error: profileError } = await supabase.rpc('upsert_user_profile', {
-      p_id: selectedUser.id,
-      p_name: selectedUser.name,
-      p_email: selectedUser.email,
-      p_role: selectedRole,
-    });
+    // Update direto na tabela profiles (role agora é TEXT, aceita qualquer valor)
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ role: selectedRole })
+      .eq('id', selectedUser.id);
 
     if (profileError) {
       toast({
