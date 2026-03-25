@@ -212,13 +212,12 @@ export default function Users() {
 
     const newUserId = signUpData?.user?.id;
     if (newUserId) {
-      const { error: upsertError } = await supabase.from('profiles').upsert({
-        id: newUserId,
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        status: 'active',
-      }, { onConflict: 'id' });
+      const { error: upsertError } = await supabase.rpc('upsert_user_profile', {
+        p_id: newUserId,
+        p_name: formData.name,
+        p_email: formData.email,
+        p_role: formData.role,
+      });
 
       if (upsertError) {
         console.error('Erro ao criar perfil:', upsertError);
