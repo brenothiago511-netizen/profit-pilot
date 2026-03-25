@@ -173,9 +173,9 @@ export default function Users() {
     }
 
     setSaving(true);
-    
+
     // Create user via auth.signUp with metadata
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email: formData.email,
       password: formData.password,
       options: {
@@ -186,24 +186,36 @@ export default function Users() {
       },
     });
 
-    setSaving(false);
-
     if (error) {
+      setSaving(false);
       toast({
         title: 'Erro ao criar usuário',
         description: error.message,
         variant: 'destructive',
       });
-    } else {
-      toast({
-        title: 'Sucesso',
-        description: 'Usuário criado com sucesso',
-      });
-      setDialogOpen(false);
-      setFormData({ email: '', password: '', name: '', role: 'financeiro' });
-      // Wait a moment for trigger to create profile
-      setTimeout(fetchUsers, 1000);
+      return;
     }
+
+    // Garante que o perfil existe mesmo se o trigger falhar
+    const newUserId = signUpData?.user?.id;
+    if (newUserId) {
+      await supabase.from('profiles').upsert({
+        id: newUserId,
+        name: formData.name,
+        email: formData.email,
+        role: formData.role,
+        status: 'active',
+      }, { onConflict: 'id' });
+    }
+
+    setSaving(false);
+    toast({
+      title: 'Sucesso',
+      description: 'Usuário criado com sucesso',
+    });
+    setDialogOpen(false);
+    setFormData({ email: '', password: '', name: '', role: 'financeiro' });
+    setTimeout(fetchUsers, 500);
   };
 
   const toggleStatus = async (user: UserProfile) => {
