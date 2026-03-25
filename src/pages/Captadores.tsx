@@ -52,11 +52,11 @@ export default function Captadores() {
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, name, email, status')
-      .eq('role', 'captador')
+      .eq('role', 'captador' as any)
       .order('name');
 
     // Fetch all commission rates
-    const { data: commissions } = await supabase
+    const { data: commissions } = await (supabase as any)
       .from('captador_commissions')
       .select('user_id, commission_rate');
 
@@ -166,7 +166,7 @@ export default function Captadores() {
     setSaving(true);
     const rateDecimal = ratePercent / 100;
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('captador_commissions')
       .upsert(
         { user_id: selectedCaptador.id, commission_rate: rateDecimal, updated_at: new Date().toISOString() },

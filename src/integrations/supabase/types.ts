@@ -215,6 +215,30 @@ export type Database = {
           },
         ]
       }
+      captador_commissions: {
+        Row: {
+          commission_rate: number
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       commission_tiers: {
         Row: {
           active: boolean | null
@@ -1344,7 +1368,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "financeiro" | "gestor" | "socio"
+      app_role: "admin" | "financeiro" | "gestor" | "socio" | "captador"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1472,7 +1496,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "financeiro", "gestor", "socio"],
+      app_role: ["admin", "financeiro", "gestor", "socio", "captador"],
     },
   },
 } as const

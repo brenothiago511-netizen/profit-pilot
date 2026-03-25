@@ -44,7 +44,7 @@ export default function CaptadorDashboard() {
 
   const fetchCommissionRate = async () => {
     if (!user?.id) return;
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from('captador_commissions')
       .select('commission_rate')
       .eq('user_id', user.id)
