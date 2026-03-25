@@ -215,6 +215,30 @@ export type Database = {
           },
         ]
       }
+      captador_commissions: {
+        Row: {
+          commission_rate: number
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          commission_rate?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       commission_tiers: {
         Row: {
           active: boolean | null
