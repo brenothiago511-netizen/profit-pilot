@@ -367,10 +367,10 @@ export default function Users() {
 
     setSaving(true);
 
-    // Edge Function bypassa PostgREST (cache antigo rejeita novos valores de role)
-    const { error: profileError } = await supabase.functions.invoke('update-user-role', {
-      body: { userId: selectedUser.id, role: selectedRole },
-    });
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ role: selectedRole })
+      .eq('id', selectedUser.id);
 
     if (profileError) {
       toast({
