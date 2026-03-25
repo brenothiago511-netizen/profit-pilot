@@ -174,7 +174,10 @@ export default function Users() {
 
     setSaving(true);
 
-    // Create user via auth.signUp with metadata
+    // Salva a sessão do admin antes de criar o usuário
+    // (signUp pode substituir a sessão ativa se auto-confirm estiver ligado)
+    const { data: { session: adminSession } } = await supabase.auth.getSession();
+
     const { data: signUpData, error } = await supabase.auth.signUp({
       email: formData.email,
       password: formData.password,
@@ -186,6 +189,17 @@ export default function Users() {
       },
     });
 
+    // Restaura a sessão do admin caso tenha sido substituída
+    if (adminSession) {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (!currentSession || currentSession.user.id !== adminSession.user.id) {
+        await supabase.auth.setSession({
+          access_token: adminSession.access_token,
+          refresh_token: adminSession.refresh_token,
+        });
+      }
+    }
+
     if (error) {
       setSaving(false);
       toast({
@@ -196,16 +210,26 @@ export default function Users() {
       return;
     }
 
-    // Garante que o perfil existe mesmo se o trigger falhar
     const newUserId = signUpData?.user?.id;
     if (newUserId) {
-      await supabase.from('profiles').upsert({
+      const { error: upsertError } = await supabase.from('profiles').upsert({
         id: newUserId,
         name: formData.name,
         email: formData.email,
         role: formData.role,
         status: 'active',
       }, { onConflict: 'id' });
+
+      if (upsertError) {
+        console.error('Erro ao criar perfil:', upsertError);
+        toast({
+          title: 'Usuário criado, mas houve um erro no perfil',
+          description: upsertError.message,
+          variant: 'destructive',
+        });
+        setSaving(false);
+        return;
+      }
     }
 
     setSaving(false);
