@@ -367,11 +367,10 @@ export default function Users() {
 
     setSaving(true);
 
-    // Update direto na tabela profiles (role agora é TEXT, aceita qualquer valor)
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ role: selectedRole as any })
-      .eq('id', selectedUser.id);
+    // Edge Function bypassa PostgREST (cache antigo rejeita novos valores de role)
+    const { error: profileError } = await supabase.functions.invoke('update-user-role', {
+      body: { userId: selectedUser.id, role: selectedRole },
+    });
 
     if (profileError) {
       toast({
