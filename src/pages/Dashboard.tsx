@@ -152,8 +152,11 @@ export default function Dashboard() {
           .from('profiles')
           .select('id, name')
           .eq('status', 'active')
+          .eq('role', 'socio')
+          .not('name', 'is', null)
+          .neq('name', '')
           .order('name');
-        
+
         const partnersList: PartnerOption[] = (profilesData || []).map(p => ({
           user_id: p.id,
           name: p.name,
