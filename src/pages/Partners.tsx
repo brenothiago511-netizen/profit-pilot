@@ -517,7 +517,7 @@ export default function Partners() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{partners.length}</div>
+            <div className="text-2xl font-bold">{new Set(partners.map(p => p.user_id)).size}</div>
           </CardContent>
         </Card>
 
@@ -549,34 +549,16 @@ export default function Partners() {
           <CardTitle className="flex items-center gap-2">
             <Users className="w-5 h-5" />
             Lista de Sócios
-            {!loading && (
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                ({filteredPartners.length} de {partners.length})
-              </span>
-            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome ou email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin" />
             </div>
-          ) : filteredPartners.length === 0 ? (
+          ) : partners.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              {partners.length === 0 ? 'Nenhum sócio cadastrado' : 'Nenhum sócio encontrado'}
+              Nenhum sócio cadastrado
             </div>
           ) : (
             <div className="rounded-md border overflow-x-auto">
