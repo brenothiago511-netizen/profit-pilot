@@ -784,7 +784,7 @@ export default function Revenues() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
                       <TrendingUp className="w-5 h-5 text-success" />
-                      {isAdmin ? `Receitas - ${userName}` : 'Receitas Recentes'}
+                      {`Receitas - ${userName}`}
                     </CardTitle>
                     {isAdmin && (
                       <span className="text-sm text-muted-foreground">
