@@ -135,7 +135,6 @@ export default function Revenues() {
   useEffect(() => {
     fetchStores();
     fetchBankAccounts();
-    if (isAdmin) fetchProfileNames();
   }, []);
 
   // Ensure socio users are always filtered to their own data when profile loads
