@@ -225,6 +225,10 @@ export default function Revenues() {
     }
 
     setRevenues(data || []);
+    if (data && data.length > 0) {
+      const userIds = data.map((r: any) => r.user_id);
+      fetchProfileNames(userIds);
+    }
     setLoading(false);
   };
 
