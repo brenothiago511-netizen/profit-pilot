@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,7 +79,8 @@ export default function Dashboard() {
     partnerPercentage: 0,
   });
   const [trendData, setTrendData] = useState<TrendData[]>([]);
-  
+  const fetchIdRef = useRef(0);
+
   const isSocio = profile?.role === 'socio';
   const [partnerCapitalPct, setPartnerCapitalPct] = useState(30);
   
@@ -259,6 +260,7 @@ export default function Dashboard() {
   };
 
   const fetchDashboardData = async () => {
+    const fetchId = ++fetchIdRef.current;
     setLoading(true);
     try {
       let storeIdsToFilter = await getStoreIdsForQuery();
@@ -344,6 +346,7 @@ export default function Dashboard() {
         partnerShare = totalConfirmedProfits * (PARTNER_PERCENTAGE / 100);
       }
 
+      if (fetchId !== fetchIdRef.current) return;
       setData({
         totalRevenue,
         totalExpenses,
@@ -353,8 +356,10 @@ export default function Dashboard() {
         partnerPercentage: PARTNER_PERCENTAGE,
       });
     } catch (error) {
+      if (fetchId !== fetchIdRef.current) return;
       toast({ title: 'Erro ao carregar dashboard', description: 'Não foi possível carregar os dados financeiros.', variant: 'destructive' });
     }
+    if (fetchId !== fetchIdRef.current) return;
     setLoading(false);
   };
 
