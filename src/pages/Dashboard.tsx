@@ -152,7 +152,7 @@ export default function Dashboard() {
           .from('profiles')
           .select('id, name')
           .eq('status', 'active')
-          .eq('role', 'socio')
+          .in('role', ['socio', 'admin'])
           .not('name', 'is', null)
           .neq('name', '')
           .order('name');
