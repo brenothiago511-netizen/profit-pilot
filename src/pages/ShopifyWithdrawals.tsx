@@ -71,6 +71,7 @@ const ShopifyWithdrawals = () => {
   
   // Filters
   const [filterStore, setFilterStore] = useState<string>('all');
+  const [filterUser, setFilterUser] = useState<string>('all');
   const [filterDateStart, setFilterDateStart] = useState<Date | undefined>(undefined);
   const [filterDateEnd, setFilterDateEnd] = useState<Date | undefined>(undefined);
   const [form, setForm] = useState({
@@ -424,6 +425,7 @@ const ShopifyWithdrawals = () => {
   // Apply filters
   const filteredWithdrawals = withdrawals.filter(w => {
     if (filterStore !== 'all' && w.store_name !== filterStore) return false;
+    if (filterUser !== 'all' && w.created_by !== filterUser) return false;
     if (filterDateStart) {
       const wDate = parseDate(w.date);
       if (wDate < filterDateStart) return false;
@@ -447,11 +449,12 @@ const ShopifyWithdrawals = () => {
 
   const clearFilters = () => {
     setFilterStore('all');
+    setFilterUser('all');
     setFilterDateStart(undefined);
     setFilterDateEnd(undefined);
   };
 
-  const hasActiveFilters = filterStore !== 'all' || filterDateStart || filterDateEnd;
+  const hasActiveFilters = filterStore !== 'all' || filterUser !== 'all' || filterDateStart || filterDateEnd;
 
   const totalConverted = filteredWithdrawals.reduce((sum, w) => sum + (w.converted_amount || 0), 0);
   const pendingWithdrawals = filteredWithdrawals.filter(w => w.status === 'pending');
@@ -694,6 +697,22 @@ const ShopifyWithdrawals = () => {
                 </Select>
               </div>
 
+              {isAdmin && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Usuário</Label>
+                  <Select value={filterUser} onValueChange={setFilterUser}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Todos os usuários" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os usuários</SelectItem>
+                      {Object.entries(profileNames).map(([id, name]) => (
+                        <SelectItem key={id} value={id}>{name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Data inicial</Label>
