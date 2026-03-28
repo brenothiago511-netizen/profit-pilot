@@ -775,7 +775,7 @@ export default function Revenues() {
           </Card>
         ) : (
           Object.entries(revenuesByUser).map(([userId, userRevenues]) => {
-            const userName = isAdmin ? (profileNames[userId] || 'Desconhecido') : '';
+            const userName = profileNames[userId] || 'Desconhecido';
             const userTotal = userRevenues.reduce((sum, r) => sum + r.amount, 0);
 
             return (
