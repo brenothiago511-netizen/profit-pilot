@@ -158,13 +158,19 @@ export default function Revenues() {
     if (data) setBankAccounts(data);
   };
 
-  const fetchProfileNames = async () => {
-    const { data } = await supabase.from('profiles').select('id, name').limit(500);
-    if (data) {
-      const map: ProfileMap = {};
-      data.forEach((p: any) => { map[p.id] = p.name; });
-      setProfileNames(map);
-    }
+  const fetchProfileNames = async (userIds: string[]) => {
+    const uniqueIds = [...new Set(userIds)].filter(id => !profileNames[id]);
+    if (uniqueIds.length === 0) return;
+    const map: ProfileMap = { ...profileNames };
+    await Promise.all(uniqueIds.map(async (uid) => {
+      try {
+        const { data } = await supabase.rpc('get_profile_by_id', { p_user_id: uid });
+        if (data && typeof data === 'object' && (data as any).name) {
+          map[uid] = (data as any).name;
+        }
+      } catch {}
+    }));
+    setProfileNames(map);
   };
 
   const fetchStores = async () => {
