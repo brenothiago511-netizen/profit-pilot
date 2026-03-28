@@ -135,7 +135,6 @@ export default function Revenues() {
   useEffect(() => {
     fetchStores();
     fetchBankAccounts();
-    if (isAdmin) fetchProfileNames();
   }, []);
 
   // Ensure socio users are always filtered to their own data when profile loads
@@ -159,13 +158,19 @@ export default function Revenues() {
     if (data) setBankAccounts(data);
   };
 
-  const fetchProfileNames = async () => {
-    const { data } = await supabase.from('profiles').select('id, name').limit(500);
-    if (data) {
-      const map: ProfileMap = {};
-      data.forEach((p: any) => { map[p.id] = p.name; });
-      setProfileNames(map);
-    }
+  const fetchProfileNames = async (userIds: string[]) => {
+    const uniqueIds = [...new Set(userIds)].filter(id => !profileNames[id]);
+    if (uniqueIds.length === 0) return;
+    const map: ProfileMap = { ...profileNames };
+    await Promise.all(uniqueIds.map(async (uid) => {
+      try {
+        const { data } = await supabase.rpc('get_profile_by_id', { p_user_id: uid });
+        if (data && typeof data === 'object' && (data as any).name) {
+          map[uid] = (data as any).name;
+        }
+      } catch {}
+    }));
+    setProfileNames(map);
   };
 
   const fetchStores = async () => {
@@ -220,6 +225,10 @@ export default function Revenues() {
     }
 
     setRevenues(data || []);
+    if (data && data.length > 0) {
+      const userIds = data.map((r: any) => r.user_id);
+      fetchProfileNames(userIds);
+    }
     setLoading(false);
   };
 
@@ -766,7 +775,7 @@ export default function Revenues() {
           </Card>
         ) : (
           Object.entries(revenuesByUser).map(([userId, userRevenues]) => {
-            const userName = isAdmin ? (profileNames[userId] || 'Desconhecido') : '';
+            const userName = profileNames[userId] || 'Desconhecido';
             const userTotal = userRevenues.reduce((sum, r) => sum + r.amount, 0);
 
             return (
@@ -775,7 +784,7 @@ export default function Revenues() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
                       <TrendingUp className="w-5 h-5 text-success" />
-                      {isAdmin ? `Receitas - ${userName}` : 'Receitas Recentes'}
+                      {`Receitas - ${userName}`}
                     </CardTitle>
                     {isAdmin && (
                       <span className="text-sm text-muted-foreground">
