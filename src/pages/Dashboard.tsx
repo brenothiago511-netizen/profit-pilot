@@ -199,8 +199,7 @@ export default function Dashboard() {
       const months: TrendData[] = [];
       const today = new Date();
       const includeNullStore = isSocio && storeIdsToFilter && storeIdsToFilter.length > 0;
-      const filterUserId = (isSocio && includeNullStore) ? user!.id : 
-                           (isAdmin && selectedPartner !== 'all') ? selectedPartner : null;
+      const filterUserId = (isSocio && includeNullStore) ? user!.id : null;
       
       // Build all 12 RPC calls (6 months × 2 tables) in parallel
       const monthMeta: { start: string; end: string; label: string }[] = [];
@@ -278,8 +277,7 @@ export default function Dashboard() {
 
       // Use server-side SUM to avoid 1000-row limit
       const includeNullStore = isSocio && storeIdsToFilter && storeIdsToFilter.length > 0;
-      const filterUserId = (isSocio && includeNullStore) ? user!.id : 
-                           (isAdmin && selectedPartner !== 'all') ? selectedPartner : null;
+      const filterUserId = (isSocio && includeNullStore) ? user!.id : null;
 
       let totalRevenue = 0;
       let totalExpenses = 0;
