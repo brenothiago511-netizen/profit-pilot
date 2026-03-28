@@ -178,9 +178,15 @@ export default function Dashboard() {
       return partnerStoreIds && partnerStoreIds.length > 0 ? partnerStoreIds : [];
     }
     
-    // For admin filtering by partner - return null so we don't filter by store
+    // For admin filtering by partner - fetch that partner's store IDs
     if (isAdmin && selectedPartner !== 'all') {
-      return null;
+      const { data: partnerData } = await supabase
+        .from('partners')
+        .select('store_id')
+        .eq('user_id', selectedPartner)
+        .eq('status', 'active');
+      const storeIds = (partnerData || []).map(p => p.store_id).filter(Boolean) as string[];
+      return storeIds.length > 0 ? storeIds : [];
     }
     
     // For admin/financeiro with no partner filter - ALL stores (no restriction)
@@ -193,8 +199,7 @@ export default function Dashboard() {
       const months: TrendData[] = [];
       const today = new Date();
       const includeNullStore = isSocio && storeIdsToFilter && storeIdsToFilter.length > 0;
-      const filterUserId = (isSocio && includeNullStore) ? user!.id : 
-                           (isAdmin && selectedPartner !== 'all') ? selectedPartner : null;
+      const filterUserId = (isSocio && includeNullStore) ? user!.id : null;
       
       // Build all 12 RPC calls (6 months × 2 tables) in parallel
       const monthMeta: { start: string; end: string; label: string }[] = [];
@@ -272,8 +277,7 @@ export default function Dashboard() {
 
       // Use server-side SUM to avoid 1000-row limit
       const includeNullStore = isSocio && storeIdsToFilter && storeIdsToFilter.length > 0;
-      const filterUserId = (isSocio && includeNullStore) ? user!.id : 
-                           (isAdmin && selectedPartner !== 'all') ? selectedPartner : null;
+      const filterUserId = (isSocio && includeNullStore) ? user!.id : null;
 
       let totalRevenue = 0;
       let totalExpenses = 0;
