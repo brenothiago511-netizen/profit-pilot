@@ -158,10 +158,10 @@ export default function Revenues() {
     if (data) setBankAccounts(data);
   };
 
-  const fetchProfileNames = async (userIds: string[]) => {
-    const uniqueIds = [...new Set(userIds)].filter(id => !profileNames[id]);
+  const fetchProfileNamesForIds = useCallback(async (userIds: string[]) => {
+    const uniqueIds = [...new Set(userIds)];
     if (uniqueIds.length === 0) return;
-    const map: ProfileMap = { ...profileNames };
+    const map: ProfileMap = {};
     await Promise.all(uniqueIds.map(async (uid) => {
       try {
         const { data } = await supabase.rpc('get_profile_by_id', { p_user_id: uid });
@@ -170,8 +170,8 @@ export default function Revenues() {
         }
       } catch {}
     }));
-    setProfileNames(map);
-  };
+    setProfileNames(prev => ({ ...prev, ...map }));
+  }, []);
 
   const fetchStores = async () => {
     const { data } = await supabase
