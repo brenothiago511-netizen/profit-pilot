@@ -15,7 +15,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Percent, UserCheck, UserX, Edit2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, Percent, UserCheck, UserX, Edit2, Store } from 'lucide-react';
 
 interface CaptadorProfile {
   id: string;
@@ -40,6 +41,14 @@ export default function Captadores() {
   const [selectedCaptador, setSelectedCaptador] = useState<CaptadorProfile | null>(null);
   const [rateInput, setRateInput] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Store assignment dialog
+  const [storeDialogOpen, setStoreDialogOpen] = useState(false);
+  const [storeCaptador, setStoreCaptador] = useState<CaptadorProfile | null>(null);
+  const [allStores, setAllStores] = useState<{ id: string; name: string }[]>([]);
+  const [assignedStoreIds, setAssignedStoreIds] = useState<string[]>([]);
+  const [loadingStores, setLoadingStores] = useState(false);
+  const [savingStores, setSavingStores] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -142,6 +151,52 @@ export default function Captadores() {
       toast({ title: 'Atualizado', description: `Captador ${newStatus === 'active' ? 'ativado' : 'desativado'}` });
       fetchData();
     }
+  };
+
+  const openStoreDialog = async (captador: CaptadorProfile) => {
+    setStoreCaptador(captador);
+    setStoreDialogOpen(true);
+    setLoadingStores(true);
+
+    const [storesRes, assignedRes] = await Promise.all([
+      supabase.from('stores').select('id, name').eq('status', 'active').order('name'),
+      supabase.from('user_stores').select('store_id').eq('user_id', captador.id),
+    ]);
+
+    setAllStores((storesRes.data as any[]) ?? []);
+    setAssignedStoreIds((assignedRes.data as any[] ?? []).map((r: any) => r.store_id));
+    setLoadingStores(false);
+  };
+
+  const toggleStoreAssignment = (storeId: string) => {
+    setAssignedStoreIds((prev) =>
+      prev.includes(storeId) ? prev.filter((id) => id !== storeId) : [...prev, storeId],
+    );
+  };
+
+  const handleSaveStores = async () => {
+    if (!storeCaptador) return;
+    setSavingStores(true);
+
+    // Delete existing assignments
+    await supabase.from('user_stores').delete().eq('user_id', storeCaptador.id);
+
+    // Insert new assignments
+    if (assignedStoreIds.length > 0) {
+      const { error } = await supabase
+        .from('user_stores')
+        .insert(assignedStoreIds.map((store_id) => ({ user_id: storeCaptador.id, store_id })));
+
+      if (error) {
+        toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+        setSavingStores(false);
+        return;
+      }
+    }
+
+    toast({ title: 'Sucesso', description: 'Lojas atribuídas com sucesso.' });
+    setSavingStores(false);
+    setStoreDialogOpen(false);
   };
 
   const openEditDialog = (captador: CaptadorProfile) => {
@@ -278,6 +333,14 @@ export default function Captadores() {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => openStoreDialog(c)}
+                            title="Atribuir lojas"
+                          >
+                            <Store className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => openEditDialog(c)}
                             title="Editar taxa de comissão"
                           >
@@ -305,6 +368,59 @@ export default function Captadores() {
           )}
         </CardContent>
       </Card>
+
+      {/* Store Assignment Dialog */}
+      <Dialog open={storeDialogOpen} onOpenChange={setStoreDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Lojas — {storeCaptador?.name}</DialogTitle>
+          </DialogHeader>
+          {loadingStores ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="max-h-64 overflow-y-auto space-y-2">
+                {allStores.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhuma loja cadastrada</p>
+                ) : (
+                  allStores.map((s) => (
+                    <label
+                      key={s.id}
+                      className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={assignedStoreIds.includes(s.id)}
+                        onCheckedChange={() => toggleStoreAssignment(s.id)}
+                      />
+                      <span className="text-sm">{s.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {assignedStoreIds.length} loja{assignedStoreIds.length !== 1 ? 's' : ''} selecionada{assignedStoreIds.length !== 1 ? 's' : ''}
+              </p>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="outline" onClick={() => setStoreDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSaveStores} disabled={savingStores}>
+                  {savingStores ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salvar'
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Commission Rate Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
