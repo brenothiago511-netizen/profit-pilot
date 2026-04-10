@@ -1332,6 +1332,14 @@ export type Database = {
       }
       get_partner_store_ids: { Args: { _user_id: string }; Returns: string[] }
       get_profile_by_id: { Args: { p_user_id: string }; Returns: Json }
+      get_revenue_summary: {
+        Args: { p_date_from: string; p_date_to: string }
+        Returns: {
+          quantity: number
+          source_name: string
+          total_amount: number
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
