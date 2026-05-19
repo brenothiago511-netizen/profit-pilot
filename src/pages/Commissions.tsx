@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, Pencil, Trash2, Plus, DollarSign, Clock, TrendingUp, Zap, CalendarIcon } from 'lucide-react';
+import { Loader2, Check, Pencil, Trash2, Plus, DollarSign, Clock, TrendingUp, Zap, CalendarIcon, XCircle } from 'lucide-react';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
@@ -71,7 +71,7 @@ interface StoreOption {
 }
 
 export default function Commissions() {
-  const { user, isAdmin, profile } = useAuth();
+  const { user, isAdmin, isGestor, profile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
@@ -111,6 +111,8 @@ export default function Commissions() {
   const isFinanceiro = profile?.role === 'financeiro';
   const isSocio = profile?.role === 'socio';
   const canApprove = isAdmin || isFinanceiro || isSocio;
+  const canModifyOwn = (record: DailyRecord) =>
+    isGestor && record.user_id === user?.id && record.shopify_status === 'pending';
 
   useEffect(() => {
     fetchAll();
@@ -317,12 +319,13 @@ export default function Commissions() {
     if (managerData) {
       managerId = managerData.id;
     } else {
-      // Se não tem manager, criar um automaticamente para o usuário
+      // Se não tem manager, criar um automaticamente para o usuário.
+      // Não enviamos store_id: managers tem UNIQUE(user_id), uma única linha
+      // por usuário cobre todas as lojas em que ele atua.
       const { data: newManager, error: managerError } = await supabase
         .from('managers')
         .insert({
           user_id: user?.id,
-          store_id: recordForm.store_id,
           commission_percent: 0,
           commission_type: 'lucro',
           status: 'active',
@@ -412,6 +415,20 @@ export default function Commissions() {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: newStatus === 'received' ? 'Recebimento Shopify confirmado!' : 'Recebimento Shopify desmarcado' });
+      fetchDailyRecords();
+    }
+  };
+
+  const setShopifyStatus = async (id: string, newStatus: 'lost' | 'pending') => {
+    const { error } = await supabase
+      .from('daily_records')
+      .update({ shopify_status: newStatus })
+      .eq('id', id);
+
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: newStatus === 'lost' ? 'Lucro marcado como perdido' : 'Lucro reaberto como aguardando' });
       fetchDailyRecords();
     }
   };
@@ -847,7 +864,7 @@ export default function Commissions() {
                         <th>Loja</th>
                         <th className="text-right">Lucro</th>
                         <th>Status Shopify</th>
-                        {canApprove && <th>Ações</th>}
+                        {(canApprove || isGestor) && <th>Ações</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -865,13 +882,17 @@ export default function Commissions() {
                               <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                                 <Check className="w-3 h-3 mr-1" />Recebido
                               </Badge>
+                            ) : record.shopify_status === 'lost' ? (
+                              <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
+                                <XCircle className="w-3 h-3 mr-1" />Perdido
+                              </Badge>
                             ) : (
                               <Badge variant="outline" className="text-amber-500 border-amber-500/50">
                                 <Clock className="w-3 h-3 mr-1" />Aguardando
                               </Badge>
                             )}
                           </td>
-                          {canApprove && (
+                          {(canApprove || canModifyOwn(record)) && (
                             <td>
                               <div className="flex items-center gap-2">
                                 <Button
@@ -882,7 +903,40 @@ export default function Commissions() {
                                 >
                                   <Pencil className="w-4 h-4" />
                                 </Button>
-                                {(record.shopify_status === 'received' || record.shopify_status === 'confirmed') && (
+                                {canApprove && record.shopify_status === 'pending' && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-emerald-500 hover:text-emerald-400"
+                                      onClick={() => toggleShopifyPaid(record.id, record.shopify_status)}
+                                      title="Confirmar recebimento manualmente"
+                                    >
+                                      <Check className="w-4 h-4 mr-1" />Confirmar
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-red-500 hover:text-red-400"
+                                      onClick={() => setShopifyStatus(record.id, 'lost')}
+                                      title="Marcar como perdido"
+                                    >
+                                      <XCircle className="w-4 h-4 mr-1" />Perdido
+                                    </Button>
+                                  </>
+                                )}
+                                {canApprove && record.shopify_status === 'lost' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-muted-foreground hover:text-amber-500"
+                                    onClick={() => setShopifyStatus(record.id, 'pending')}
+                                    title="Reabrir como aguardando"
+                                  >
+                                    Reabrir
+                                  </Button>
+                                )}
+                                {canApprove && record.shopify_status !== 'pending' && record.shopify_status !== 'lost' && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
